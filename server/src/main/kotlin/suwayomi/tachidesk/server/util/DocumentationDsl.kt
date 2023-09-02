@@ -76,27 +76,13 @@ inline fun getDocumentation(
     noinline withResults: ResultsBuilder.() -> Unit,
     vararg params: Param<*>
 ): OpenApiDocumentation {
-    return OpenApiDocumentation().apply(documentWith).apply {
-        applyResults(withResults)
-        params.forEach {
-            when (it) {
-                is Param.FormParam -> formParam(it.key, it.clazz, !it.nullable && it.defaultValue == null)
-                is Param.PathParam -> pathParam(it.key, it.clazz)
-                is Param.QueryParam -> queryParam(it.key, it.clazz)
-                is Param.QueryParams<*, *> -> queryParam(it.key, it.clazz, isRepeatable = true)
-            }
-        }
-    }
+    return OpenApiDocumentation()
 }
 
 fun OpenApiDocumentation.applyResults(withResults: ResultsBuilder.() -> Unit) {
-    ResultsBuilder().apply(withResults).results.forEach {
-        it.applyTo(this)
-    }
 }
 
 fun OpenApiDocumentation.withOperation(block: Operation.() -> Unit) {
-    operation(block)
 }
 
 inline fun <reified T> formParam(key: String, defaultValue: T? = null): Param.FormParam<T> {
@@ -170,12 +156,12 @@ sealed class ResultType {
     abstract fun applyTo(documentation: OpenApiDocumentation)
     data class MimeType(val code: HttpCode, val mime: String, private val clazz: Class<*>) : ResultType() {
         override fun applyTo(documentation: OpenApiDocumentation) {
-            documentation.result(code.status.toString(), clazz, mime)
+            // documentation.result(code.status.toString(), clazz, mime)
         }
     }
     data class StatusCode(val code: HttpCode) : ResultType() {
         override fun applyTo(documentation: OpenApiDocumentation) {
-            documentation.result<Unit>(code.status.toString())
+            // documentation.result<Unit>(code.status.toString())
         }
     }
 }

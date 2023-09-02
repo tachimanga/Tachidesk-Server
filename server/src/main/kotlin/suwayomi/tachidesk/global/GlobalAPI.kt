@@ -7,9 +7,7 @@ package suwayomi.tachidesk.global
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import io.javalin.apibuilder.ApiBuilder.get
-import io.javalin.apibuilder.ApiBuilder.patch
-import io.javalin.apibuilder.ApiBuilder.path
+import io.javalin.apibuilder.ApiBuilder.*
 import suwayomi.tachidesk.global.controller.GlobalMetaController
 import suwayomi.tachidesk.global.controller.SettingsController
 
@@ -22,6 +20,9 @@ object GlobalAPI {
         path("settings") {
             get("about", SettingsController.about)
             get("check-update", SettingsController.checkUpdate)
+            post("uploadCookies", SettingsController.uploadCookies)
+            get("clearCookies", SettingsController.clearCookies)
+            get("uploadUserAgent", SettingsController.uploadUserAgent)
         }
     }
 }

@@ -7,6 +7,7 @@ package suwayomi.tachidesk.manga.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import com.jichao.tachiyomi.Profiler
 import io.javalin.http.HttpCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -75,7 +76,10 @@ object SourceController {
         behaviorOf = { ctx, sourceId, pageNum ->
             ctx.future(
                 future {
-                    MangaList.getMangaList(sourceId, pageNum, popular = true)
+                    Profiler.start()
+                    val r = MangaList.getMangaList(sourceId, pageNum, popular = true)
+                    Profiler.all()
+                    r
                 }
             )
         },
@@ -131,7 +135,7 @@ object SourceController {
                 summary("Source preference set")
                 description("Set one preference of source with id `sourceId`")
             }
-            body<SourcePreferenceChange>()
+            // body<SourcePreferenceChange>()
         },
         behaviorOf = { ctx, sourceId ->
             val preferenceChange = ctx.bodyAsClass(SourcePreferenceChange::class.java)
@@ -170,8 +174,8 @@ object SourceController {
                 summary("Source filters set")
                 description("Change filters of source with id `sourceId`")
             }
-            body<FilterChange>()
-            body<Array<FilterChange>>()
+            // body<FilterChange>()
+            // body<Array<FilterChange>>()
         },
         behaviorOf = { ctx, sourceId ->
             val filterChange = try {
@@ -215,7 +219,7 @@ object SourceController {
                 summary("Source manga quick search")
                 description("Returns list of manga from source matching posted searchTerm and filter")
             }
-            body<FilterData>()
+            // body<FilterData>()
         },
         behaviorOf = { ctx, sourceId, pageNum ->
             val filter = json.decodeFromString<FilterData>(ctx.body())

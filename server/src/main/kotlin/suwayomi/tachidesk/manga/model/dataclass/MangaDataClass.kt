@@ -20,6 +20,7 @@ data class MangaDataClass(
     val title: String,
     val thumbnailUrl: String? = null,
     val thumbnailUrlLastFetched: Long = 0,
+    val thumbnailImg: ImgDataClass? = null,
 
     val initialized: Boolean = false,
 
@@ -33,7 +34,7 @@ data class MangaDataClass(
     val source: SourceDataClass? = null,
 
     /** meta data for clients */
-    val meta: Map<String, String> = emptyMap(),
+    var meta: Map<String, String> = emptyMap(),
 
     val realUrl: String? = null,
     var lastFetchedAt: Long? = 0,

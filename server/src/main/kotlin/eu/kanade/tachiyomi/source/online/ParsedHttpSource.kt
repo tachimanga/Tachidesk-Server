@@ -150,8 +150,12 @@ abstract class ParsedHttpSource : HttpSource() {
      * @param response the response from the site.
      */
     override fun chapterListParse(response: Response): List<SChapter> {
+        println("chapterListParse...")
+        val s = System.currentTimeMillis()
         val document = response.asJsoup()
-        return document.select(chapterListSelector()).map { chapterFromElement(it) }
+        val r = document.select(chapterListSelector()).map { chapterFromElement(it) }
+        println("Profiler: chapterListParse cost:" + (System.currentTimeMillis() - s) + "ms")
+        return r
     }
 
     /**

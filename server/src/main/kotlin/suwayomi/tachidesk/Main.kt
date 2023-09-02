@@ -8,9 +8,18 @@ package suwayomi.tachidesk
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import suwayomi.tachidesk.server.JavalinSetup.javalinSetup
+import suwayomi.tachidesk.server.JavalinSetup.javalinStop
 import suwayomi.tachidesk.server.applicationSetup
 
 fun main() {
     applicationSetup()
     javalinSetup()
+}
+
+fun startServer() {
+    javalinSetup()
+}
+
+fun stopServer() {
+    javalinStop()
 }

@@ -7,7 +7,6 @@ package suwayomi.tachidesk.server.util
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import dorkbox.desktop.Desktop
 import suwayomi.tachidesk.server.serverConfig
 
 object Browser {
@@ -27,7 +26,7 @@ object Browser {
                 }
             } else {
                 try {
-                    Desktop.browseURL(appBaseUrl)
+                    // Desktop.browseURL(appBaseUrl)
                 } catch (e: Throwable) { // cover both java.lang.Exception and java.lang.Error
                     e.printStackTrace()
                 }

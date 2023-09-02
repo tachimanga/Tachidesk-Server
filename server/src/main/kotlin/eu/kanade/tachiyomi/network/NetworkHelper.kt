@@ -18,8 +18,6 @@ import android.content.Context
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import suwayomi.tachidesk.server.serverConfig
 import java.util.concurrent.TimeUnit
 
 @Suppress("UNUSED_PARAMETER")
@@ -41,13 +39,14 @@ class NetworkHelper(context: Context) {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .callTimeout(2, TimeUnit.MINUTES)
                 .addInterceptor(UserAgentInterceptor())
+                .eventListenerFactory(McLoggingEventListener.Factory())
 
-            if (serverConfig.debugLogsEnabled) {
-                val httpLoggingInterceptor = HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                }
-                builder.addInterceptor(httpLoggingInterceptor)
-            }
+//            if (serverConfig.debugLogsEnabled) {
+//                val httpLoggingInterceptor = HttpLoggingInterceptor().apply {
+//                    level = HttpLoggingInterceptor.Level.BASIC
+//                }
+//                builder.addInterceptor(httpLoggingInterceptor)
+//            }
 
 //            when (preferences.dohProvider()) {
 //                PREF_DOH_CLOUDFLARE -> builder.dohCloudflare()

@@ -11,10 +11,6 @@ import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.path
 import io.javalin.core.security.RouteRole
 import io.javalin.http.staticfiles.Location
-import io.javalin.plugin.openapi.OpenApiOptions
-import io.javalin.plugin.openapi.OpenApiPlugin
-import io.javalin.plugin.openapi.ui.SwaggerOptions
-import io.swagger.v3.oas.models.info.Info
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,7 +24,6 @@ import suwayomi.tachidesk.manga.MangaAPI
 import suwayomi.tachidesk.server.util.Browser
 import suwayomi.tachidesk.server.util.setupWebInterface
 import java.io.IOException
-import java.lang.IllegalArgumentException
 import java.util.concurrent.CompletableFuture
 import kotlin.concurrent.thread
 
@@ -38,6 +33,8 @@ object JavalinSetup {
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private var APP_INSTANCE: Javalin? = null
 
     fun <T> future(block: suspend CoroutineScope.() -> T): CompletableFuture<T> {
         return scope.future(block = block)
@@ -51,7 +48,6 @@ object JavalinSetup {
                 logger.info { "Serving web static files for ${serverConfig.webUIFlavor}" }
                 config.addStaticFiles(applicationDirs.webUIRoot, Location.EXTERNAL)
                 config.addSinglePageRoot("/", applicationDirs.webUIRoot + "/index.html", Location.EXTERNAL)
-                config.registerPlugin(OpenApiPlugin(getOpenApiOptions()))
             }
 
             config.enableCorsForAllOrigins()
@@ -76,6 +72,7 @@ object JavalinSetup {
                 }
             }
         }.start(serverConfig.ip, serverConfig.port)
+        APP_INSTANCE = app
 
         // when JVM is prompted to shutdown, stop javalin gracefully
         Runtime.getRuntime().addShutdownHook(
@@ -86,22 +83,33 @@ object JavalinSetup {
 
         app.exception(NullPointerException::class.java) { e, ctx ->
             logger.error("NullPointerException while handling the request", e)
-            ctx.status(404)
+            ctx.status(500)
+            ctx.result("Internal Server Error")
+            ctx.header("x-err-msg", "Internal Server Error (NullPointerException)")
         }
         app.exception(NoSuchElementException::class.java) { e, ctx ->
             logger.error("NoSuchElementException while handling the request", e)
-            ctx.status(404)
+            ctx.status(500)
+            ctx.result("Internal Server Error")
+            ctx.header("x-err-msg", "Internal Server Error (NoSuchElementException)")
         }
         app.exception(IOException::class.java) { e, ctx ->
             logger.error("IOException while handling the request", e)
             ctx.status(500)
             ctx.result(e.message ?: "Internal Server Error")
+            ctx.header("x-err-msg", e.message ?: "Internal Server Error (IOException)")
         }
-
         app.exception(IllegalArgumentException::class.java) { e, ctx ->
             logger.error("IllegalArgumentException while handling the request", e)
             ctx.status(400)
             ctx.result(e.message ?: "Bad Request")
+            ctx.header("x-err-msg", e.message ?: "Bad Request")
+        }
+        app.exception(Exception::class.java) { e, ctx ->
+            logger.error("Exception while handling the request", e)
+            ctx.status(500)
+            ctx.result(e.message ?: "Internal Server Error")
+            ctx.header("x-err-msg", e.message ?: "Internal Server Error")
         }
 
         app.routes {
@@ -110,21 +118,24 @@ object JavalinSetup {
                 MangaAPI.defineEndpoints()
             }
         }
+
+        app.before {
+            val t = System.currentTimeMillis()
+            it.attribute("ATTR_INVOKE_RT", t)
+            println("Profiler: --> in " + it.req.requestURI)
+        }
+
+        app.after {
+            val t = it.attribute<Long>("ATTR_INVOKE_RT") ?: 0
+            println("Profiler: <-- out " + it.req.requestURI + ", cost " + (System.currentTimeMillis() - t) + "ms")
+        }
     }
 
-    private fun getOpenApiOptions(): OpenApiOptions {
-        val applicationInfo = Info().apply {
-            version("1.0")
-            description("Tachidesk Api")
-        }
-        return OpenApiOptions(applicationInfo).apply {
-            path("/api/openapi.json")
-            swagger(
-                SwaggerOptions("/api/swagger-ui").apply {
-                    title("Tachidesk Swagger Documentation")
-                }
-            )
-        }
+    fun javalinStop() {
+        println("javalinStop...")
+        APP_INSTANCE?.stop()
+        APP_INSTANCE = null
+        println("javalinStop done")
     }
 
     object Auth {

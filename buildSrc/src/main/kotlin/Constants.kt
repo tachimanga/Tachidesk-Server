@@ -15,17 +15,5 @@ val tachideskVersion = System.getenv("ProductVersion") ?: "v0.7.0"
 val webUIRevisionTag = System.getenv("WebUIRevision") ?: "r983"
 
 // counts commits on the master branch
-val tachideskRevision = runCatching {
-    System.getenv("ProductRevision") ?: ProcessBuilder()
-        .command("git", "rev-list", "HEAD", "--count")
-        .start()
-        .let { process ->
-            process.waitFor()
-            val output = process.inputStream.use {
-                it.bufferedReader().use(BufferedReader::readText)
-            }
-            process.destroy()
-            "r" + output.trim()
-        }
-}.getOrDefault("r0")
+val tachideskRevision = "r0"
 

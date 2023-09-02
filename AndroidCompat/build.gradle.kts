@@ -26,7 +26,7 @@ dependencies {
     compileOnly(libs.android.annotations)
 
     // substitute for duktape-android
-    implementation(libs.bundles.rhino)
+//    implementation(libs.bundles.rhino)
 
     // Kotlin wrapper around Java Preferences, makes certain things easier
     implementation(libs.bundles.settings)

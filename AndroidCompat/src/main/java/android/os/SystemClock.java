@@ -17,7 +17,7 @@ package android.os;
 
 import android.annotation.NonNull;
 
-import java.lang.management.ManagementFactory;
+//import java.lang.management.ManagementFactory;
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
@@ -95,7 +95,7 @@ import java.time.ZoneOffset;
  */
 public final class SystemClock {
     private static final String TAG = "SystemClock";
-
+    private static final long BOOT_START = System.currentTimeMillis();
     /**
      * This class is uninstantiable.
      */
@@ -149,7 +149,8 @@ public final class SystemClock {
      * @return milliseconds of non-sleep uptime since boot.
      */
     public static long uptimeMillis() {
-        return ManagementFactory.getRuntimeMXBean().getUptime();
+        //return ManagementFactory.getRuntimeMXBean().getUptime();
+        return System.currentTimeMillis() - BOOT_START;
     }
 
     /**

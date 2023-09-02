@@ -40,7 +40,7 @@ okio = "com.squareup.okio:okio:3.3.0"
 
 # Javalin api
 javalin-core = { module = "io.javalin:javalin", version.ref = "javalin" }
-javalin-openapi = { module = "io.javalin:javalin-openapi", version.ref = "javalin" }
+#javalin-openapi = { module = "io.javalin:javalin-openapi", version.ref = "javalin" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
@@ -179,7 +179,7 @@ okhttp = [
 ]
 javalin = [
     "javalin-core",
-    "javalin-openapi",
+#    "javalin-openapi",
 ]
 jackson = [
     "jackson-databind",

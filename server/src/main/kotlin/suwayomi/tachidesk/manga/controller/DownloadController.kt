@@ -119,7 +119,7 @@ object DownloadController {
                 summary("Downloader add multiple chapters")
                 description("Queue multiple chapters for download")
             }
-            body<EnqueueInput>()
+            // body<EnqueueInput>()
         },
         behaviorOf = { ctx ->
             val inputs = json.decodeFromString<EnqueueInput>(ctx.body())
@@ -141,7 +141,7 @@ object DownloadController {
                 summary("Downloader remove multiple downloads")
                 description("Remove multiple chapters downloads from queue")
             }
-            body<EnqueueInput>()
+            // body<EnqueueInput>()
         },
         behaviorOf = { ctx ->
             val input = json.decodeFromString<EnqueueInput>(ctx.body())

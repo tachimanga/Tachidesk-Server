@@ -26,6 +26,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import mu.KotlinLogging
+import okio.buffer
+import okio.sink
+import okio.source
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
@@ -118,6 +121,26 @@ class LocalSource : CatalogueSource {
             }
 
             registerCatalogueSource(ID to LocalSource())
+        }
+
+        suspend fun install(inputStream: InputStream, fileName: String): Int {
+            val lastIndex = fileName.lastIndexOf('.')
+            val dir = if (lastIndex != -1) {
+                fileName.substring(0, lastIndex)
+            } else {
+                fileName
+            }
+
+            val dirFile = File("${applicationDirs.localMangaRoot}/$dir")
+            dirFile.mkdirs()
+            val file = File("${applicationDirs.localMangaRoot}/$dir/$fileName")
+            file.sink().buffer().use { sink ->
+                inputStream.source().use { source ->
+                    sink.writeAll(source)
+                    sink.flush()
+                }
+            }
+            return 200
         }
     }
 
@@ -358,7 +381,12 @@ class LocalSource : CatalogueSource {
                 ZipFile(format.file).use { zip ->
                     val entry = zip.entries().toList()
                         .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
-                        .find { !it.isDirectory && ImageUtil.isImage(it.name) { zip.getInputStream(it) } }
+                        .find {
+                            !it.isDirectory &&
+                                !it.name.endsWith(".DS_Store") &&
+                                !it.name.startsWith("__MACOSX/") &&
+                                ImageUtil.isImage(it.name) { zip.getInputStream(it) }
+                        }
 
                     entry?.let { updateCover(manga, zip.getInputStream(it)) }
                 }

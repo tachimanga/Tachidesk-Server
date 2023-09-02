@@ -14,6 +14,8 @@ data class SourceDataClass(
     val name: String,
     val lang: String,
     val iconUrl: String,
+    val baseUrl: String? = null,
+    val extPkgName: String,
 
     /** The Source provides a latest listing */
     val supportsLatest: Boolean,

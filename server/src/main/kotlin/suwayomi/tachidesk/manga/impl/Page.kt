@@ -48,7 +48,7 @@ object Page {
             }.first()
         }
         val chapterId = chapterEntry[ChapterTable.id].value
-
+        // TODO: why not select by index?
         val pageEntry =
             transaction {
                 PageTable.select { (PageTable.chapter eq chapterId) }

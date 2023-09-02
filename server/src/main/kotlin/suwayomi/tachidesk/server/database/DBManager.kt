@@ -12,6 +12,7 @@ import de.neonew.exposed.migrations.runMigrations
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.DatabaseConfig
+import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -22,11 +23,21 @@ object DBManager {
 
     val db by lazy {
         val applicationDirs by DI.global.instance<ApplicationDirs>()
+//        Database.connect(
+//            "jdbc:h2:${applicationDirs.dataRoot}/database",
+//            "org.h2.Driver",
+//            databaseConfig = DatabaseConfig {
+//                useNestedTransactions = true
+//                sqlLogger = StdOutSqlLogger
+//            }
+//        )
         Database.connect(
-            "jdbc:h2:${applicationDirs.dataRoot}/database",
-            "org.h2.Driver",
+            "jdbc:sqlite:${applicationDirs.dataRoot}/sqlite8.db?transaction_mode=IMMEDIATE",
+            "org.sqlite.JDBC",
             databaseConfig = DatabaseConfig {
-                useNestedTransactions = true
+                useNestedTransactions = false
+                sqlLogger = StdOutSqlLogger
+                // warnLongQueriesDuration = 1 //<logger name="Exposed" level="INFO"/>
             }
         )
     }
@@ -41,5 +52,6 @@ fun databaseUp(db: Database = DBManager.db) {
     }
 
     val migrations = loadMigrationsFrom("suwayomi.tachidesk.server.database.migration", ServerConfig::class.java)
+    // val migrations = arrayListOf<Migration>(M0001_Initial())
     runMigrations(migrations)
 }
