@@ -15,6 +15,7 @@ import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
+import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
 
 object ExtensionController {
@@ -22,16 +23,17 @@ object ExtensionController {
 
     /** list all extensions */
     val list = handler(
+        queryParam<String>("repoUrl", ""),
         documentWith = {
             withOperation {
                 summary("Extension list")
                 description("List all extensions")
             }
         },
-        behaviorOf = { ctx ->
+        behaviorOf = { ctx, repoUrl ->
             ctx.future(
                 future {
-                    ExtensionsList.getExtensionList()
+                    ExtensionsList.getExtensionList(repoUrl)
                 }
             )
         },
@@ -70,10 +72,10 @@ object ExtensionController {
                 summary("Extension install apk")
                 description("Install the uploaded apk file")
             }
-            uploadedFile("file") {
-                it.description("Extension apk")
-                it.required(true)
-            }
+//            uploadedFile("file") {
+//                it.description("Extension apk")
+//                it.required(true)
+//            }
         },
         behaviorOf = { ctx ->
             val uploadedFile = ctx.uploadedFile("file")!!

@@ -7,17 +7,20 @@ package suwayomi.tachidesk.manga.impl
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
+import eu.kanade.tachiyomi.source.sourceSupportDirect
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import suwayomi.tachidesk.manga.impl.Manga.getMangaMetaMap
+import org.tachiyomi.Profiler
+import suwayomi.tachidesk.manga.impl.Manga.batchGetMangaMetaMap
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
+import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceMeta
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
-import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
-import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
+import suwayomi.tachidesk.manga.model.dataclass.*
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
 import suwayomi.tachidesk.manga.model.table.MangaStatus
 import suwayomi.tachidesk.manga.model.table.MangaTable
@@ -25,6 +28,17 @@ import suwayomi.tachidesk.manga.model.table.MangaTable
 object MangaList {
     fun proxyThumbnailUrl(mangaId: Int): String {
         return "/api/v1/manga/$mangaId/thumbnail"
+    }
+
+    fun buildThumbnailImg(thumbnail_url: String?, meta: SourceMeta?): ImgDataClass? {
+        if (thumbnail_url == null) {
+            return null
+        }
+        val direct = sourceSupportDirect(meta)
+        if (direct) {
+            return buildImgDataClass(url = thumbnail_url, headers = meta?.headers)
+        }
+        return null
     }
 
     suspend fun getMangaList(sourceId: Long, pageNum: Int = 1, popular: Boolean): PagedMangaListDataClass {
@@ -41,10 +55,14 @@ object MangaList {
                 throw Exception("Source $source doesn't support latest")
             }
         }
+        Profiler.split("before processEntries")
         return mangasPage.processEntries(sourceId)
     }
 
     fun MangasPage.processEntries(sourceId: Long): PagedMangaListDataClass {
+        val source = getCatalogueSourceOrStub(sourceId)
+        val meta = getCatalogueSourceMeta(source)
+
         val mangasPage = this
         val mangaList = transaction {
             return@transaction mangasPage.mangas.map { manga ->
@@ -79,6 +97,7 @@ object MangaList {
                         title = manga.title,
                         thumbnailUrl = proxyThumbnailUrl(mangaId),
                         thumbnailUrlLastFetched = mangaEntry[MangaTable.thumbnailUrlLastFetched],
+                        thumbnailImg = buildThumbnailImg(manga.thumbnail_url, meta),
 
                         initialized = manga.initialized,
 
@@ -89,7 +108,7 @@ object MangaList {
                         status = MangaStatus.valueOf(manga.status).name,
                         inLibrary = false, // It's a new manga entry
                         inLibraryAt = 0,
-                        meta = getMangaMetaMap(mangaId),
+                        // meta = getMangaMetaMap(mangaId),
                         realUrl = mangaEntry[MangaTable.realUrl],
                         lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
                         chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
@@ -106,6 +125,7 @@ object MangaList {
                         title = manga.title,
                         thumbnailUrl = proxyThumbnailUrl(mangaId),
                         thumbnailUrlLastFetched = mangaEntry[MangaTable.thumbnailUrlLastFetched],
+                        thumbnailImg = buildThumbnailImg(manga.thumbnail_url, meta),
 
                         initialized = true,
 
@@ -116,7 +136,7 @@ object MangaList {
                         status = MangaStatus.valueOf(mangaEntry[MangaTable.status]).name,
                         inLibrary = mangaEntry[MangaTable.inLibrary],
                         inLibraryAt = mangaEntry[MangaTable.inLibraryAt],
-                        meta = getMangaMetaMap(mangaId),
+                        // meta = getMangaMetaMap(mangaId),
                         realUrl = mangaEntry[MangaTable.realUrl],
                         lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
                         chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
@@ -126,6 +146,12 @@ object MangaList {
                 }
             }
         }
+        Profiler.split("before metaMap")
+        val metaMap = batchGetMangaMetaMap(mangaList.map { it.id })
+        mangaList.forEach {
+            it.meta = metaMap.getOrDefault(it.id, emptyMap())
+        }
+        Profiler.split("after metaMap")
         return PagedMangaListDataClass(
             mangaList,
             mangasPage.hasNextPage

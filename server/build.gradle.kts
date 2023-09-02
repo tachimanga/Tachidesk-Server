@@ -26,19 +26,21 @@ dependencies {
 
     // Exposed ORM
     implementation(libs.bundles.exposed)
-    implementation(libs.h2)
+//    implementation(libs.h2)
+    implementation(files("../libs/sqlite-jdbc-ios-3.41.0.0.jar"))
+    compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
     // Exposed Migrations
     implementation(libs.exposed.migrations)
 
-    // tray icon
-    implementation(libs.bundles.systemtray)
+//    // tray icon
+//    implementation(libs.bundles.systemtray)
 
     // dependencies of Tachiyomi extensions, some are duplicate, keeping it here for reference
     implementation(libs.injekt)
     implementation(libs.okhttp.core)
     implementation(libs.rxjava)
-    implementation(libs.jsoup)
+//    implementation(libs.jsoup)
 
     // Sort
     implementation(libs.sort)
@@ -50,8 +52,8 @@ dependencies {
     implementation(libs.zip4j)
     implementation(libs.junrar)
 
-    // CloudflareInterceptor
-    implementation(libs.playwright)
+//    // CloudflareInterceptor
+//    implementation(libs.playwright)
 
     // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
     implementation(libs.bouncycastle)

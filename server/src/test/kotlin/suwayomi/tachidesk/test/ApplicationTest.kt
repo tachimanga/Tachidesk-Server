@@ -26,7 +26,6 @@ import suwayomi.tachidesk.server.ServerConfig
 import suwayomi.tachidesk.server.androidCompat
 import suwayomi.tachidesk.server.database.databaseUp
 import suwayomi.tachidesk.server.serverConfig
-import suwayomi.tachidesk.server.systemTrayInstance
 import suwayomi.tachidesk.server.util.AppMutex
 import xyz.nulldev.androidcompat.AndroidCompatInitializer
 import xyz.nulldev.ts.config.CONFIG_PREFIX
@@ -127,7 +126,6 @@ open class ApplicationTest {
             // create system tray
             if (serverConfig.systemTrayEnabled) {
                 try {
-                    systemTrayInstance
                 } catch (e: Throwable) { // cover both java.lang.Exception and java.lang.Error
                     e.printStackTrace()
                 }

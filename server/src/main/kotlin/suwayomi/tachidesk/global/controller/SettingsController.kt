@@ -7,11 +7,19 @@ package suwayomi.tachidesk.global.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import eu.kanade.tachiyomi.source.online.HttpSource
 import io.javalin.http.HttpCode
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import mu.KotlinLogging
+import org.kodein.di.DI
+import org.kodein.di.conf.global
+import org.kodein.di.instance
 import suwayomi.tachidesk.global.impl.About
 import suwayomi.tachidesk.global.impl.AboutDataClass
 import suwayomi.tachidesk.global.impl.AppUpdate
 import suwayomi.tachidesk.global.impl.UpdateDataClass
+import suwayomi.tachidesk.manga.impl.Setting
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.withOperation
@@ -49,6 +57,42 @@ object SettingsController {
         },
         withResults = {
             json<Array<UpdateDataClass>>(HttpCode.OK)
+        }
+    )
+
+    private val json by DI.global.instance<Json>()
+    private val logger = KotlinLogging.logger {}
+
+    val uploadCookies = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<Setting.CookieData>(ctx.body())
+            logger.info { "uploadCookies: $input" }
+            Setting.uploadCookies(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val clearCookies = handler(
+        behaviorOf = { ctx ->
+            Setting.clearCookies()
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val uploadUserAgent = handler(
+        behaviorOf = { ctx ->
+            val ua = ctx.header("User-Agent")
+            logger.info { "uploadUserAgent: $ua" }
+            if (ua != null) {
+                HttpSource.DEFAULT_USER_AGENT = ua
+            }
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
         }
     )
 }

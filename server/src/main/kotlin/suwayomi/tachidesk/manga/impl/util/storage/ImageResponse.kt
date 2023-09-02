@@ -9,6 +9,7 @@ package suwayomi.tachidesk.manga.impl.util.storage
 
 import okhttp3.Response
 import okhttp3.internal.closeQuietly
+import org.tachiyomi.Profiler
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -39,7 +40,6 @@ object ImageResponse {
      */
     suspend fun getCachedImageResponse(saveDir: String, fileName: String, fetcher: suspend () -> Response): Pair<InputStream, String> {
         File(saveDir).mkdirs()
-
         val cachedFile = findFileNameStartingWith(saveDir, fileName)
         val filePath = "$saveDir/$fileName"
         if (cachedFile != null) {
@@ -49,11 +49,12 @@ object ImageResponse {
                 "image/$fileType"
             )
         }
-
+        Profiler.split("before get img")
         val response = fetcher()
-
+        Profiler.split("get img")
         if (response.code == 200) {
             val (actualSavePath, imageType) = saveImage(filePath, response.body!!.byteStream())
+            Profiler.split("save img")
             return pathToInputStream(actualSavePath) to imageType
         } else {
             response.closeQuietly()
@@ -65,7 +66,9 @@ object ImageResponse {
     fun saveImage(filePath: String, image: InputStream): Pair<String, String> {
         val tmpSavePath = "$filePath.tmp"
         val tmpSaveFile = File(tmpSavePath)
+
         image.use { input -> tmpSaveFile.outputStream().use { output -> input.copyTo(output) } }
+        Profiler.split("save file")
 
         // find image type
         val imageType = ImageUtil.findImageType { tmpSaveFile.inputStream() }?.mime

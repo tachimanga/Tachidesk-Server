@@ -12,6 +12,8 @@ import android.content.Context
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.getPreferenceKey
+import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.source.sourceSupportDirect
 import io.javalin.plugin.json.JsonMapper
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.select
@@ -21,6 +23,7 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.extension.Extension.getExtensionIconUrl
+import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.unregisterCatalogueSource
@@ -36,19 +39,30 @@ object Source {
 
     fun getSourceList(): List<SourceDataClass> {
         return transaction {
+            val dbExtensionMap = ExtensionTable.selectAll()
+                .associateBy { it[ExtensionTable.id] }
+            var limit = 0
             SourceTable.selectAll().mapNotNull {
                 val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
-                val sourceExtension = ExtensionTable.select { ExtensionTable.id eq it[SourceTable.extension] }.first()
-
+                // val sourceExtension = ExtensionTable.select { ExtensionTable.id eq it[SourceTable.extension] }.first()
+                val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
+                val meta = if (limit++ < 30) {
+                    GetCatalogueSource.getCatalogueSourceMeta(catalogueSource)
+                } else {
+                    GetCatalogueSource.getCatalogueSourceMetaCache(catalogueSource)
+                }
+                val direct = sourceSupportDirect(meta)
                 SourceDataClass(
                     it[SourceTable.id].value.toString(),
                     it[SourceTable.name],
                     it[SourceTable.lang],
-                    getExtensionIconUrl(sourceExtension[ExtensionTable.apkName]),
+                    if (sourceExtension != null) getExtensionIconUrl(sourceExtension[ExtensionTable.apkName], sourceExtension[ExtensionTable.iconUrl]) else "",
+                    if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+                    if (sourceExtension != null) sourceExtension[ExtensionTable.pkgName] else "",
                     catalogueSource.supportsLatest,
                     catalogueSource is ConfigurableSource,
                     it[SourceTable.isNsfw],
-                    catalogueSource.toString()
+                    catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
                 )
             }
         }
@@ -59,18 +73,19 @@ object Source {
             val source = SourceTable.select { SourceTable.id eq sourceId }.firstOrNull() ?: return@transaction null
             val catalogueSource = getCatalogueSourceOrNull(sourceId) ?: return@transaction null
             val extension = ExtensionTable.select { ExtensionTable.id eq source[SourceTable.extension] }.first()
-
+            val meta = GetCatalogueSource.getCatalogueSourceMeta(catalogueSource)
+            val direct = sourceSupportDirect(meta)
             SourceDataClass(
                 sourceId.toString(),
                 source[SourceTable.name],
                 source[SourceTable.lang],
-                getExtensionIconUrl(
-                    extension[ExtensionTable.apkName]
-                ),
+                getExtensionIconUrl(extension[ExtensionTable.apkName], extension[ExtensionTable.iconUrl]),
+                if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+                extension[ExtensionTable.pkgName],
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
                 source[SourceTable.isNsfw],
-                catalogueSource.toString()
+                catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
             )
         }
     }

@@ -9,12 +9,15 @@ package suwayomi.tachidesk.manga.impl
 
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -23,10 +26,12 @@ import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import suwayomi.tachidesk.manga.impl.MangaList.buildThumbnailImg
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.impl.Source.getSource
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.network.await
+import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.StubSource
@@ -36,11 +41,7 @@ import suwayomi.tachidesk.manga.impl.util.storage.ImageUtil
 import suwayomi.tachidesk.manga.impl.util.updateMangaDownloadDir
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
-import suwayomi.tachidesk.manga.model.table.ChapterTable
-import suwayomi.tachidesk.manga.model.table.MangaMetaTable
-import suwayomi.tachidesk.manga.model.table.MangaStatus
-import suwayomi.tachidesk.manga.model.table.MangaTable
-import suwayomi.tachidesk.manga.model.table.toDataClass
+import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.io.File
@@ -59,12 +60,18 @@ object Manga {
 
     suspend fun getManga(mangaId: Int, onlineFetch: Boolean = false): MangaDataClass {
         var mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
-
+        val source = getCatalogueSourceOrNull(mangaEntry[MangaTable.sourceReference])
+        val meta = if (source != null) {
+            GetCatalogueSource.getCatalogueSourceMeta(source)
+        } else {
+            null
+        }
         return if (mangaEntry[MangaTable.initialized] && !onlineFetch) {
-            getMangaDataClass(mangaId, mangaEntry)
+            getMangaDataClass(mangaId, mangaEntry, meta)
         } else { // initialize manga
-            val source = getCatalogueSourceOrNull(mangaEntry[MangaTable.sourceReference])
-                ?: return getMangaDataClass(mangaId, mangaEntry)
+            if (source == null) {
+                return getMangaDataClass(mangaId, mangaEntry, meta)
+            }
             val sManga = SManga.create().apply {
                 url = mangaEntry[MangaTable.url]
                 title = mangaEntry[MangaTable.title]
@@ -114,6 +121,7 @@ object Manga {
                 title = mangaEntry[MangaTable.title],
                 thumbnailUrl = proxyThumbnailUrl(mangaId),
                 thumbnailUrlLastFetched = mangaEntry[MangaTable.thumbnailUrlLastFetched],
+                thumbnailImg = buildThumbnailImg(mangaEntry[MangaTable.thumbnail_url], meta),
 
                 initialized = true,
 
@@ -169,7 +177,7 @@ object Manga {
         }
     }
 
-    private fun getMangaDataClass(mangaId: Int, mangaEntry: ResultRow) = MangaDataClass(
+    private fun getMangaDataClass(mangaId: Int, mangaEntry: ResultRow, meta: SourceMeta?) = MangaDataClass(
         id = mangaId,
         sourceId = mangaEntry[MangaTable.sourceReference].toString(),
 
@@ -177,6 +185,7 @@ object Manga {
         title = mangaEntry[MangaTable.title],
         thumbnailUrl = proxyThumbnailUrl(mangaId),
         thumbnailUrlLastFetched = mangaEntry[MangaTable.thumbnailUrlLastFetched],
+        thumbnailImg = buildThumbnailImg(mangaEntry[MangaTable.thumbnail_url], meta),
 
         initialized = true,
 
@@ -201,6 +210,18 @@ object Manga {
             MangaMetaTable.select { MangaMetaTable.ref eq mangaId }
                 .associate { it[MangaMetaTable.key] to it[MangaMetaTable.value] }
         }
+    }
+
+    fun batchGetMangaMetaMap(mangaIds: List<Int>): Map<Int, Map<String, String>> {
+        val list = transaction {
+            MangaMetaTable.select { MangaMetaTable.ref inList mangaIds }
+                .toList()
+        }
+        val map = list.groupBy { it[MangaMetaTable.ref].value }
+            .mapValues { kv ->
+                kv.value.associate { it[MangaMetaTable.key] to it[MangaMetaTable.value] }
+            }
+        return map
     }
 
     fun modifyMangaMeta(mangaId: Int, key: String, value: String) {

@@ -99,7 +99,9 @@ object Category {
     const val DEFAULT_CATEGORY_ID = 0
     const val DEFAULT_CATEGORY_NAME = "Default"
     private fun addDefaultIfNecessary(categories: List<CategoryDataClass>): List<CategoryDataClass> =
-        if (MangaTable.select { (MangaTable.inLibrary eq true) and (MangaTable.defaultCategory eq true) }.isNotEmpty()) {
+        if (categories.isEmpty() ||
+            MangaTable.select { (MangaTable.inLibrary eq true) and (MangaTable.defaultCategory eq true) }.isNotEmpty()
+        ) {
             listOf(CategoryDataClass(DEFAULT_CATEGORY_ID, 0, DEFAULT_CATEGORY_NAME, true)) + categories
         } else {
             categories

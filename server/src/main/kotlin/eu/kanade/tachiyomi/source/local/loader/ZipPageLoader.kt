@@ -17,7 +17,12 @@ class ZipPageLoader(file: File) : PageLoader {
      */
     override fun getPages(): List<ReaderPage> {
         return zip.entries().toList()
-            .filter { !it.isDirectory && ImageUtil.isImage(it.name) { zip.getInputStream(it) } }
+            .filter {
+                !it.isDirectory &&
+                    !it.name.endsWith(".DS_Store") &&
+                    !it.name.startsWith("__MACOSX/") &&
+                    ImageUtil.isImage(it.name) { zip.getInputStream(it) }
+            }
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
             .mapIndexed { i, entry ->
                 val streamFn = { zip.getInputStream(entry) }

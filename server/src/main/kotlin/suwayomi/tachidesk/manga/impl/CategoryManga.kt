@@ -65,10 +65,10 @@ object CategoryManga {
      */
     fun getCategoryMangaList(categoryId: Int): List<MangaDataClass> {
         // Select the required columns from the MangaTable and add the aggregate functions to compute unread, download, and chapter counts
-        val unreadCount = wrapAsExpression<Long>(
+        val unreadCount = wrapAsExpression<Int>(
             ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isRead eq false) and (ChapterTable.manga eq MangaTable.id))
         )
-        val downloadedCount = wrapAsExpression<Long>(
+        val downloadedCount = wrapAsExpression<Int>(
             ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isDownloaded eq true) and (ChapterTable.manga eq MangaTable.id))
         )
 
@@ -80,8 +80,8 @@ object CategoryManga {
             // Map the data from the result row to the MangaDataClass
             val dataClass = MangaTable.toDataClass(it)
             dataClass.lastReadAt = it[lastReadAt]
-            dataClass.unreadCount = it[unreadCount]
-            dataClass.downloadCount = it[downloadedCount]
+            dataClass.unreadCount = it[unreadCount]?.toLong()
+            dataClass.downloadCount = it[downloadedCount]?.toLong()
             dataClass.chapterCount = it[chapterCount]
             dataClass
         }

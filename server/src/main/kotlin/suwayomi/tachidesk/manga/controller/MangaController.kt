@@ -7,18 +7,21 @@ package suwayomi.tachidesk.manga.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import eu.kanade.tachiyomi.source.local.LocalSource
 import io.javalin.http.HttpCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import mu.KotlinLogging
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.CategoryManga
 import suwayomi.tachidesk.manga.impl.Chapter
 import suwayomi.tachidesk.manga.impl.Library
 import suwayomi.tachidesk.manga.impl.Manga
 import suwayomi.tachidesk.manga.impl.Page
-import suwayomi.tachidesk.manga.impl.chapter.getChapterDownloadReady
+import suwayomi.tachidesk.manga.impl.chapter.getChapterReadReady
 import suwayomi.tachidesk.manga.model.dataclass.CategoryDataClass
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
@@ -32,6 +35,7 @@ import kotlin.time.Duration.Companion.days
 
 object MangaController {
     private val json by DI.global.instance<Json>()
+    private val logger = KotlinLogging.logger {}
 
     val retrieve = handler(
         pathParam<Int>("mangaId"),
@@ -231,7 +235,36 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, onlineFetch ->
-            ctx.future(future { Chapter.getChapterList(mangaId, onlineFetch) })
+            ctx.future(
+                future {
+                    Profiler.start()
+                    val r = Chapter.getChapterList(mangaId, onlineFetch)
+                    Profiler.all()
+                    r
+                }
+            )
+        },
+        withResults = {
+            json<Array<ChapterDataClass>>(HttpCode.OK)
+            httpCode(HttpCode.NOT_FOUND)
+        }
+    )
+
+    val delchapterList = handler(
+        pathParam<Int>("mangaId"),
+        queryParam("onlineFetch", false),
+        documentWith = {
+            withOperation {
+                summary("Get manga chapter list")
+                description("Get the manga chapter list from the database or online. If there is no chapters in the database it fetches the chapters online. Use onlineFetch to update chapter list.")
+            }
+        },
+        behaviorOf = { ctx, mangaId, onlineFetch ->
+            ctx.future(
+                future {
+                    Chapter.delgetChapterList(mangaId, onlineFetch)
+                }
+            )
         },
         withResults = {
             json<Array<ChapterDataClass>>(HttpCode.OK)
@@ -247,7 +280,7 @@ object MangaController {
                 summary("Chapters update multiple")
                 description("Update multiple chapters of single manga. For batch marking as read, or bookmarking")
             }
-            body<Chapter.MangaChapterBatchEditInput>()
+            // body<Chapter.MangaChapterBatchEditInput>()
         },
         behaviorOf = { ctx, mangaId ->
             val input = json.decodeFromString<Chapter.MangaChapterBatchEditInput>(ctx.body())
@@ -265,7 +298,7 @@ object MangaController {
                 summary("Chapters update multiple")
                 description("Update multiple chapters on any manga. For batch marking as read, or bookmarking")
             }
-            body<Chapter.ChapterBatchEditInput>()
+            // body<Chapter.ChapterBatchEditInput>()
         },
         behaviorOf = { ctx ->
             val input = json.decodeFromString<Chapter.ChapterBatchEditInput>(ctx.body())
@@ -293,7 +326,14 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, chapterIndex ->
-            ctx.future(future { getChapterDownloadReady(chapterIndex, mangaId) })
+            ctx.future(
+                future {
+                    Profiler.start()
+                    val r = getChapterReadReady(chapterIndex, mangaId)
+                    Profiler.all()
+                    r
+                }
+            )
         },
         withResults = {
             json<ChapterDataClass>(HttpCode.OK)
@@ -369,7 +409,6 @@ object MangaController {
         }
     )
 
-    /** get page at index "index" */
     val pageRetrieve = handler(
         pathParam<Int>("mangaId"),
         pathParam<Int>("chapterIndex"),
@@ -382,7 +421,12 @@ object MangaController {
         },
         behaviorOf = { ctx, mangaId, chapterIndex, index ->
             ctx.future(
-                future { Page.getPageImage(mangaId, chapterIndex, index) }
+                future {
+                    Profiler.start()
+                    val r = Page.getPageImage(mangaId, chapterIndex, index)
+                    Profiler.all()
+                    r
+                }
                     .thenApply {
                         ctx.header("content-type", it.second)
                         val httpCacheSeconds = 1.days.inWholeSeconds
@@ -394,6 +438,30 @@ object MangaController {
         withResults = {
             image(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
+        }
+    )
+
+    val installFile = handler(
+        documentWith = {
+            withOperation {
+                summary("Extension install apk")
+                description("Install the uploaded apk file")
+            }
+        },
+        behaviorOf = { ctx ->
+            val uploadedFile = ctx.uploadedFile("file")!!
+            logger.debug { "Uploaded manga file name: " + uploadedFile.filename }
+
+            ctx.future(
+                future {
+                    LocalSource.install(uploadedFile.content, uploadedFile.filename)
+                }
+            )
+        },
+        withResults = {
+            httpCode(HttpCode.CREATED)
+            httpCode(HttpCode.FOUND)
+            httpCode(HttpCode.INTERNAL_SERVER_ERROR)
         }
     )
 }

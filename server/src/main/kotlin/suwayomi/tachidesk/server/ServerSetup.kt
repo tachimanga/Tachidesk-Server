@@ -22,8 +22,6 @@ import suwayomi.tachidesk.manga.impl.update.IUpdater
 import suwayomi.tachidesk.manga.impl.update.Updater
 import suwayomi.tachidesk.manga.impl.util.lang.renameTo
 import suwayomi.tachidesk.server.database.databaseUp
-import suwayomi.tachidesk.server.util.AppMutex.handleAppMutex
-import suwayomi.tachidesk.server.util.SystemTray.systemTray
 import xyz.nulldev.androidcompat.AndroidCompat
 import xyz.nulldev.androidcompat.AndroidCompatInitializer
 import xyz.nulldev.ts.config.ApplicationRootDir
@@ -50,8 +48,6 @@ class ApplicationDirs(
 }
 
 val serverConfig: ServerConfig by lazy { GlobalConfigManager.module() }
-
-val systemTrayInstance by lazy { systemTray() }
 
 val androidCompat by lazy { AndroidCompat() }
 
@@ -95,7 +91,7 @@ fun applicationSetup() {
     }
 
     // Make sure only one instance of the app is running
-    handleAppMutex()
+    // handleAppMutex()
 
     // Load config API
     DI.global.addImport(ConfigKodeinModule().create())
@@ -132,6 +128,27 @@ fun applicationSetup() {
         logger.error("Exception while copying Local source's icon", e)
     }
 
+    try {
+        val list = listOf(
+            "Top to bottom",
+            "Left to right",
+            "Right to left"
+        )
+        for (n in list) {
+            val file = File("${applicationDirs.localMangaRoot}/$n/$n.zip")
+            if (!file.exists()) {
+                File("${applicationDirs.localMangaRoot}/$n").mkdirs()
+                JavalinSetup::class.java.getResourceAsStream("/demo/$n.zip").use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+        }
+    } catch (e: Exception) {
+        logger.error("Exception while copying demo manga", e)
+    }
+
     // fixes #119 , ref: https://github.com/Suwayomi/Tachidesk-Server/issues/119#issuecomment-894681292 , source Id calculation depends on String.lowercase()
     Locale.setDefault(Locale.ENGLISH)
 
@@ -141,11 +158,6 @@ fun applicationSetup() {
 
     // create system tray
     if (serverConfig.systemTrayEnabled) {
-        try {
-            systemTrayInstance
-        } catch (e: Throwable) { // cover both java.lang.Exception and java.lang.Error
-            e.printStackTrace()
-        }
     }
 
     // Disable jetty's logging

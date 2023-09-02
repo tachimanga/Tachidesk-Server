@@ -14,13 +14,7 @@ import io.javalin.apibuilder.ApiBuilder.path
 import io.javalin.apibuilder.ApiBuilder.post
 import io.javalin.apibuilder.ApiBuilder.put
 import io.javalin.apibuilder.ApiBuilder.ws
-import suwayomi.tachidesk.manga.controller.BackupController
-import suwayomi.tachidesk.manga.controller.CategoryController
-import suwayomi.tachidesk.manga.controller.DownloadController
-import suwayomi.tachidesk.manga.controller.ExtensionController
-import suwayomi.tachidesk.manga.controller.MangaController
-import suwayomi.tachidesk.manga.controller.SourceController
-import suwayomi.tachidesk.manga.controller.UpdateController
+import suwayomi.tachidesk.manga.controller.*
 
 object MangaAPI {
     fun defineEndpoints() {
@@ -68,6 +62,7 @@ object MangaAPI {
             patch("{mangaId}/meta", MangaController.meta)
 
             get("{mangaId}/chapters", MangaController.chapterList)
+            get("{mangaId}/delchapters", MangaController.delchapterList)
             post("{mangaId}/chapter/batch", MangaController.chapterBatch)
             get("{mangaId}/chapter/{chapterIndex}", MangaController.chapterRetrieve)
             patch("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
@@ -75,8 +70,13 @@ object MangaAPI {
             delete("{mangaId}/chapter/{chapterIndex}", MangaController.chapterDelete)
 
             patch("{mangaId}/chapter/{chapterIndex}/meta", MangaController.chapterMeta)
-
             get("{mangaId}/chapter/{chapterIndex}/page/{index}", MangaController.pageRetrieve)
+
+            post("install", MangaController.installFile)
+        }
+
+        path("history") {
+            get("list", HistoryController.list)
         }
 
         path("chapter") {

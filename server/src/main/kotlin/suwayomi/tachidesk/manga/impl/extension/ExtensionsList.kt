@@ -11,9 +11,9 @@ import eu.kanade.tachiyomi.source.local.LocalSource
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
+import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.manga.impl.extension.Extension.getExtensionIconUrl
@@ -21,6 +21,7 @@ import suwayomi.tachidesk.manga.impl.extension.github.ExtensionGithubApi
 import suwayomi.tachidesk.manga.impl.extension.github.OnlineExtension
 import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass
 import suwayomi.tachidesk.manga.model.table.ExtensionTable
+import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 
@@ -30,14 +31,20 @@ object ExtensionsList {
     var lastUpdateCheck: Long = 0
     var updateMap = ConcurrentHashMap<String, OnlineExtension>()
 
-    suspend fun getExtensionList(): List<ExtensionDataClass> {
+    suspend fun getExtensionList(repoUrl: String): List<ExtensionDataClass> {
         // update if 60 seconds has passed or requested offline and database is empty
         if (lastUpdateCheck + 60.seconds.inWholeMilliseconds < System.currentTimeMillis()) {
             logger.debug("Getting extensions list from the internet")
             lastUpdateCheck = System.currentTimeMillis()
 
-            val foundExtensions = ExtensionGithubApi.findExtensions()
+            val foundExtensions = ExtensionGithubApi.findExtensions(repoUrl)
             updateExtensionDatabase(foundExtensions)
+
+//            for (e in foundExtensions) {
+//                try {
+//                    Extension.installExtension(e.pkgName)
+//                } catch (e: Exception) { e.printStackTrace() }
+//            }
         } else {
             logger.debug("used cached extension list")
         }
@@ -49,7 +56,7 @@ object ExtensionsList {
         ExtensionTable.selectAll().filter { it[ExtensionTable.name] != LocalSource.EXTENSION_NAME }.map {
             ExtensionDataClass(
                 it[ExtensionTable.apkName],
-                getExtensionIconUrl(it[ExtensionTable.apkName]),
+                getExtensionIconUrl(it[ExtensionTable.apkName], it[ExtensionTable.iconUrl]),
                 it[ExtensionTable.name],
                 it[ExtensionTable.pkgName],
                 it[ExtensionTable.versionName],
@@ -65,8 +72,15 @@ object ExtensionsList {
 
     private fun updateExtensionDatabase(foundExtensions: List<OnlineExtension>) {
         transaction {
-            foundExtensions.forEach { foundExtension ->
-                val extensionRecord = ExtensionTable.select { ExtensionTable.pkgName eq foundExtension.pkgName }.firstOrNull()
+            val dbExtensionMap = ExtensionTable.selectAll()
+                .associateBy { it[ExtensionTable.pkgName] }
+
+            val (insertList, updateList) = foundExtensions
+                .partition { dbExtensionMap[it.pkgName] == null }
+
+            updateList.forEach { foundExtension ->
+                // val extensionRecord = ExtensionTable.select { ExtensionTable.pkgName eq foundExtension.pkgName }.firstOrNull()
+                val extensionRecord = dbExtensionMap[foundExtension.pkgName]
                 if (extensionRecord != null) {
                     if (extensionRecord[ExtensionTable.isInstalled]) {
                         when {
@@ -85,6 +99,7 @@ object ExtensionsList {
                             }
                         }
                     } else {
+                        // TODO: compare before update
                         // extension is not installed, so we can overwrite the data without a care
                         ExtensionTable.update({ ExtensionTable.pkgName eq foundExtension.pkgName }) {
                             it[name] = foundExtension.name
@@ -96,19 +111,31 @@ object ExtensionsList {
                             it[iconUrl] = foundExtension.iconUrl
                         }
                     }
-                } else {
-                    // insert new record
-                    ExtensionTable.insert {
-                        it[name] = foundExtension.name
-                        it[pkgName] = foundExtension.pkgName
-                        it[versionName] = foundExtension.versionName
-                        it[versionCode] = foundExtension.versionCode
-                        it[lang] = foundExtension.lang
-                        it[isNsfw] = foundExtension.isNsfw
-                        it[apkName] = foundExtension.apkName
-                        it[iconUrl] = foundExtension.iconUrl
-                    }
                 }
+            }
+
+            if (insertList.isNotEmpty()) {
+                val myBatchInsertStatement = MyBatchInsertStatement(ExtensionTable)
+                insertList.forEach { foundExtension ->
+                    val my = myBatchInsertStatement
+
+                    my.addBatch()
+
+                    my[ExtensionTable.name] = foundExtension.name
+                    my[ExtensionTable.pkgName] = foundExtension.pkgName
+                    my[ExtensionTable.versionName] = foundExtension.versionName
+                    my[ExtensionTable.versionCode] = foundExtension.versionCode
+                    my[ExtensionTable.lang] = foundExtension.lang
+                    my[ExtensionTable.isNsfw] = foundExtension.isNsfw
+                    my[ExtensionTable.apkName] = foundExtension.apkName
+                    my[ExtensionTable.iconUrl] = foundExtension.iconUrl
+                }
+
+                val sql = myBatchInsertStatement.prepareSQL(this)
+                val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
+                val statement = conn.createStatement()
+                // println(sql)
+                statement.execute(sql)
             }
 
             // deal with obsolete extensions

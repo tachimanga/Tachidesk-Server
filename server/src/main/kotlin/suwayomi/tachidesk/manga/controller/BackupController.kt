@@ -47,10 +47,10 @@ object BackupController {
                 summary("Restore a backup file")
                 description("Expects a Tachiyomi protobuf backup as a file upload, the file must be named \"backup.proto.gz\"")
             }
-            uploadedFile("backup.proto.gz") {
-                it.description("Protobuf backup")
-                it.required(true)
-            }
+//            uploadedFile("backup.proto.gz") {
+//                it.description("Protobuf backup")
+//                it.required(true)
+//            }
         },
         behaviorOf = { ctx ->
             // TODO: rewrite this with ctx.uploadedFiles(), don't call the multipart field "backup.proto.gz"
@@ -154,10 +154,10 @@ object BackupController {
                 summary("Validate a backup file")
                 description("Reports missing sources and trackers, expects a Tachiyomi protobuf backup as a file upload, the file must be named \"backup.proto.gz\"")
             }
-            uploadedFile("backup.proto.gz") {
-                it.description("Protobuf backup")
-                it.required(true)
-            }
+//            uploadedFile("backup.proto.gz") {
+//                it.description("Protobuf backup")
+//                it.required(true)
+//            }
         },
         behaviorOf = { ctx ->
             ctx.future(

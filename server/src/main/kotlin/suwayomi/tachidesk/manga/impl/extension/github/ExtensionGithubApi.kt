@@ -19,8 +19,8 @@ import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass
 import uy.kohesive.injekt.injectLazy
 
 object ExtensionGithubApi {
-    private const val REPO_URL_PREFIX = "https://raw.githubusercontent.com/tachiyomiorg/tachiyomi-extensions/repo/"
-    private const val FALLBACK_REPO_URL_PREFIX = "https://gcore.jsdelivr.net/gh/tachiyomiorg/tachiyomi-extensions@repo/"
+    private var REPO_URL_PREFIX = ""
+    private var FALLBACK_REPO_URL_PREFIX = ""
     private val logger = KotlinLogging.logger {}
 
     @Serializable
@@ -47,7 +47,9 @@ object ExtensionGithubApi {
 
     private var requiresFallbackSource = false
 
-    suspend fun findExtensions(): List<OnlineExtension> {
+    suspend fun findExtensions(repoUrl: String): List<OnlineExtension> {
+        REPO_URL_PREFIX = repoUrl
+        FALLBACK_REPO_URL_PREFIX = repoUrl
         val githubResponse = if (requiresFallbackSource) {
             null
         } else {

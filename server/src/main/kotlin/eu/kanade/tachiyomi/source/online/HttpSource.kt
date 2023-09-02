@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.source.online
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.asObservableSuccess
-import eu.kanade.tachiyomi.network.interceptor.CFClearance.getWebViewUserAgent
 import eu.kanade.tachiyomi.network.newCallWithProgress
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -94,7 +93,10 @@ abstract class HttpSource : CatalogueSource {
         return client.newCall(popularMangaRequest(page))
             .asObservableSuccess()
             .map { response ->
-                popularMangaParse(response)
+                val s = System.currentTimeMillis()
+                val r = popularMangaParse(response)
+                println("Profiler: popularMangaParse cost:" + (System.currentTimeMillis() - s) + "ms")
+                r
             }
     }
 
@@ -394,6 +396,6 @@ abstract class HttpSource : CatalogueSource {
     override fun getFilterList() = FilterList()
 
     companion object {
-        val DEFAULT_USER_AGENT by lazy { getWebViewUserAgent() }
+        var DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/115.0.5790.160 Mobile/15E148 Safari/604.1"
     }
 }

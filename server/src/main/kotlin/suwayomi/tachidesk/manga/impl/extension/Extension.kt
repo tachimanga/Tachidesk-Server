@@ -46,7 +46,11 @@ import suwayomi.tachidesk.manga.model.table.SourceTable
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 object Extension {
     private val logger = KotlinLogging.logger {}
@@ -80,6 +84,56 @@ object Extension {
                 }
             }
             savePath
+        }
+    }
+
+    suspend fun preCopyExtension(apkName: String): String {
+        val apkSavePath = "${applicationDirs.extensionsRoot}/$apkName"
+        try {
+            val apkFile = File(apkSavePath)
+            if (!apkFile.exists()) {
+                Extension::class.java.getResourceAsStream("/extension/$apkName").use { input ->
+                    apkFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Exception while copying apk", e)
+        }
+
+        // copy icon
+        try {
+            val iconFile = File("${applicationDirs.extensionsRoot}/icon/$apkName.png")
+            if (!iconFile.exists()) {
+                Extension::class.java.getResourceAsStream("/extension/icon/$apkName.png").use { input ->
+                    iconFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Exception while copying icon", e)
+        }
+        return apkSavePath
+    }
+
+    // apkName tachiyomi-all.komga-v1.4.47.apk
+    // pkgName eu.kanade.tachiyomi.extension.all.komga
+    suspend fun preInstallExtension(apkName: String): Int {
+        logger.debug("preInstallExtension $apkName")
+
+        val isInstalled = transaction {
+            ExtensionTable.select { ExtensionTable.apkName eq apkName }.firstOrNull()
+        }?.get(ExtensionTable.isInstalled) ?: false
+        if (isInstalled) {
+            logger.info("already preInstallExtension $apkName")
+            return 0
+        }
+
+        return installAPK {
+            // copy apk
+            preCopyExtension(apkName)
         }
     }
 
@@ -136,6 +190,7 @@ object Extension {
             logger.debug("Main class for extension is $className")
 
             dex2jar(apkFilePath, jarFilePath, fileNameWithoutType)
+            extractAssetsFromApk(apkFilePath, jarFilePath)
 
             // clean up
             File(apkFilePath).delete()
@@ -180,7 +235,6 @@ object Extension {
 
                 val extensionId =
                     ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.first()[ExtensionTable.id].value
-
                 sources.forEach { httpSource ->
                     SourceTable.insert {
                         it[id] = httpSource.id
@@ -198,6 +252,55 @@ object Extension {
         }
     }
 
+    private fun extractAssetsFromApk(apkPath: String, jarPath: String) {
+        val apkFile = File(apkPath)
+        val jarFile = File(jarPath)
+
+        val assetsFolder = File("${apkFile.parent}/${apkFile.nameWithoutExtension}_assets")
+        assetsFolder.mkdir()
+        ZipInputStream(apkFile.inputStream()).use { zipInputStream ->
+            var zipEntry = zipInputStream.nextEntry
+            while (zipEntry != null) {
+                if (zipEntry.name.startsWith("assets/")) {
+                    val assetFile = File(assetsFolder, zipEntry.name)
+                    assetFile.parentFile.mkdirs()
+                    FileOutputStream(assetFile).use { outputStream ->
+                        zipInputStream.copyTo(outputStream)
+                    }
+                }
+                zipEntry = zipInputStream.nextEntry
+            }
+        }
+
+        val tempJarFile = File("${jarFile.parent}/${jarFile.nameWithoutExtension}_temp.jar")
+        ZipInputStream(jarFile.inputStream()).use { jarZipInputStream ->
+            ZipOutputStream(FileOutputStream(tempJarFile)).use { jarZipOutputStream ->
+                var zipEntry = jarZipInputStream.nextEntry
+                while (zipEntry != null) {
+                    if (!zipEntry.name.startsWith("META-INF/")) {
+                        jarZipOutputStream.putNextEntry(ZipEntry(zipEntry.name))
+                        jarZipInputStream.copyTo(jarZipOutputStream)
+                    }
+                    zipEntry = jarZipInputStream.nextEntry
+                }
+                assetsFolder.walkTopDown().forEach { file ->
+                    if (file.isFile) {
+                        jarZipOutputStream.putNextEntry(ZipEntry(file.relativeTo(assetsFolder).toString().replace("\\", "/")))
+                        file.inputStream().use { inputStream ->
+                            inputStream.copyTo(jarZipOutputStream)
+                        }
+                        jarZipOutputStream.closeEntry()
+                    }
+                }
+            }
+        }
+
+        jarFile.delete()
+        tempJarFile.renameTo(jarFile)
+
+        assetsFolder.deleteRecursively()
+    }
+
     private val network: NetworkHelper by injectLazy()
 
     private suspend fun downloadAPKFile(url: String, savePath: String) {
@@ -206,7 +309,7 @@ object Extension {
 
         val downloadedFile = File(savePath)
         downloadedFile.sink().buffer().use { sink ->
-            response.body!!.source().use { source ->
+            response.body.source().use { source ->
                 sink.writeAll(source)
                 sink.flush()
             }
@@ -282,7 +385,10 @@ object Extension {
         }
     }
 
-    fun getExtensionIconUrl(apkName: String): String {
-        return "/api/v1/extension/icon/$apkName"
+    fun getExtensionIconUrl(apkName: String, iconUrl: String): String {
+        if (apkName == "localSource") {
+            return "/api/v1/extension/icon/$apkName"
+        }
+        return iconUrl
     }
 }
