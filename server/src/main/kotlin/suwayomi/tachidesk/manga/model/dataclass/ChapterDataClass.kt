@@ -11,7 +11,7 @@ data class ChapterDataClass(
     val id: Int,
     val url: String,
     val name: String,
-    val uploadDate: Long,
+    var uploadDate: Long,
     val chapterNumber: Float,
     val scanlator: String?,
     val mangaId: Int,

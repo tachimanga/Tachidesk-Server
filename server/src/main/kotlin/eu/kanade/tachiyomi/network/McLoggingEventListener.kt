@@ -1,9 +1,6 @@
 package eu.kanade.tachiyomi.network
 
-import com.jichao.tachiyomi.NativeNet
 import com.jichao.tachiyomi.Profiler
-import eu.kanade.tachiyomi.source.online.HttpSource
-import io.javalin.plugin.json.JsonMapper
 import okhttp3.Call
 import okhttp3.Connection
 import okhttp3.EventListener
@@ -14,9 +11,6 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
-import org.kodein.di.DI
-import org.kodein.di.conf.global
-import org.kodein.di.instance
 import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -36,8 +30,6 @@ class McLoggingEventListener private constructor(
     private var startNs: Long = 0
 
     override fun callStart(call: Call) {
-        sendNativeRequest(call)
-
         startNs = System.nanoTime()
         logWithTime("callStart: ${call.request()}")
     }
@@ -141,29 +133,6 @@ class McLoggingEventListener private constructor(
         logWithTime("callEnd")
         val timeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
         Profiler.incrNet(call.request().url.toString(), timeMs)
-
-        sendNativeRequest(call)
-    }
-    private val jsonMapper by DI.global.instance<JsonMapper>()
-
-    private fun sendNativeRequest(call: Call) {
-        val t = System.nanoTime()
-
-        val map = mutableMapOf<String, Any>()
-        map["url"] = call.request().url.toString()
-
-        val headers = mutableMapOf<String, String>()
-        headers["User-Agent"] = HttpSource.DEFAULT_USER_AGENT
-        for (i in 0 until call.request().headers.size) {
-            headers[call.request().headers.name(i)] = call.request().headers.value(i)
-        }
-        map["headers"] = headers
-        val json = jsonMapper.toJsonString(map)
-
-        NativeNet.call(json)
-
-        val timeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t)
-        println("Profiler sendNativeRequest cost $timeMs ms")
     }
 
     override fun callFailed(call: Call, ioe: IOException) {

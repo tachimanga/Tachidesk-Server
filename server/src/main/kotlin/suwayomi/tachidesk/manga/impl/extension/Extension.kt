@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
+import eu.kanade.tachiyomi.source.sourceSupportDirect
 import mu.KotlinLogging
 import okhttp3.Request
 import okio.buffer
@@ -204,6 +205,10 @@ object Extension {
                 else -> throw RuntimeException("Unknown source class type! ${extensionMainClassInstance.javaClass}")
             }.map { it as CatalogueSource }
 
+            val directMap = sources.associate {
+                it.id to sourceSupportDirect(GetCatalogueSource.getCatalogueSourceMeta(it))
+            }
+
             val langs = sources.map { it.lang }.toSet()
             val extensionLang = when (langs.size) {
                 0 -> ""
@@ -242,6 +247,7 @@ object Extension {
                         it[lang] = httpSource.lang
                         it[extension] = extensionId
                         it[SourceTable.isNsfw] = isNsfw
+                        it[SourceTable.isDirect] = directMap[httpSource.id]
                     }
                     logger.debug { "Installed source ${httpSource.name} (${httpSource.lang}) with id:${httpSource.id}" }
                 }

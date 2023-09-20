@@ -39,6 +39,10 @@ class NetworkHelper(context: Context) {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .callTimeout(2, TimeUnit.MINUTES)
                 .addInterceptor(UserAgentInterceptor())
+                .addInterceptor(CloudflareInterceptor())
+//                .addInterceptor(EnableNativeNetInterceptor())
+//                .sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getTrustManager()[0] as X509TrustManager)
+//                .hostnameVerifier(SSLSocketClient.getHostnameVerifier())
                 .eventListenerFactory(McLoggingEventListener.Factory())
 
 //            if (serverConfig.debugLogsEnabled) {
@@ -57,13 +61,11 @@ class NetworkHelper(context: Context) {
         }
 
 //    val client by lazy { baseClientBuilder.cache(Cache(cacheDir, cacheSize)).build() }
-    val client by lazy { baseClientBuilder.build() }
+    val client: OkHttpClient
+        get() = baseClientBuilder.build()
 
-    val cloudflareClient by lazy {
-        client.newBuilder()
-            .addInterceptor(CloudflareInterceptor())
-            .build()
-    }
+    val cloudflareClient: OkHttpClient
+        get() = baseClientBuilder.build()
 
     // Tachidesk -->
     val cookies: PersistentCookieStore

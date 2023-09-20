@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.impl
 import android.app.Application
 import android.content.Context
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.getPreferenceKey
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -19,6 +20,7 @@ import mu.KotlinLogging
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -38,34 +40,46 @@ object Source {
     private val logger = KotlinLogging.logger {}
 
     fun getSourceList(): List<SourceDataClass> {
-        return transaction {
-            val dbExtensionMap = ExtensionTable.selectAll()
+        val dbExtensionMap = transaction {
+            ExtensionTable.selectAll()
                 .associateBy { it[ExtensionTable.id] }
-            var limit = 0
-            SourceTable.selectAll().mapNotNull {
-                val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
-                // val sourceExtension = ExtensionTable.select { ExtensionTable.id eq it[SourceTable.extension] }.first()
-                val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
-                val meta = if (limit++ < 30) {
-                    GetCatalogueSource.getCatalogueSourceMeta(catalogueSource)
-                } else {
-                    GetCatalogueSource.getCatalogueSourceMetaCache(catalogueSource)
-                }
-                val direct = sourceSupportDirect(meta)
-                SourceDataClass(
-                    it[SourceTable.id].value.toString(),
-                    it[SourceTable.name],
-                    it[SourceTable.lang],
-                    if (sourceExtension != null) getExtensionIconUrl(sourceExtension[ExtensionTable.apkName], sourceExtension[ExtensionTable.iconUrl]) else "",
-                    if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
-                    if (sourceExtension != null) sourceExtension[ExtensionTable.pkgName] else "",
-                    catalogueSource.supportsLatest,
-                    catalogueSource is ConfigurableSource,
-                    it[SourceTable.isNsfw],
-                    catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
-                )
+        }
+        val sourceList = transaction {
+            SourceTable.selectAll().toList()
+        }
+        var limit = 0
+        return sourceList.mapNotNull {
+            val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
+            // val sourceExtension = ExtensionTable.select { ExtensionTable.id eq it[SourceTable.extension] }.first()
+            val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
+            if (it[SourceTable.isDirect] == null && limit++ < 10) {
+                it[SourceTable.isDirect] = fillSourceDirectFlag(catalogueSource)
+            }
+            val direct = it[SourceTable.isDirect] == true
+            SourceDataClass(
+                it[SourceTable.id].value.toString(),
+                it[SourceTable.name],
+                it[SourceTable.lang],
+                if (sourceExtension != null) getExtensionIconUrl(sourceExtension[ExtensionTable.apkName], sourceExtension[ExtensionTable.iconUrl]) else "",
+                if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+                if (sourceExtension != null) sourceExtension[ExtensionTable.pkgName] else "",
+                catalogueSource.supportsLatest,
+                catalogueSource is ConfigurableSource,
+                it[SourceTable.isNsfw],
+                catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
+            )
+        }
+    }
+
+    private fun fillSourceDirectFlag(source: CatalogueSource): Boolean {
+        println("fillSourceDirectFlag: id=${source.id}, name=${source.name}")
+        val direct = sourceSupportDirect(GetCatalogueSource.getCatalogueSourceMeta(source))
+        transaction {
+            SourceTable.update({ SourceTable.id eq source.id }) {
+                it[SourceTable.isDirect] = direct
             }
         }
+        return direct
     }
 
     fun getSource(sourceId: Long): SourceDataClass? { // all the data extracted fresh form the source instance
@@ -73,8 +87,7 @@ object Source {
             val source = SourceTable.select { SourceTable.id eq sourceId }.firstOrNull() ?: return@transaction null
             val catalogueSource = getCatalogueSourceOrNull(sourceId) ?: return@transaction null
             val extension = ExtensionTable.select { ExtensionTable.id eq source[SourceTable.extension] }.first()
-            val meta = GetCatalogueSource.getCatalogueSourceMeta(catalogueSource)
-            val direct = sourceSupportDirect(meta)
+            val direct = source[SourceTable.isDirect] == true
             SourceDataClass(
                 sourceId.toString(),
                 source[SourceTable.name],

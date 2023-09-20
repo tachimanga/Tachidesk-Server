@@ -16,8 +16,11 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import mu.KotlinLogging
 import okhttp3.Authenticator
+import okhttp3.OkHttpClient
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -34,6 +37,8 @@ object GetCatalogueSource {
     private val logger = KotlinLogging.logger {}
     private val sourceCache = ConcurrentHashMap<Long, CatalogueSource>()
     private val metaCache = ConcurrentHashMap<Long, SourceMeta>()
+    private val clientToSourceMap = ConcurrentHashMap<OkHttpClient, Long>()
+    private val sourceRandomUaMap = ConcurrentHashMap<Long, Boolean>()
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
     private val network: NetworkHelper by injectLazy()
     private val WHITE_LIST = listOf(
@@ -70,6 +75,9 @@ object GetCatalogueSource {
             is SourceFactory -> instance.createSources()
             else -> throw Exception("Unknown source class type! ${instance.javaClass}")
         }.forEach {
+            if (it is HttpSource) {
+                clientToSourceMap[it.client] = it.id
+            }
             sourceCache[it.id] = it as HttpSource
         }
         return sourceCache[sourceId]!!
@@ -103,23 +111,21 @@ object GetCatalogueSource {
         return meta
     }
 
-    fun getCatalogueSourceMetaCache(source: CatalogueSource): SourceMeta? {
-        return metaCache[source.id]
-    }
-
     fun getCatalogueSourceMeta0(source: CatalogueSource, meta: SourceMeta) {
         val httpSource = source as? HttpSource ?: return
 
         val client = httpSource.client
-        val sClient = client == network.client || client == network.cloudflareClient
-        if (sClient) {
+        // val sClient = client == network.client || client == network.cloudflareClient
+        // if (sClient) {
+        if (false) {
             meta.simpleClient = true
             println(
                 "SourceMeta:" + source.name +
                     ", simpleClient:" + meta.simpleClient
             )
-        } else {
-            val sCookie = client.cookieJar == network.client.cookieJar
+        }
+        else {
+            val sCookie = client.cookieJar == network.cookieManager
             val sRedirects = client.followRedirects
             val sAuth = client.authenticator == Authenticator.NONE
             var sInterceptors = true
@@ -167,6 +173,9 @@ object GetCatalogueSource {
         for (i in 0 until headers.size) {
             map[headers.name(i)] = headers.value(i)
         }
+        if (getSourceRandomUa(source.id)) {
+            map["User-Agent"] = HttpSource.DEFAULT_USER_AGENT
+        }
         meta.headers = map
 
         println(
@@ -181,5 +190,46 @@ object GetCatalogueSource {
 
     fun unregisterCatalogueSource(sourceId: Long) {
         sourceCache.remove(sourceId)
+    }
+
+    fun getSourceRandomUaByClient(client: OkHttpClient?): Boolean {
+        if (client == null) {
+            return false
+        }
+        val sourceId = clientToSourceMap[client] ?: return false
+        return getSourceRandomUa(sourceId)
+    }
+
+    fun setSourceRandomUaByClient(client: OkHttpClient?, randomUa: Boolean) {
+        if (client == null) {
+            return
+        }
+        val sourceId = clientToSourceMap[client] ?: return
+        setSourceRandomUa(sourceId, randomUa)
+    }
+
+    private fun getSourceRandomUa(sourceId: Long): Boolean {
+        var randomUa = sourceRandomUaMap[sourceId]
+        if (randomUa == null) {
+            val source = transaction {
+                SourceTable.select { SourceTable.id eq sourceId }.firstOrNull()
+            }
+            randomUa = source?.get(SourceTable.randomUa) == true
+            sourceRandomUaMap[sourceId] = randomUa
+        }
+        return randomUa
+    }
+
+    private fun setSourceRandomUa(sourceId: Long, randomUa: Boolean) {
+        if (getSourceRandomUa(sourceId) == randomUa) {
+            return
+        }
+        metaCache.remove(sourceId)
+        transaction {
+            SourceTable.update({ SourceTable.id eq sourceId }) {
+                it[SourceTable.randomUa] = randomUa
+            }
+        }
+        sourceRandomUaMap[sourceId] = randomUa
     }
 }

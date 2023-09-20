@@ -27,7 +27,7 @@ class M0001_Initial : AddTableMigration() {
                 MangaMetaTable,
                 MangaTable,
                 PageTable,
-                SourceTable
+                SourceTableV0
             )
         }
 }

@@ -9,12 +9,10 @@ package suwayomi.tachidesk.manga.model.table
 
 import org.jetbrains.exposed.dao.id.IdTable
 
-object SourceTable : IdTable<Long>() {
+object SourceTableV0 : IdTable<Long>(name = "Source") {
     override val id = long("id").entityId()
     val name = varchar("name", 128)
     val lang = varchar("lang", 32)
     val extension = reference("extension", ExtensionTable)
     val isNsfw = bool("is_nsfw").default(false)
-    val isDirect = bool("is_direct").nullable()
-    val randomUa = bool("random_ua").nullable()
 }
