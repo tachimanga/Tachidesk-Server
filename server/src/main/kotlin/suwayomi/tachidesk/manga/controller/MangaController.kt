@@ -356,6 +356,7 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead ->
+            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead")
             Chapter.modifyChapter(mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead)
 
             ctx.status(200)

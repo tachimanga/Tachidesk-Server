@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.sourceSupportDirect
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
@@ -86,7 +87,7 @@ private class ChapterForRead(
             return false
         }
 
-        if (!(meta.simpleClient && meta.simpleRequest)) {
+        if (!sourceSupportDirect(meta)) {
             println(source.name + " not simple")
             return false
         }

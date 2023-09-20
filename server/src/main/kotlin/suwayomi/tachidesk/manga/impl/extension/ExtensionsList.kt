@@ -7,6 +7,7 @@ package suwayomi.tachidesk.manga.impl.extension
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import org.tachiyomi.Profiler
 import eu.kanade.tachiyomi.source.local.LocalSource
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -77,7 +78,7 @@ object ExtensionsList {
 
             val (insertList, updateList) = foundExtensions
                 .partition { dbExtensionMap[it.pkgName] == null }
-
+            Profiler.split("ExtensionTable selectAll")
             updateList.forEach { foundExtension ->
                 // val extensionRecord = ExtensionTable.select { ExtensionTable.pkgName eq foundExtension.pkgName }.firstOrNull()
                 val extensionRecord = dbExtensionMap[foundExtension.pkgName]
@@ -99,21 +100,30 @@ object ExtensionsList {
                             }
                         }
                     } else {
-                        // TODO: compare before update
-                        // extension is not installed, so we can overwrite the data without a care
-                        ExtensionTable.update({ ExtensionTable.pkgName eq foundExtension.pkgName }) {
-                            it[name] = foundExtension.name
-                            it[versionName] = foundExtension.versionName
-                            it[versionCode] = foundExtension.versionCode
-                            it[lang] = foundExtension.lang
-                            it[isNsfw] = foundExtension.isNsfw
-                            it[apkName] = foundExtension.apkName
-                            it[iconUrl] = foundExtension.iconUrl
+                        val same = extensionRecord[ExtensionTable.name] == foundExtension.name &&
+                            extensionRecord[ExtensionTable.versionName] == foundExtension.versionName &&
+                            extensionRecord[ExtensionTable.versionCode] == foundExtension.versionCode &&
+                            extensionRecord[ExtensionTable.lang] == foundExtension.lang &&
+                            extensionRecord[ExtensionTable.isNsfw] == foundExtension.isNsfw &&
+                            extensionRecord[ExtensionTable.apkName] == foundExtension.apkName &&
+                            extensionRecord[ExtensionTable.iconUrl] == foundExtension.iconUrl
+                        // println("Profiler: same " + same)
+                        if (!same) {
+                            // extension is not installed, so we can overwrite the data without a care
+                            ExtensionTable.update({ ExtensionTable.pkgName eq foundExtension.pkgName }) {
+                                it[name] = foundExtension.name
+                                it[versionName] = foundExtension.versionName
+                                it[versionCode] = foundExtension.versionCode
+                                it[lang] = foundExtension.lang
+                                it[isNsfw] = foundExtension.isNsfw
+                                it[apkName] = foundExtension.apkName
+                                it[iconUrl] = foundExtension.iconUrl
+                            }
                         }
                     }
                 }
             }
-
+            Profiler.split("ExtensionTable upsert")
             if (insertList.isNotEmpty()) {
                 val myBatchInsertStatement = MyBatchInsertStatement(ExtensionTable)
                 insertList.forEach { foundExtension ->
@@ -137,11 +147,17 @@ object ExtensionsList {
                 // println(sql)
                 statement.execute(sql)
             }
+            Profiler.split("ExtensionTable insert")
 
             // deal with obsolete extensions
-            ExtensionTable.selectAll().forEach { extensionRecord ->
-                val foundExtension = foundExtensions.find { it.pkgName == extensionRecord[ExtensionTable.pkgName] }
-                if (foundExtension == null) {
+            val foundExtensionsMap = foundExtensions.associateBy { it.pkgName }
+            val toDeleteExtensionList = dbExtensionMap.values
+                .filter { it[ExtensionTable.pkgName] != "eu.kanade.tachiyomi.source.local" }
+                .filter { foundExtensionsMap[it[ExtensionTable.pkgName]] == null }
+                .toList()
+
+            if (toDeleteExtensionList.isNotEmpty()) {
+                toDeleteExtensionList.forEach { extensionRecord ->
                     // not in the repo, so these extensions are obsolete
                     if (extensionRecord[ExtensionTable.isInstalled]) {
                         // is installed so we should mark it as obsolete
@@ -154,6 +170,7 @@ object ExtensionsList {
                     }
                 }
             }
+            Profiler.split("ExtensionTable clear")
         }
     }
 }

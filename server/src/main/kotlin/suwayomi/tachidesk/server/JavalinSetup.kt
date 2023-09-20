@@ -122,7 +122,7 @@ object JavalinSetup {
         app.before {
             val t = System.currentTimeMillis()
             it.attribute("ATTR_INVOKE_RT", t)
-            println("Profiler: --> in " + it.req.requestURI)
+            println("Profiler: --> in " + it.req.requestURI + " " + it.req.method)
         }
 
         app.after {
