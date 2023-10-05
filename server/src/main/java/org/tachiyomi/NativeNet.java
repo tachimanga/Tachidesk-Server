@@ -1,10 +1,11 @@
 package org.tachiyomi;
 
 import io.javalin.plugin.json.JsonMapper;
+import okio.Buffer;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Map;
 
 /*
@@ -15,37 +16,29 @@ import java.util.Map;
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
  
 public class NativeNet {
-    public static Resp call(Req req, JsonMapper jsonMapper) {
+    public static Resp call(Req req, Buffer buffer, JsonMapper jsonMapper) {
         String json = jsonMapper.toJsonString(req);
-        System.out.println("NativeNet:" + json);
+        System.out.println("NativeNet: req: " + json);
 
-        ByteBuffer[] byteBuffers = call_utf8(stringToUtf8ByteArray(json));
-        System.out.println("NativeNet: byteBuffers:" + byteBuffers);
-        if (byteBuffers.length == 0) {
-            Resp resp = new Resp();
-            resp.setCode(500);
-            resp.setError("native net error");
-            return resp;
-        }
+        ByteBuffer[] byteBuffers = call_utf8(stringToUtf8ByteArray(json), buffer);
+        System.out.println("NativeNet: byteBuffers:" + Arrays.toString(byteBuffers));
 
         // read meta
         ByteBuffer b0 = byteBuffers[0];
+        if (b0 == null) {
+            return Resp.of(500, "native net error");
+        }
         String metaString = utf8ByteBufferToString(b0);
         System.out.println("NativeNet: metaString:" + metaString);
         Resp resp = jsonMapper.fromJsonString(metaString, Resp.class);
 
         // read body
-        if (byteBuffers.length > 1) {
-            ByteBuffer b1 = byteBuffers[1];
-            byte[] buff = new byte[b1.remaining()];
-            b1.get(buff);
-            System.out.println("NativeNet: buff:" + buff.length);
-            resp.setBody(buff);
-        }
+        ByteBuffer b1 = byteBuffers[1];
+        resp.setByteBuffer(b1);
         return resp;
     }
 
-    static native ByteBuffer[] call_utf8(byte[] jsonUtf8);
+    static native ByteBuffer[] call_utf8(byte[] jsonUtf8, Buffer buffer);
 
     static byte[] stringToUtf8ByteArray(String str) {
         if (str == null) {
@@ -104,8 +97,14 @@ public class NativeNet {
         private String message;
         private String error;
         private Map<String, String> headers;
-        private long contentLength;
-        private byte[] body;
+        private ByteBuffer byteBuffer;
+
+        public static Resp of(int code, String error) {
+            Resp resp = new Resp();
+            resp.code = code;
+            resp.error = error;
+            return resp;
+        }
 
         public int getCode() {
             return code;
@@ -139,20 +138,12 @@ public class NativeNet {
             this.headers = headers;
         }
 
-        public long getContentLength() {
-            return contentLength;
+        public ByteBuffer getByteBuffer() {
+            return byteBuffer;
         }
 
-        public void setContentLength(long contentLength) {
-            this.contentLength = contentLength;
-        }
-
-        public byte[] getBody() {
-            return body;
-        }
-
-        public void setBody(byte[] body) {
-            this.body = body;
+        public void setByteBuffer(ByteBuffer byteBuffer) {
+            this.byteBuffer = byteBuffer;
         }
     }
 }

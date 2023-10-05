@@ -1,6 +1,8 @@
 package suwayomi.tachidesk.manga.impl
 
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.interceptor.EnableNativeNetInterceptor
+import eu.kanade.tachiyomi.source.SourceSetting
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import okhttp3.Cookie
@@ -18,8 +20,10 @@ object Setting {
     private val network: NetworkHelper by injectLazy()
 
     @Serializable
-    data class CookieData(
-        val cookies: List<CookieInfo>? = null
+    data class SettingData(
+        val cookies: List<CookieInfo>? = null,
+        val enableNativeNet: Boolean? = null,
+        val enableFlutterDirect: Boolean? = null
     )
 
     @Serializable
@@ -33,7 +37,18 @@ object Setting {
         val httpOnly: Boolean? = null
     )
 
-    fun uploadCookies(input: CookieData) {
+    fun uploadSettings(input: SettingData) {
+        if (input.enableNativeNet != null) {
+            println("update ENABLE_NATIVE_NET to " + input.enableNativeNet)
+            EnableNativeNetInterceptor.ENABLE_NATIVE_NET = input.enableNativeNet
+        }
+        if (input.enableFlutterDirect != null) {
+            println("update enableFlutterDirect to " + input.enableFlutterDirect)
+            SourceSetting.ENABLE_FLUTTER_DIRECT = input.enableFlutterDirect
+        }
+    }
+
+    fun uploadCookies(input: SettingData) {
         if (input.cookies.isNullOrEmpty()) {
             return
         }

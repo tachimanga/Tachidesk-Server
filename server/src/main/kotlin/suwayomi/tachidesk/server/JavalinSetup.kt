@@ -24,7 +24,10 @@ import suwayomi.tachidesk.manga.MangaAPI
 import suwayomi.tachidesk.server.util.Browser
 import suwayomi.tachidesk.server.util.setupWebInterface
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.NoSuchElementException
 import kotlin.concurrent.thread
 
 object JavalinSetup {
@@ -51,6 +54,13 @@ object JavalinSetup {
             }
 
             config.enableCorsForAllOrigins()
+
+            config.addStaticFiles { staticFiles ->
+                staticFiles.hostedPath = "/static"
+                staticFiles.directory = "/static"
+                staticFiles.location = Location.CLASSPATH
+                staticFiles.headers = mapOf("cache-control" to "max-age=86400")
+            }
 
             config.accessManager { handler, ctx, _ ->
                 fun credentialsValid(): Boolean {
@@ -84,32 +94,37 @@ object JavalinSetup {
         app.exception(NullPointerException::class.java) { e, ctx ->
             logger.error("NullPointerException while handling the request", e)
             ctx.status(500)
-            ctx.result("Internal Server Error")
-            ctx.header("x-err-msg", "Internal Server Error (NullPointerException)")
+            val msg = "Internal Server Error (NullPointerException)"
+            ctx.result(msg)
+            ctx.header("x-err-msg", msg)
         }
         app.exception(NoSuchElementException::class.java) { e, ctx ->
             logger.error("NoSuchElementException while handling the request", e)
             ctx.status(500)
-            ctx.result("Internal Server Error")
-            ctx.header("x-err-msg", "Internal Server Error (NoSuchElementException)")
+            val msg = "Internal Server Error (NoSuchElementException)"
+            ctx.result(msg)
+            ctx.header("x-err-msg", msg)
         }
         app.exception(IOException::class.java) { e, ctx ->
             logger.error("IOException while handling the request", e)
             ctx.status(500)
-            ctx.result(e.message ?: "Internal Server Error")
-            ctx.header("x-err-msg", e.message ?: "Internal Server Error (IOException)")
+            val msg = e.message ?: "Internal Server Error (IOException)"
+            ctx.result(msg)
+            ctx.header("x-err-msg", msg)
         }
         app.exception(IllegalArgumentException::class.java) { e, ctx ->
             logger.error("IllegalArgumentException while handling the request", e)
             ctx.status(400)
-            ctx.result(e.message ?: "Bad Request")
-            ctx.header("x-err-msg", e.message ?: "Bad Request")
+            val msg = e.message ?: "Bad Request"
+            ctx.result(msg)
+            ctx.header("x-err-msg", msg)
         }
         app.exception(Exception::class.java) { e, ctx ->
             logger.error("Exception while handling the request", e)
             ctx.status(500)
-            ctx.result(e.message ?: "Internal Server Error")
-            ctx.header("x-err-msg", e.message ?: "Internal Server Error")
+            val msg = e.message ?: "Internal Server Error"
+            ctx.result(msg)
+            ctx.header("x-err-msg", msg)
         }
 
         app.routes {
@@ -119,10 +134,11 @@ object JavalinSetup {
             }
         }
 
+        val dateFormat = SimpleDateFormat("HH:mm:ss.SSS")
         app.before {
             val t = System.currentTimeMillis()
             it.attribute("ATTR_INVOKE_RT", t)
-            println("Profiler: --> in " + it.req.requestURI + " " + it.req.method)
+            println("${dateFormat.format(Date())} Profiler: --> in " + it.req.requestURI + " " + it.req.method)
         }
 
         app.after {

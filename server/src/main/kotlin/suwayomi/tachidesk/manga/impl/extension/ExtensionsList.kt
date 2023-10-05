@@ -7,7 +7,6 @@ package suwayomi.tachidesk.manga.impl.extension
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import org.tachiyomi.Profiler
 import eu.kanade.tachiyomi.source.local.LocalSource
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -17,6 +16,7 @@ import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.extension.Extension.getExtensionIconUrl
 import suwayomi.tachidesk.manga.impl.extension.github.ExtensionGithubApi
 import suwayomi.tachidesk.manga.impl.extension.github.OnlineExtension

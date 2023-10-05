@@ -21,6 +21,7 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Manga.getManga
+import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
@@ -360,6 +361,10 @@ object Chapter {
                 }
             }
         }
+
+        if (isRead == true || markPrevRead == true) {
+            Track.asyncTrackChapter(mangaId)
+        }
     }
 
     @Serializable
@@ -431,6 +436,15 @@ object Chapter {
                     update[ChapterTable.lastReadAt] = now
                 }
             }
+        }
+
+        if (isRead == true) {
+            val mangaIds = transaction {
+                ChapterTable.select { condition }
+                    .map { it[ChapterTable.manga].value }
+                    .distinct()
+            }
+            mangaIds.forEach { Track.asyncTrackChapter(it) }
         }
     }
 

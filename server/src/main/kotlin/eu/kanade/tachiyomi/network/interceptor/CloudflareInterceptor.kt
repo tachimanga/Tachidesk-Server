@@ -14,7 +14,6 @@ class CloudflareInterceptor : Interceptor {
 
     private val network: NetworkHelper by injectLazy()
 
-    @Synchronized
     override fun intercept(chain: Interceptor.Chain): Response {
         logger.trace { "CloudflareInterceptor is being used." }
 

@@ -10,6 +10,9 @@ import java.util.Collections
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 fun sourceSupportDirect(meta: SourceMeta?): Boolean {
+    if (SourceSetting.ENABLE_FLUTTER_DIRECT == false) {
+        return false
+    }
     return meta != null && meta.simpleClient && meta.simpleRequest
 }
 
@@ -18,3 +21,9 @@ data class SourceMeta(
     var simpleRequest: Boolean = false,
     var headers: Map<String, String> = Collections.emptyMap()
 )
+
+class SourceSetting {
+    companion object {
+        var ENABLE_FLUTTER_DIRECT: Boolean? = null
+    }
+}

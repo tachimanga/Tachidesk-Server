@@ -34,6 +34,20 @@ suspend fun getChapterDownloadReady(chapterIndex: Int, mangaId: Int): ChapterDat
     return chapter.asDownloadReady()
 }
 
+fun preprocessPageList(pageList: List<Page>): List<Page> {
+    val list = pageList.filter {
+        it.imageUrl != ""
+    }
+    list.forEach {
+        if (it.imageUrl?.startsWith("://") == true) {
+            it.imageUrl = "https${it.imageUrl}"
+        } else if (it.imageUrl?.startsWith("//") == true) {
+            it.imageUrl = "https:${it.imageUrl}"
+        }
+    }
+    return list
+}
+
 private class ChapterForDownload(
     private val chapterIndex: Int,
     private val mangaId: Int
@@ -42,8 +56,8 @@ private class ChapterForDownload(
         if (isNotCompletelyDownloaded()) {
             markAsNotDownloaded()
 
-            val pageList = fetchPageList()
-
+            val pageListSrc = fetchPageList()
+            val pageList = preprocessPageList(pageListSrc)
             updateDatabasePages(pageList)
         }
 

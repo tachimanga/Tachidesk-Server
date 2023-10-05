@@ -6,7 +6,7 @@ package eu.kanade.tachiyomi.network.interceptor
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
- 
+
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -35,17 +35,22 @@ class EnableNativeNetInterceptor : Interceptor {
         println("Profiler: native net $enable")
         if (enable) {
             val interceptors = chain.getPrivateProperty("interceptors") as MutableList<Interceptor>
-            println(interceptors)
+            // println("Profiler: interceptors1 $interceptors")
             interceptors.removeIf {
                 OKHTTP_LIST.contains(it.javaClass.simpleName)
             }
             interceptors.add(CallNativeNetInterceptor())
-            println("Profiler: $interceptors")
+            // println("Profiler: interceptors2 $interceptors")
         }
         return chain.proceed(chain.request())
     }
 
     private fun supportNativeNet(chain: Interceptor.Chain): Boolean {
+        println("Profiler: ENABLE_NATIVE_NET $ENABLE_NATIVE_NET")
+        if (ENABLE_NATIVE_NET != true) {
+            return false
+        }
+
         val originalRequest = chain.request()
 
         val call = chain.call()
@@ -59,14 +64,18 @@ class EnableNativeNetInterceptor : Interceptor {
             println("proxyAuthenticator not none")
             return false
         }
-        if (originalRequest.method != "GET") {
-            println("not GET")
-            return false
-        }
-        if (originalRequest.body != null) {
-            println("body is not null")
-            return false
-        }
+//        if (originalRequest.method != "GET") {
+//            println("not GET")
+//            return false
+//        }
+//        if (originalRequest.body != null) {
+//            println("body is not null")
+//            return false
+//        }
         return true
+    }
+
+    companion object {
+        var ENABLE_NATIVE_NET: Boolean? = null
     }
 }

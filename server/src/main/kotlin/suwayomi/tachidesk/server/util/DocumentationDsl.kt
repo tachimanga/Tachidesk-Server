@@ -41,7 +41,11 @@ fun <T> getParam(ctx: Context, param: Param<T>): T {
         String::class.java, java.lang.String::class.java -> getSimpleParamItem(ctx, param) ?: param.defaultValue
         Int::class.java, java.lang.Integer::class.java -> getSimpleParamItem(ctx, param)?.toIntOrNull() ?: param.defaultValue
         Long::class.java, java.lang.Long::class.java -> getSimpleParamItem(ctx, param)?.toLongOrNull() ?: param.defaultValue
-        Boolean::class.java, java.lang.Boolean::class.java -> getSimpleParamItem(ctx, param)?.toBoolean() ?: param.defaultValue
+        Boolean::class.java, java.lang.Boolean::class.java -> {
+            var value = getSimpleParamItem(ctx, param)
+            if (value == "") value = null
+            value?.toBoolean() ?: param.defaultValue
+        }
         Float::class.java, java.lang.Float::class.java -> getSimpleParamItem(ctx, param)?.toFloatOrNull() ?: param.defaultValue
         Double::class.java, java.lang.Double::class.java -> getSimpleParamItem(ctx, param)?.toDoubleOrNull() ?: param.defaultValue
         else -> {

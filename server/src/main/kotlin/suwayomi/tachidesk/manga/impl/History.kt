@@ -1,5 +1,6 @@
 package suwayomi.tachidesk.manga.impl
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -43,4 +44,20 @@ object History {
         Profiler.split("mangaList done")
         return mangaList.sortedByDescending { it.lastReadAt }
     }
+
+    fun batchDelete(input: BatchInput) {
+        if (input.mangaIds.isNullOrEmpty()) {
+            return
+        }
+        transaction {
+            ChapterTable.update({ (ChapterTable.manga inList input.mangaIds) }) { update ->
+                update[ChapterTable.lastReadAt] = 0
+            }
+        }
+    }
+
+    @Serializable
+    data class BatchInput(
+        val mangaIds: List<Int>? = null
+    )
 }

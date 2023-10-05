@@ -7,9 +7,9 @@ package suwayomi.tachidesk.manga.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import org.tachiyomi.Profiler
 import io.javalin.http.HttpCode
 import mu.KotlinLogging
+import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.extension.Extension
 import suwayomi.tachidesk.manga.impl.extension.ExtensionsList
 import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass

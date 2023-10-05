@@ -47,7 +47,8 @@ object GetCatalogueSource {
         "HttpLoggingInterceptor",
         "CloudflareInterceptor",
         "RateLimitInterceptor",
-        "SpecificHostRateLimitInterceptor"
+        "SpecificHostRateLimitInterceptor",
+        "EnableNativeNetInterceptor"
     )
 
     private fun getCatalogueSource(sourceId: Long): CatalogueSource? {
@@ -123,8 +124,7 @@ object GetCatalogueSource {
                 "SourceMeta:" + source.name +
                     ", simpleClient:" + meta.simpleClient
             )
-        }
-        else {
+        } else {
             val sCookie = client.cookieJar == network.cookieManager
             val sRedirects = client.followRedirects
             val sAuth = client.authenticator == Authenticator.NONE

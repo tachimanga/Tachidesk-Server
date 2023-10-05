@@ -20,7 +20,7 @@ object GlobalAPI {
         path("settings") {
             get("about", SettingsController.about)
             get("check-update", SettingsController.checkUpdate)
-            post("uploadCookies", SettingsController.uploadCookies)
+            post("uploadSettings", SettingsController.uploadSettings)
             get("clearCookies", SettingsController.clearCookies)
             get("uploadUserAgent", SettingsController.uploadUserAgent)
         }

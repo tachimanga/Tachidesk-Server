@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.sourceSupportDirect
 import io.javalin.plugin.json.JsonMapper
 import mu.KotlinLogging
+import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -88,6 +89,7 @@ object Source {
             val catalogueSource = getCatalogueSourceOrNull(sourceId) ?: return@transaction null
             val extension = ExtensionTable.select { ExtensionTable.id eq source[SourceTable.extension] }.first()
             val direct = source[SourceTable.isDirect] == true
+            updateSourceDirectFlagIfNeeded(source, catalogueSource)
             SourceDataClass(
                 sourceId.toString(),
                 source[SourceTable.name],
@@ -100,6 +102,17 @@ object Source {
                 source[SourceTable.isNsfw],
                 catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
             )
+        }
+    }
+
+    private fun updateSourceDirectFlagIfNeeded(source: ResultRow, catalogueSource: CatalogueSource) {
+        val direct = sourceSupportDirect(GetCatalogueSource.getCatalogueSourceMeta(catalogueSource))
+        if (direct != source[SourceTable.isDirect]) {
+            transaction {
+                SourceTable.update({ SourceTable.id eq catalogueSource.id }) {
+                    it[SourceTable.isDirect] = direct
+                }
+            }
         }
     }
 

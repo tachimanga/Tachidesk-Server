@@ -53,6 +53,9 @@ object ImageResponse {
         val response = fetcher()
         Profiler.split("get img")
         if (response.code == 200) {
+            if (response.headers["x-native-cost"] != null && response.headers["content-type"] != null) {
+                return response.body!!.byteStream() to response.headers["content-type"]!!
+            }
             val (actualSavePath, imageType) = saveImage(filePath, response.body!!.byteStream())
             Profiler.split("save img")
             return pathToInputStream(actualSavePath) to imageType

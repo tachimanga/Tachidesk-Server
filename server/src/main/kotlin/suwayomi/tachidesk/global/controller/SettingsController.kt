@@ -63,10 +63,11 @@ object SettingsController {
     private val json by DI.global.instance<Json>()
     private val logger = KotlinLogging.logger {}
 
-    val uploadCookies = handler(
+    val uploadSettings = handler(
         behaviorOf = { ctx ->
-            val input = json.decodeFromString<Setting.CookieData>(ctx.body())
-            logger.info { "uploadCookies: $input" }
+            val input = json.decodeFromString<Setting.SettingData>(ctx.body())
+            logger.info { "uploadSettings: $input" }
+            Setting.uploadSettings(input)
             Setting.uploadCookies(input)
         },
         withResults = {
