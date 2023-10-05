@@ -28,9 +28,11 @@ class McLoggingEventListener private constructor(
     private val logger: HttpLoggingInterceptor.Logger
 ) : EventListener() {
     private var startNs: Long = 0
+    private var threadName: String = ""
 
     override fun callStart(call: Call) {
         startNs = System.nanoTime()
+        threadName = Thread.currentThread().name
         logWithTime("callStart: ${call.request()}")
     }
 
@@ -161,7 +163,7 @@ class McLoggingEventListener private constructor(
 
     private fun logWithTime(message: String) {
         val timeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
-        logger.log("Profiler: [$timeMs ms] $message")
+        logger.log("Profiler: [$timeMs ms] [$threadName] $message")
     }
 
     open class Factory @JvmOverloads constructor(

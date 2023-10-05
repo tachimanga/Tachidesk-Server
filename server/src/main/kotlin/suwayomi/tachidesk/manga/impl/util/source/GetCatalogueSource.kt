@@ -47,7 +47,8 @@ object GetCatalogueSource {
         "HttpLoggingInterceptor",
         "CloudflareInterceptor",
         "RateLimitInterceptor",
-        "SpecificHostRateLimitInterceptor"
+        "SpecificHostRateLimitInterceptor",
+        "EnableNativeNetInterceptor"
     )
 
     private fun getCatalogueSource(sourceId: Long): CatalogueSource? {

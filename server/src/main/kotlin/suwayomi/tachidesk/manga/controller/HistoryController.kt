@@ -9,6 +9,7 @@ package suwayomi.tachidesk.manga.controller
 
 import com.jichao.tachiyomi.Profiler
 import io.javalin.http.HttpCode
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import org.kodein.di.DI
@@ -30,6 +31,16 @@ object HistoryController {
         },
         withResults = {
             json<Array<MangaDataClass>>(HttpCode.OK)
+        }
+    )
+
+    val batchDelete = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<History.BatchInput>(ctx.body())
+            History.batchDelete(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
         }
     )
 }

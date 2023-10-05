@@ -49,6 +49,8 @@ data class MangaDataClass(
     var lastReadAt: Long? = null,
     var lastChapterRead: ChapterDataClass? = null,
 
+    val trackers: List<MangaTrackerDataClass>? = null,
+
     val age: Long? = if (lastFetchedAt == null) 0 else Instant.now().epochSecond.minus(lastFetchedAt),
     val chaptersAge: Long? = if (chaptersLastFetchedAt == null) null else Instant.now().epochSecond.minus(chaptersLastFetchedAt)
 )

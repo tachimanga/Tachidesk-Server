@@ -37,6 +37,7 @@ object MangaController {
     private val json by DI.global.instance<Json>()
     private val logger = KotlinLogging.logger {}
 
+    // not used in sorayomi
     val retrieve = handler(
         pathParam<Int>("mangaId"),
         queryParam("onlineFetch", false),
@@ -59,6 +60,7 @@ object MangaController {
         }
     )
 
+    // used in sorayomi
     /** get manga info with all data filled in */
     val retrieveFull = handler(
         pathParam<Int>("mangaId"),
@@ -356,7 +358,7 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead ->
-            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead")
+            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead bookmarked $bookmarked")
             Chapter.modifyChapter(mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead)
 
             ctx.status(200)

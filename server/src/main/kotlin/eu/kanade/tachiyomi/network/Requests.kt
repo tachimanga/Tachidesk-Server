@@ -17,6 +17,7 @@ fun GET(
     headers: Headers = DEFAULT_HEADERS,
     cache: CacheControl = DEFAULT_CACHE_CONTROL
 ): Request {
+    println("build get req $url")
     return Request.Builder()
         .url(url)
         .headers(headers)
@@ -32,6 +33,7 @@ fun GET(
     headers: Headers = DEFAULT_HEADERS,
     cache: CacheControl = DEFAULT_CACHE_CONTROL
 ): Request {
+    println("build get2 req $url")
     return Request.Builder()
         .url(url)
         .headers(headers)
@@ -45,6 +47,7 @@ fun POST(
     body: RequestBody = DEFAULT_BODY,
     cache: CacheControl = DEFAULT_CACHE_CONTROL
 ): Request {
+    println("build post req $url")
     return Request.Builder()
         .url(url)
         .post(body)

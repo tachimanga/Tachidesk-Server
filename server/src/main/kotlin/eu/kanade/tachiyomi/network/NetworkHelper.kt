@@ -16,6 +16,7 @@ package eu.kanade.tachiyomi.network
 // import uy.kohesive.injekt.injectLazy
 import android.content.Context
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
+import eu.kanade.tachiyomi.network.interceptor.EnableNativeNetInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -40,7 +41,7 @@ class NetworkHelper(context: Context) {
                 .callTimeout(2, TimeUnit.MINUTES)
                 .addInterceptor(UserAgentInterceptor())
                 .addInterceptor(CloudflareInterceptor())
-//                .addInterceptor(EnableNativeNetInterceptor())
+                .addInterceptor(EnableNativeNetInterceptor())
 //                .sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getTrustManager()[0] as X509TrustManager)
 //                .hostnameVerifier(SSLSocketClient.getHostnameVerifier())
                 .eventListenerFactory(McLoggingEventListener.Factory())

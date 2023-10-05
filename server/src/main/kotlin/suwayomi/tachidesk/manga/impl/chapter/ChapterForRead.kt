@@ -56,12 +56,13 @@ private class ChapterForRead(
         val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
 
-        val pageList = source.fetchPageList(
+        val pageListSrc = source.fetchPageList(
             SChapter.create().apply {
                 url = chapterEntry[ChapterTable.url]
                 name = chapterEntry[ChapterTable.name]
             }
         ).awaitSingle()
+        val pageList = preprocessPageList(pageListSrc)
 
         val meta = GetCatalogueSource.getCatalogueSourceMeta(source)
         val support = supportDirect(source, meta, pageList)
@@ -88,7 +89,7 @@ private class ChapterForRead(
         }
 
         if (!sourceSupportDirect(meta)) {
-            println(source.name + " not simple")
+            println(source.name + " not supportDirect")
             return false
         }
 

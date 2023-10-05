@@ -9,6 +9,7 @@ package suwayomi.tachidesk.manga.impl
 
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.SManga
@@ -29,6 +30,7 @@ import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.MangaList.buildThumbnailImg
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.impl.Source.getSource
+import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.network.await
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
@@ -138,7 +140,8 @@ object Manga {
                 lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
                 chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
                 updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
-                freshData = true
+                freshData = true,
+                trackers = Track.getTrackRecordsByMangaId(mangaId)
             )
         }
     }
@@ -202,7 +205,8 @@ object Manga {
         lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
         chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
         updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
-        freshData = false
+        freshData = false,
+        trackers = Track.getTrackRecordsByMangaId(mangaId)
     )
 
     fun getMangaMetaMap(mangaId: Int): Map<String, String> {
@@ -269,7 +273,7 @@ object Manga {
 
                 source.client.newCall(
                     GET(thumbnailUrl, source.headers)
-                ).await()
+                ).asObservableSuccess().awaitSingle()
             }
 
             is LocalSource -> {
