@@ -14,8 +14,10 @@ import kotlinx.serialization.json.Json
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import suwayomi.tachidesk.manga.impl.Download
 import suwayomi.tachidesk.manga.impl.download.DownloadManager
 import suwayomi.tachidesk.manga.impl.download.DownloadManager.EnqueueInput
+import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
@@ -189,6 +191,25 @@ object DownloadController {
         },
         behaviorOf = { _, chapterIndex, mangaId, to ->
             DownloadManager.reorder(chapterIndex, mangaId, to)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val getDownloadedMangaList = handler(
+        behaviorOf = { ctx ->
+            ctx.json(Download.getDownloadedMangaList())
+        },
+        withResults = {
+            json<Array<MangaDataClass>>(HttpCode.OK)
+        }
+    )
+
+    val deleteDownloadedManga = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<Download.BatchInput>(ctx.body())
+            Download.deleteDownloadedManga(input)
         },
         withResults = {
             httpCode(HttpCode.OK)

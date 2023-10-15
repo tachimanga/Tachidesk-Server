@@ -44,12 +44,6 @@ data class ChapterDataClass(
     /** used to construct pages in the front-end */
     var pageCount: Int = -1,
 
-    /** total chapter count, used to calculate if there's a next and prev chapter */
-    val chapterCount: Int? = null,
-
     /** pageData **/
-    var pageData: Map<Int, ImgDataClass>? = null,
-
-    /** used to store client specific values */
-    val meta: Map<String, String> = emptyMap()
+    var pageData: Map<Int, ImgDataClass>? = null
 )

@@ -1,10 +1,6 @@
 package suwayomi.tachidesk.manga.impl.update
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,18 +9,21 @@ import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import mu.KotlinLogging
 import suwayomi.tachidesk.manga.impl.Chapter
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
-import suwayomi.tachidesk.server.serverConfig
 import java.util.concurrent.ConcurrentHashMap
+
+private const val MAX_UPDATER_IN_PARAllEL = 2
 
 class Updater : IUpdater {
     private val logger = KotlinLogging.logger {}
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private val dispatcher = newFixedThreadPoolContext(MAX_UPDATER_IN_PARAllEL, "Updater")
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
     private val _status = MutableStateFlow(UpdateStatus())
     override val status = _status.asStateFlow()
@@ -32,7 +31,7 @@ class Updater : IUpdater {
     private val tracker = ConcurrentHashMap<Int, UpdateJob>()
     private val updateChannels = ConcurrentHashMap<String, Channel<UpdateJob>>()
 
-    private val semaphore = Semaphore(serverConfig.maxParallelUpdateRequests)
+    private val semaphore = Semaphore(MAX_UPDATER_IN_PARAllEL)
 
     private fun getOrCreateUpdateChannelFor(source: String): Channel<UpdateJob> {
         return updateChannels.getOrPut(source) {
@@ -46,12 +45,8 @@ class Updater : IUpdater {
         channel.consumeAsFlow()
             .onEach { job ->
                 semaphore.withPermit {
-                    _status.value = UpdateStatus(
-                        process(job),
-                        tracker.any { (_, job) ->
-                            job.status == JobStatus.PENDING || job.status == JobStatus.RUNNING
-                        }
-                    )
+                    process(job)
+                    updateStatus(null)
                 }
             }
             .catch { logger.error(it) { "Error during updates" } }
@@ -59,9 +54,17 @@ class Updater : IUpdater {
         return channel
     }
 
+    private fun updateStatus(running: Boolean?) {
+        val flag = running
+            ?: tracker.any { (_, job) ->
+                job.status == JobStatus.PENDING || job.status == JobStatus.RUNNING
+            }
+        _status.value = UpdateStatus(tracker.values, flag)
+    }
+
     private suspend fun process(job: UpdateJob): List<UpdateJob> {
         tracker[job.manga.id] = job.copy(status = JobStatus.RUNNING)
-        _status.update { UpdateStatus(tracker.values.toList(), true) }
+        updateStatus(true)
         tracker[job.manga.id] = try {
             logger.info { "Updating \"${job.manga.title}\" (source: ${job.manga.sourceId})" }
             Chapter.getChapterList(job.manga.id, true)
@@ -80,7 +83,7 @@ class Updater : IUpdater {
             updateChannel.send(UpdateJob(manga))
         }
         tracker[manga.id] = UpdateJob(manga)
-        _status.update { UpdateStatus(tracker.values.toList(), true) }
+        updateStatus(true)
     }
 
     override fun reset() {

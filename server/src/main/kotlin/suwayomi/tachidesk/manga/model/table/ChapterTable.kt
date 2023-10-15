@@ -9,9 +9,6 @@ package suwayomi.tachidesk.manga.model.table
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.transactions.transaction
-import suwayomi.tachidesk.manga.impl.Chapter.getChapterMetaMap
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.table.MangaTable.nullable
 
@@ -57,29 +54,5 @@ fun ChapterTable.toDataClass(chapterEntry: ResultRow) =
         fetchedAt = chapterEntry[fetchedAt],
         realUrl = chapterEntry[realUrl],
         downloaded = chapterEntry[isDownloaded],
-        pageCount = chapterEntry[pageCount],
-        chapterCount = transaction { ChapterTable.select { manga eq chapterEntry[manga].value }.count().toInt() },
-        meta = getChapterMetaMap(chapterEntry[id])
-    )
-
-fun ChapterTable.toDataClass(chapterEntry: ResultRow, chapterCount: Int, meta: Map<String, String>) =
-    ChapterDataClass(
-        id = chapterEntry[id].value,
-        url = chapterEntry[url],
-        name = chapterEntry[name],
-        uploadDate = chapterEntry[date_upload],
-        chapterNumber = chapterEntry[chapter_number],
-        scanlator = chapterEntry[scanlator],
-        mangaId = chapterEntry[manga].value,
-        read = chapterEntry[isRead],
-        bookmarked = chapterEntry[isBookmarked],
-        lastPageRead = chapterEntry[lastPageRead],
-        lastReadAt = chapterEntry[lastReadAt],
-        index = chapterEntry[sourceOrder],
-        fetchedAt = chapterEntry[fetchedAt],
-        realUrl = chapterEntry[realUrl],
-        downloaded = chapterEntry[isDownloaded],
-        pageCount = chapterEntry[pageCount],
-        chapterCount = chapterCount,
-        meta = meta
+        pageCount = chapterEntry[pageCount]
     )

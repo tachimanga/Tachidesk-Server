@@ -69,6 +69,7 @@ object UpdateController {
             }
         },
         behaviorOf = { ctx, categoryId ->
+            logger.info { "categoryUpdate categoryId:$categoryId" }
             if (categoryId == null) {
                 logger.info { "Adding Library to Update Queue" }
                 addCategoriesToUpdateQueue(Category.getCategoryList(), true)

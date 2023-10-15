@@ -11,7 +11,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ResultRow
-import suwayomi.tachidesk.manga.impl.Manga.getMangaMetaMap
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
@@ -43,6 +42,7 @@ object MangaTable : IntIdTable() {
 
     val lastFetchedAt = long("last_fetched_at").default(0)
     val chaptersLastFetchedAt = long("chapters_last_fetched_at").default(0)
+    val lastDownloadAt = long("last_download_at").default(0)
 
     val updateStrategy = varchar("update_strategy", 256).default(UpdateStrategy.ALWAYS_UPDATE.name)
 }
@@ -66,7 +66,6 @@ fun MangaTable.toDataClass(mangaEntry: ResultRow) =
         status = Companion.valueOf(mangaEntry[status]).name,
         inLibrary = mangaEntry[inLibrary],
         inLibraryAt = mangaEntry[inLibraryAt],
-        meta = getMangaMetaMap(mangaEntry[id].value),
         realUrl = mangaEntry[realUrl],
         lastFetchedAt = mangaEntry[lastFetchedAt],
         chaptersLastFetchedAt = mangaEntry[chaptersLastFetchedAt],
