@@ -2,10 +2,7 @@ package suwayomi.tachidesk.manga.impl.update
 
 import io.javalin.websocket.WsContext
 import io.javalin.websocket.WsMessageContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import mu.KotlinLogging
@@ -20,10 +17,12 @@ object UpdaterSocket : Websocket<UpdateStatus>() {
     private var job: Job? = null
 
     override fun notifyClient(ctx: WsContext, value: UpdateStatus?) {
+        logger.info { "categoryUpdateWS notifyClient" }
         ctx.send(value ?: updater.status.value)
     }
 
     override fun handleRequest(ctx: WsMessageContext) {
+        logger.info { "categoryUpdateWS onMessage ${ctx.message()} from ${ctx.sessionId}" }
         when (ctx.message()) {
             "STATUS" -> notifyClient(ctx, updater.status.value)
             else -> ctx.send(
@@ -39,7 +38,7 @@ object UpdaterSocket : Websocket<UpdateStatus>() {
     }
 
     override fun addClient(ctx: WsContext) {
-        logger.info { ctx.sessionId }
+        logger.info { "categoryUpdateWS onConnect ${ctx.sessionId}" }
         super.addClient(ctx)
         if (job?.isActive != true) {
             job = start()
@@ -47,6 +46,7 @@ object UpdaterSocket : Websocket<UpdateStatus>() {
     }
 
     override fun removeClient(ctx: WsContext) {
+        logger.info { "categoryUpdateWS onClose ${ctx.sessionId}" }
         super.removeClient(ctx)
         if (clients.isEmpty()) {
             job?.cancel()
@@ -57,6 +57,7 @@ object UpdaterSocket : Websocket<UpdateStatus>() {
     fun start(): Job {
         return updater.status
             .onEach {
+                println("notify updater numberOfJobs:${it.numberOfJobs} running:${it.running}")
                 notifyAllClients(it)
             }
             .launchIn(scope)

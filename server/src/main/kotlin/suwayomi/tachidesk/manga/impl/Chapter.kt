@@ -12,7 +12,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
 import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SortOrder.ASC
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -52,21 +51,17 @@ object Chapter {
             getSourceChapters(mangaId)
         } else {
             Profiler.split("local")
-            transaction {
-                val chapterList = ChapterTable.select { ChapterTable.manga eq mangaId }
+            val chapterList = transaction {
+                ChapterTable.select { ChapterTable.manga eq mangaId }
                     .orderBy(ChapterTable.sourceOrder to SortOrder.DESC)
                     .toList()
-                Profiler.split("get chapterList")
-                val chapterCount = chapterList.size
-                val chapterIds = chapterList.map { it[ChapterTable.id] }
-                val meta = getChaptersMetaMaps(chapterIds)
-                Profiler.split("get meta")
-                val list = chapterList.map {
-                    ChapterTable.toDataClass(it, chapterCount, meta.getValue(it[ChapterTable.id]))
-                }
-                fixUploadDate(list)
-                list
-            }.ifEmpty {
+            }
+            Profiler.split("get chapterList")
+            val list = chapterList.map {
+                ChapterTable.toDataClass(it)
+            }
+            fixUploadDate(list)
+            list.ifEmpty {
                 getSourceChapters(mangaId)
             }
         }
@@ -261,10 +256,6 @@ object Chapter {
             ChapterTable.select { ChapterTable.manga eq mangaId }
                 .associateBy({ it[ChapterTable.url] }, { it })
         }
-        Profiler.split("get dbChapterMap")
-        val chapterIds = chapterList.map { dbChapterMap.getValue(it.url)[ChapterTable.id] }
-        val chapterMetas = getChaptersMetaMaps(chapterIds)
-        Profiler.split("get getChaptersMetaMaps")
 
         val chapterDataList = chapterList.mapIndexed { index, it ->
             val dbChapter = dbChapterMap.getValue(it.url)
@@ -287,10 +278,7 @@ object Chapter {
                 realUrl = dbChapter[ChapterTable.realUrl],
                 downloaded = dbChapter[ChapterTable.isDownloaded],
 
-                pageCount = dbChapter[ChapterTable.pageCount],
-
-                chapterCount = chapterList.size,
-                meta = chapterMetas.getValue(dbChapter[ChapterTable.id])
+                pageCount = dbChapter[ChapterTable.pageCount]
             )
         }
         fixUploadDate(chapterDataList)
@@ -448,22 +436,6 @@ object Chapter {
         }
     }
 
-    fun getChaptersMetaMaps(chapterIds: List<EntityID<Int>>): Map<EntityID<Int>, Map<String, String>> {
-        return transaction {
-            ChapterMetaTable.select { ChapterMetaTable.ref inList chapterIds }
-                .groupBy { it[ChapterMetaTable.ref] }
-                .mapValues { it.value.associate { it[ChapterMetaTable.key] to it[ChapterMetaTable.value] } }
-                .withDefault { emptyMap<String, String>() }
-        }
-    }
-
-    fun getChapterMetaMap(chapter: EntityID<Int>): Map<String, String> {
-        return transaction {
-            ChapterMetaTable.select { ChapterMetaTable.ref eq chapter }
-                .associate { it[ChapterMetaTable.key] to it[ChapterMetaTable.value] }
-        }
-    }
-
     fun modifyChapterMeta(mangaId: Int, chapterIndex: Int, key: String, value: String) {
         transaction {
             val chapterId =
@@ -501,7 +473,7 @@ object Chapter {
         }
     }
 
-    private fun deleteChapters(input: MangaChapterBatchEditInput, mangaId: Int? = null) {
+    fun deleteChapters(input: MangaChapterBatchEditInput, mangaId: Int? = null) {
         if (input.chapterIds != null) {
             val chapterIds = input.chapterIds
 
@@ -537,18 +509,33 @@ object Chapter {
     }
 
     fun getRecentChapters(pageNum: Int): PaginatedList<MangaChapterDataClass> {
-        return paginatedFrom(pageNum) {
-            transaction {
-                (ChapterTable innerJoin MangaTable)
-                    .select { (MangaTable.inLibrary eq true) and (ChapterTable.fetchedAt greater MangaTable.inLibraryAt) }
-                    .orderBy(ChapterTable.fetchedAt to SortOrder.DESC)
-                    .map {
-                        MangaChapterDataClass(
-                            MangaTable.toDataClass(it),
-                            ChapterTable.toDataClass(it)
-                        )
-                    }
-            }
+        val mangaList = transaction {
+            MangaTable
+                .select { (MangaTable.inLibrary eq true) }
+                .map {
+                    MangaTable.toDataClass(it)
+                }
         }
+        val mangaMap = mangaList.associateBy { it.id }
+        val minFetchedAt = System.currentTimeMillis() / 1000 - 86400 * 3
+        val chapters = transaction {
+            ChapterTable
+                .select { (ChapterTable.manga inList mangaMap.keys) and (ChapterTable.fetchedAt greater minFetchedAt) }
+                .orderBy(ChapterTable.fetchedAt to SortOrder.DESC)
+                .limit(1000)
+                .map { ChapterTable.toDataClass(it) }
+        }
+        val paginatedList = paginatedFrom(pageNum, paginationFactor = 100) {
+            chapters
+        }
+        return PaginatedList(
+            paginatedList.page.map {
+                MangaChapterDataClass(
+                    mangaMap[it.mangaId]!!,
+                    it
+                )
+            },
+            paginatedList.hasNextPage
+        )
     }
 }

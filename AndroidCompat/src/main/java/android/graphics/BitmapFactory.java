@@ -1,51 +1,34 @@
 package android.graphics;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.IOException;
-import java.util.Iterator;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
+import java.util.Arrays;
 
 public class BitmapFactory {
     public static Bitmap decodeStream(InputStream inputStream) {
-        Bitmap bitmap = null;
+        //System.out.println("nativeImg decodeStream");
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        int nRead;
+        byte[] data = new byte[1024];
 
         try {
-            ImageInputStream imageInputStream = ImageIO.createImageInputStream(inputStream);
-            Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(imageInputStream);
-
-            if (!imageReaders.hasNext()) {
-                throw new IllegalArgumentException("no reader for image");
+            while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, nRead);
             }
-
-            ImageReader imageReader = imageReaders.next();
-            imageReader.setInput(imageInputStream);
-
-            BufferedImage image = imageReader.read(0, imageReader.getDefaultReadParam());
-            bitmap = new Bitmap(image);
-
-            imageReader.dispose();
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            buffer.flush();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
-        return bitmap;
+        byte[] targetArray = buffer.toByteArray();
+        return Bitmap.createBitmap(targetArray);
     }
 
     public static Bitmap decodeByteArray(byte[] data, int offset, int length) {
-        Bitmap bitmap = null;
-
-        ByteArrayInputStream byteArrayStream = new ByteArrayInputStream(data);
-        try {
-            BufferedImage image = ImageIO.read(byteArrayStream);
-            bitmap = new Bitmap(image);
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-
-        return bitmap;
+        //System.out.println("nativeImg decodeByteArray offset:" + offset + ", length:" + length);
+        byte[] subData = offset == 0 && length == data.length ?
+                data : Arrays.copyOfRange(data, offset, length);
+        return Bitmap.createBitmap(subData);
     }
 }

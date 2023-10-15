@@ -1,29 +1,32 @@
 package android.graphics;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Iterator;
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.ImageOutputStream;
+import java.nio.ByteBuffer;
 
 public final class Bitmap {
     private int width;
     private int height;
-    private BufferedImage image;
 
-    public Bitmap(BufferedImage image) {
-        this.image = image;
-        this.width = image.getWidth();
-        this.height = image.getHeight();
-    }
+    //private long start;
 
-    public BufferedImage getImage() {
-        return image;
+    private NativeRef nativeImageRef;
+    private NativeRef nativeCanvasRef;
+
+    public static Bitmap createBitmap(byte[] bytes) {
+        Bitmap bitmap = new Bitmap();
+        //long s = System.currentTimeMillis();
+        System.out.println("nativeImg createBitmap bytes.len:" + bytes.length
+                + ", bitmap:" + bitmap);
+
+        long[] r = bitmap.createNativeImage(bytes);
+
+        bitmap.nativeImageRef = new NativeRef(r[0]);
+        bitmap.width = (int) r[1];
+        bitmap.height = (int) r[2];
+
+        //System.out.println("nativeImg createBitmap cost:" + (System.currentTimeMillis() - s) + "ms");
+        return bitmap;
     }
 
     public int getHeight() {
@@ -73,57 +76,116 @@ public final class Bitmap {
     }
 
     public static Bitmap createBitmap(int width, int height, Config config) {
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        return new Bitmap(image);
+        Bitmap bitmap = new Bitmap();
+        //bitmap.start = System.currentTimeMillis();
+        System.out.println("nativeImg createBitmap canvas width:" + width + ", height:" + height
+                + ", bitmap:" + bitmap);
+
+        long r = bitmap.createNativeCanvas(width, height);
+        bitmap.nativeCanvasRef = new NativeRef(r);
+        bitmap.width = width;
+        bitmap.height = height;
+
+        return bitmap;
+    }
+
+    public void drawBitmap(Bitmap sourceBitmap, Rect src, Rect dst, Paint paint) {
+        //System.out.println("nativeImg drawBitmap src:" + src.toShortString() + ", dst:" + dst.toShortString());
+        if (sourceBitmap.nativeImageRef == null) {
+            System.out.println("nativeImg sourceBitmap.nativeImageRef is null");
+            return;
+        }
+        if (this.nativeCanvasRef == null) {
+            System.out.println("nativeImg this.nativeCanvasRef is null");
+            return;
+        }
+        drawBitmap(sourceBitmap.nativeImageRef.address(),
+                this.nativeCanvasRef.address(),
+                new int[]{src.left, src.top, src.right, src.bottom},
+                new int[]{dst.left, dst.top, dst.right, dst.bottom}
+        );
+    }
+
+    public void getPixels(int[] pixels, int offset, int stride,
+                          int x, int y, int width, int height) {
+        throw new RuntimeException("请在设置中禁用移除包子漫画横幅");
     }
 
     public boolean compress(CompressFormat format, int quality, OutputStream stream) {
+        System.out.println("nativeImg compress format:" + format + ", quality:" + quality);
+
         if (stream == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("stream is null");
         }
 
         if (quality < 0 || quality > 100) {
             throw new IllegalArgumentException("quality must be 0..100");
         }
-        float qualityFloat = ((float) quality) / 100;
 
-        String formatString = "";
-        if (format == Bitmap.CompressFormat.PNG) {
-            formatString = "png";
-        } else if (format == Bitmap.CompressFormat.JPEG) {
-            formatString = "jpg";
-        } else {
-            throw new IllegalArgumentException("unsupported compression format!");
+        if (quality == 0 || quality > 90) {
+            quality = 90;
         }
 
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(formatString);
-        if (!writers.hasNext()) {
-            throw new IllegalStateException("no image writers found for this format!");
-        }
-        ImageWriter writer = (ImageWriter) writers.next();
-
-        ImageOutputStream ios;
-        try {
-            ios = ImageIO.createImageOutputStream(stream);
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        writer.setOutput(ios);
-
-        ImageWriteParam param = writer.getDefaultWriteParam();
-        if (formatString == "jpg") {
-            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            param.setCompressionQuality(qualityFloat);
+        if (nativeCanvasRef != null) {
+            ByteBuffer buffer = getImage(nativeCanvasRef.address(), format.nativeInt, quality);
+            writeByteBufferToOutputStream(buffer, stream);
+            //System.out.println("nativeImg drawBitmap cost:" + (System.currentTimeMillis() - this.start) + "ms");
+            return true;
         }
 
-        try {
-             writer.write(null, new IIOImage(image, null, null), param);
-             ios.close();
-             writer.dispose();
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
+        if (nativeImageRef != null) {
+            ByteBuffer buffer = compressImage(nativeImageRef.address(), format.nativeInt, quality);
+            writeByteBufferToOutputStream(buffer, stream);
+            //System.out.println("nativeImg compressImage cost:" + (System.currentTimeMillis() - this.start) + "ms");
+            return true;
         }
 
         return true;
     }
+
+    private void writeByteBufferToOutputStream(ByteBuffer buffer, OutputStream stream) {
+        try {
+            byte[] buff = new byte[buffer.remaining()];
+            buffer.get(buff);
+            stream.write(buff);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void releaseNativeObject() {
+        System.out.println("nativeImg releaseNativeObject bitmap:" + this);
+        if (nativeImageRef != null) {
+            long addr = nativeImageRef.address();
+            nativeImageRef.clear();
+            if (addr != 0) {
+                releaseNativeImage(addr);
+            }
+        }
+        if (nativeCanvasRef != null) {
+            long addr = nativeCanvasRef.address();
+            nativeCanvasRef.clear();
+            if (addr != 0) {
+                releaseNativeCanvas(addr);
+            }
+        }
+    }
+
+    protected void finalize() {
+        //System.out.println("nativeImg finalize");
+        releaseNativeObject();
+    }
+
+    private native long[] createNativeImage(byte[] bytes);
+
+    private native long createNativeCanvas(int width, int height);
+
+    private native void drawBitmap(long imageRef, long canvasRef, int[] src, int []dst);
+
+    private native ByteBuffer getImage(long canvasRef, int format, int quality);
+
+    private native ByteBuffer compressImage(long imageRef, int format, int quality);
+
+    private native void releaseNativeImage(long imageRef);
+    private native void releaseNativeCanvas(long canvasRef);
 }

@@ -107,10 +107,11 @@ class Downloader(
                 downloadQueue.filter { it.state == Downloading }.forEach { it.state = Queued }
             } catch (e: PauseDownloadException) {
                 download.state = Queued
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 logger.info("Downloader faced an exception", e)
                 download.tries++
                 download.state = Error
+                download.error = e.message
             } finally {
                 notifier(false)
             }

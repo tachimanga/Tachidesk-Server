@@ -15,6 +15,7 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Manga.batchGetMangaMetaMap
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
@@ -24,6 +25,7 @@ import suwayomi.tachidesk.manga.model.dataclass.*
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
 import suwayomi.tachidesk.manga.model.table.MangaStatus
 import suwayomi.tachidesk.manga.model.table.MangaTable
+import java.time.Instant
 
 object MangaList {
     fun proxyThumbnailUrl(mangaId: Int): String {
@@ -84,11 +86,6 @@ object MangaList {
 
                         it[sourceReference] = sourceId
                     }.value
-
-                    mangaEntry = MangaTable.select {
-                        (MangaTable.url eq manga.url) and (MangaTable.sourceReference eq sourceId)
-                    }.first()
-
                     MangaDataClass(
                         id = mangaId,
                         sourceId = sourceId.toString(),
@@ -96,7 +93,7 @@ object MangaList {
                         url = manga.url,
                         title = manga.title,
                         thumbnailUrl = proxyThumbnailUrl(mangaId),
-                        thumbnailUrlLastFetched = mangaEntry[MangaTable.thumbnailUrlLastFetched],
+                        thumbnailUrlLastFetched = 0,
                         thumbnailImg = buildThumbnailImg(manga.thumbnail_url, meta),
 
                         initialized = manga.initialized,
@@ -109,14 +106,24 @@ object MangaList {
                         inLibrary = false, // It's a new manga entry
                         inLibraryAt = 0,
                         // meta = getMangaMetaMap(mangaId),
-                        realUrl = mangaEntry[MangaTable.realUrl],
-                        lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
-                        chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
-                        updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
+                        realUrl = null,
+                        lastFetchedAt = 0,
+                        chaptersLastFetchedAt = 0,
+                        updateStrategy = manga.update_strategy,
                         freshData = true
                     )
                 } else {
                     val mangaId = mangaEntry[MangaTable.id].value
+
+                    if (manga.thumbnail_url?.isNotBlank() == true &&
+                        manga.thumbnail_url != mangaEntry[MangaTable.thumbnail_url]
+                    ) {
+                        MangaTable.update({ MangaTable.id eq mangaId }) {
+                            it[MangaTable.thumbnail_url] = manga.thumbnail_url
+                            it[MangaTable.thumbnailUrlLastFetched] = Instant.now().epochSecond
+                        }
+                    }
+
                     MangaDataClass(
                         id = mangaId,
                         sourceId = sourceId.toString(),

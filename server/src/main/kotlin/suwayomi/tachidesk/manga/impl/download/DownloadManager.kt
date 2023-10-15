@@ -9,22 +9,17 @@ package suwayomi.tachidesk.manga.impl.download
 
 import io.javalin.websocket.WsContext
 import io.javalin.websocket.WsMessageContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
+import suwayomi.tachidesk.manga.impl.download.model.DownloadState
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Downloading
 import suwayomi.tachidesk.manga.impl.download.model.DownloadStatus
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
@@ -38,29 +33,36 @@ import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
-private const val MAX_SOURCES_IN_PARAllEL = 5
+private const val MAX_SOURCES_IN_PARAllEL = 4
 
 object DownloadManager {
+    @OptIn(DelicateCoroutinesApi::class)
+    private val backgroundDispatcher = newFixedThreadPoolContext(MAX_SOURCES_IN_PARAllEL, "Downloader")
+    private val downloadScope = CoroutineScope(SupervisorJob() + backgroundDispatcher)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val clients = ConcurrentHashMap<String, WsContext>()
     private val downloadQueue = CopyOnWriteArrayList<DownloadChapter>()
     private val downloaders = ConcurrentHashMap<Long, Downloader>()
 
     fun addClient(ctx: WsContext) {
+        logger.info { "DownloadManager onConnect ${ctx.sessionId}" }
         clients[ctx.sessionId] = ctx
     }
 
     fun removeClient(ctx: WsContext) {
+        logger.info { "DownloadManager onClose ${ctx.sessionId}" }
         clients.remove(ctx.sessionId)
     }
 
     fun notifyClient(ctx: WsContext) {
+        logger.info { "DownloadManager notifyClient" }
         ctx.send(
             getStatus()
         )
     }
 
     fun handleRequest(ctx: WsMessageContext) {
+        logger.info { "DownloadManager onMessage ${ctx.message()} from ${ctx.sessionId}" }
         when (ctx.message()) {
             "STATUS" -> notifyClient(ctx)
             else -> ctx.send(
@@ -121,6 +123,7 @@ object DownloadManager {
                 logger.info { "Running: ${runningDownloaders.size}" }
                 if (runningDownloaders.size < MAX_SOURCES_IN_PARAllEL) {
                     downloadQueue.asSequence()
+                        .filter { !(it.state == DownloadState.Error && it.tries >= 3) }
                         .map { it.manga.sourceId.toLong() }
                         .distinct()
                         .minus(
@@ -138,14 +141,12 @@ object DownloadManager {
     }
 
     private fun refreshDownloaders() {
-        scope.launch {
-            downloaderWatch.emit(Unit)
-        }
+        start()
     }
 
     private fun getDownloader(sourceId: Long) = downloaders.getOrPut(sourceId) {
         Downloader(
-            scope = scope,
+            scope = downloadScope,
             sourceId = sourceId,
             downloadQueue = downloadQueue,
             notifier = ::notifyAllClients,
@@ -216,9 +217,6 @@ object DownloadManager {
             start()
             notifyAllClients(true)
         }
-        scope.launch {
-            downloaderWatch.emit(Unit)
-        }
     }
 
     /**
@@ -255,6 +253,7 @@ object DownloadManager {
     }
 
     fun start() {
+        logger.info { "Running:start" }
         scope.launch {
             downloaderWatch.emit(Unit)
         }

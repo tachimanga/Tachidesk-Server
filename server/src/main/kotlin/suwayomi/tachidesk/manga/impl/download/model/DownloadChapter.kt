@@ -17,6 +17,7 @@ class DownloadChapter(
     var chapter: ChapterDataClass,
     var manga: MangaDataClass,
     var state: DownloadState = Queued,
+    var error: String? = null,
     var progress: Float = 0f,
     var tries: Int = 0
 )

@@ -19,6 +19,10 @@ import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.builtins.serializer
 import java.util.prefs.PreferenceChangeListener
 import java.util.prefs.Preferences
+import java.util.prefs.Preferences.MAX_KEY_LENGTH
+
+fun shortKey(longKey: String) =
+    if (longKey.length > MAX_KEY_LENGTH) longKey.substring(0, MAX_KEY_LENGTH) else longKey
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
 class JavaSharedPreferences(key: String) : SharedPreferences {
@@ -31,7 +35,8 @@ class JavaSharedPreferences(key: String) : SharedPreferences {
         return preferences.keys.associateWith { preferences.getStringOrNull(it) }.toMutableMap()
     }
 
-    override fun getString(key: String, defValue: String?): String? {
+    override fun getString(longKey: String, defValue: String?): String? {
+        val key = shortKey(longKey)
         return if (defValue != null) {
             preferences.getString(key, defValue)
         } else {
@@ -39,7 +44,8 @@ class JavaSharedPreferences(key: String) : SharedPreferences {
         }
     }
 
-    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
+    override fun getStringSet(longKey: String, defValues: Set<String>?): Set<String>? {
+        val key = shortKey(longKey)
         try {
             return if (defValues != null) {
                 preferences.decodeValue(SetSerializer(String.serializer()), key, defValues)
@@ -51,23 +57,28 @@ class JavaSharedPreferences(key: String) : SharedPreferences {
         }
     }
 
-    override fun getInt(key: String, defValue: Int): Int {
+    override fun getInt(longKey: String, defValue: Int): Int {
+        val key = shortKey(longKey)
         return preferences.getInt(key, defValue)
     }
 
-    override fun getLong(key: String, defValue: Long): Long {
+    override fun getLong(longKey: String, defValue: Long): Long {
+        val key = shortKey(longKey)
         return preferences.getLong(key, defValue)
     }
 
-    override fun getFloat(key: String, defValue: Float): Float {
+    override fun getFloat(longKey: String, defValue: Float): Float {
+        val key = shortKey(longKey)
         return preferences.getFloat(key, defValue)
     }
 
-    override fun getBoolean(key: String, defValue: Boolean): Boolean {
+    override fun getBoolean(longKey: String, defValue: Boolean): Boolean {
+        val key = shortKey(longKey)
         return preferences.getBoolean(key, defValue)
     }
 
-    override fun contains(key: String): Boolean {
+    override fun contains(longKey: String): Boolean {
+        val key = shortKey(longKey)
         return key in preferences.keys
     }
 
@@ -79,8 +90,12 @@ class JavaSharedPreferences(key: String) : SharedPreferences {
         private val actions = mutableListOf<Action>()
 
         private sealed class Action {
-            data class Add(val key: String, val value: Any) : Action()
-            data class Remove(val key: String) : Action()
+            data class Add(val longKey: String, val value: Any) : Action() {
+                val key = shortKey(longKey)
+            }
+            data class Remove(val longKey: String) : Action() {
+                val key = shortKey(longKey)
+            }
             object Clear : Action()
         }
 

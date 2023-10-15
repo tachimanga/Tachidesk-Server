@@ -44,7 +44,6 @@ object MangaAPI {
 
             get("{sourceId}/search", SourceController.searchSingle)
             post("{sourceId}/quick-search", SourceController.quickSearchSingle)
-//            get("all/search", SourceController.searchGlobal) // TODO
         }
 
         path("manga") {
@@ -124,6 +123,11 @@ object MangaAPI {
             patch("{mangaId}/chapter/{chapterIndex}/reorder/{to}", DownloadController.reorderChapter)
             post("batch", DownloadController.queueChapters)
             delete("batch", DownloadController.unqueueChapters)
+        }
+
+        path("downloaded") {
+            get("list", DownloadController.getDownloadedMangaList)
+            delete("batch", DownloadController.deleteDownloadedManga)
         }
 
         path("update") {

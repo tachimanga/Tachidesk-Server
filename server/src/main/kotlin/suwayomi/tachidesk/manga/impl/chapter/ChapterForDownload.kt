@@ -27,6 +27,7 @@ import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.PageTable
 import suwayomi.tachidesk.manga.model.table.toDataClass
 import java.io.File
+import java.time.Instant
 
 suspend fun getChapterDownloadReady(chapterIndex: Int, mangaId: Int): ChapterDataClass {
     val chapter = ChapterForDownload(chapterIndex, mangaId)
@@ -91,6 +92,9 @@ private class ChapterForDownload(
         transaction {
             ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
                 it[isDownloaded] = false
+            }
+            MangaTable.update({ MangaTable.id eq mangaId }) {
+                it[lastDownloadAt] = Instant.now().epochSecond
             }
         }
     }
