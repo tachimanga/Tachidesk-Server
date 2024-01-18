@@ -163,7 +163,7 @@ class McLoggingEventListener private constructor(
 
     private fun logWithTime(message: String) {
         val timeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
-        logger.log("Profiler: [$timeMs ms] [$threadName] $message")
+        logger.log("Profiler: [NativeNet][$timeMs ms] [$threadName] $message")
     }
 
     open class Factory @JvmOverloads constructor(

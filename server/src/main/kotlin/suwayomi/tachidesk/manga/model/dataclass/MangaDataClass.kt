@@ -48,6 +48,8 @@ data class MangaDataClass(
     var chapterCount: Long? = null,
     var lastReadAt: Long? = null,
     var lastChapterRead: ChapterDataClass? = null,
+    // MAX(ChapterTable.fetchedAt)
+    var latestChapterFetchAt: Long? = null,
 
     val trackers: List<MangaTrackerDataClass>? = null,
 

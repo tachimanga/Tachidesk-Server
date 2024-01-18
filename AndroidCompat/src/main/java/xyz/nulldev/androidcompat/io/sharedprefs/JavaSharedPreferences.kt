@@ -19,10 +19,13 @@ import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.builtins.serializer
 import java.util.prefs.PreferenceChangeListener
 import java.util.prefs.Preferences
-import java.util.prefs.Preferences.MAX_KEY_LENGTH
+
+const val PREF_MAX_KEY_LENGTH = 8 * 1024
+
+const val PREF_MAX_VALUE_LENGTH = 1024 * 1024
 
 fun shortKey(longKey: String) =
-    if (longKey.length > MAX_KEY_LENGTH) longKey.substring(0, MAX_KEY_LENGTH) else longKey
+    if (longKey.length > PREF_MAX_KEY_LENGTH) longKey.substring(0, PREF_MAX_KEY_LENGTH) else longKey
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
 class JavaSharedPreferences(key: String) : SharedPreferences {

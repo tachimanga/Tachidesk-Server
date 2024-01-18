@@ -96,4 +96,18 @@ object SettingsController {
             httpCode(HttpCode.OK)
         }
     )
+
+    val systemInfo = handler(
+        behaviorOf = { ctx ->
+            val map = HashMap<String, Long>()
+//            map.put("processor", Runtime.getRuntime().availableProcessors().toLong())
+            map["freeMemory"] = Runtime.getRuntime().freeMemory()
+            map["totalMemory"] = Runtime.getRuntime().totalMemory()
+            map["maxMemory"] = Runtime.getRuntime().maxMemory()
+            ctx.json(map)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
 }

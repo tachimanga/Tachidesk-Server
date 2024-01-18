@@ -1,5 +1,6 @@
 package suwayomi.tachidesk.manga.impl.track.tracker.model
 
+import eu.kanade.tachiyomi.data.backup.models.BackupTracking
 import org.jetbrains.exposed.sql.ResultRow
 import suwayomi.tachidesk.manga.model.dataclass.TrackRecordDataClass
 import suwayomi.tachidesk.manga.model.dataclass.TrackSearchDataClass
@@ -49,4 +50,18 @@ fun ResultRow.toTrack(): Track = Track.create(this[TrackRecordTable.syncId].toLo
     it.tracking_url = this[TrackRecordTable.remoteUrl]
     it.started_reading_date = this[TrackRecordTable.startDate]
     it.finished_reading_date = this[TrackRecordTable.finishDate]
+}
+
+fun BackupTracking.toTrack(mangaId: Long): Track = Track.create(syncId.toLong()).also {
+    it.manga_id = mangaId
+    it.media_id = mediaId
+    it.library_id = libraryId
+    it.title = title
+    it.last_chapter_read = lastChapterRead
+    it.total_chapters = totalChapters
+    it.status = status
+    it.score = score
+    it.tracking_url = trackingUrl
+    it.started_reading_date = startedReadingDate
+    it.finished_reading_date = finishedReadingDate
 }

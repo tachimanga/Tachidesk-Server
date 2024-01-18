@@ -9,6 +9,7 @@ package suwayomi.tachidesk.manga.impl.chapter
 
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
+import okhttp3.internal.trimSubstring
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
@@ -40,13 +41,17 @@ fun preprocessPageList(pageList: List<Page>): List<Page> {
         it.imageUrl != ""
     }
     list.forEach {
+        it.imageUrl = it.imageUrl?.trimSubstring()
         if (it.imageUrl?.startsWith("://") == true) {
             it.imageUrl = "https${it.imageUrl}"
         } else if (it.imageUrl?.startsWith("//") == true) {
             it.imageUrl = "https:${it.imageUrl}"
         }
     }
-    return list
+    // Tachiyomi: Don't trust sources and use our own indexing
+    return list.mapIndexed { index, page ->
+        Page(index, page.url, page.imageUrl)
+    }
 }
 
 private class ChapterForDownload(
@@ -79,10 +84,14 @@ private class ChapterForDownload(
         val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
 
+        // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
         return source.fetchPageList(
             SChapter.create().apply {
                 url = chapterEntry[ChapterTable.url]
                 name = chapterEntry[ChapterTable.name]
+                date_upload = chapterEntry[ChapterTable.date_upload]
+                chapter_number = chapterEntry[ChapterTable.chapter_number]
+                scanlator = chapterEntry[ChapterTable.scanlator]
             }
         ).awaitSingle()
     }
@@ -149,6 +158,7 @@ private class ChapterForDownload(
     private fun isNotCompletelyDownloaded(): Boolean {
         return !(
             chapterEntry[ChapterTable.isDownloaded] &&
+                chapterEntry[ChapterTable.pageCount] > 0 &&
                 (firstPageExists() || File(getChapterCbzPath(mangaId, chapterEntry[ChapterTable.id].value)).exists())
             )
     }

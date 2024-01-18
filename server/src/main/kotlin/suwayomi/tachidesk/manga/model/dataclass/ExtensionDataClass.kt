@@ -13,6 +13,7 @@ data class ExtensionDataClass(
 
     val name: String,
     val pkgName: String,
+    val pkgFactory: String?,
     val versionName: String,
     val versionCode: Int,
     val lang: String,
@@ -20,5 +21,11 @@ data class ExtensionDataClass(
 
     val installed: Boolean,
     val hasUpdate: Boolean,
-    val obsolete: Boolean
+    val hasReadme: Boolean,
+    val hasChangelog: Boolean,
+    val obsolete: Boolean,
+
+    val extensionId: Int,
+    val repoId: Int?,
+    val repoName: String?
 )

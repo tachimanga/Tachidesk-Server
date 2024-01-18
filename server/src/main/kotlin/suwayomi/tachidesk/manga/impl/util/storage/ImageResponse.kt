@@ -65,6 +65,31 @@ object ImageResponse {
         }
     }
 
+    /**
+     */
+    suspend fun getFastCachedImageResponse(saveDir: String, fileName: String, fetcher: suspend () -> Response): Pair<InputStream, String> {
+        File(saveDir).mkdirs()
+        val filePath = "$saveDir/$fileName"
+        val cachedFile = File(filePath)
+        if (cachedFile.exists()) {
+            println("[Cache]file exist, $filePath")
+            return Pair(
+                pathToInputStream(filePath),
+                "image/jpeg"
+            )
+        }
+        Profiler.split("[Cache]before get img")
+        val response = fetcher()
+        Profiler.split("[Cache]get img")
+        if (response.isSuccessful) {
+            val (actualSavePath, imageType) = saveImageV2(filePath, response.body.byteStream())
+            return pathToInputStream(actualSavePath) to imageType
+        } else {
+            response.closeQuietly()
+            throw Exception("request error! ${response.code}")
+        }
+    }
+
     /** Save image safely */
     fun saveImage(filePath: String, image: InputStream): Pair<String, String> {
         val tmpSavePath = "$filePath.tmp"
@@ -81,6 +106,14 @@ object ImageResponse {
 
         tmpSaveFile.renameTo(File(actualSavePath))
         return Pair(actualSavePath, imageType)
+    }
+
+    /** Save image safely */
+    fun saveImageV2(filePath: String, image: InputStream): Pair<String, String> {
+        val tmpSaveFile = File(filePath)
+        image.use { input -> tmpSaveFile.outputStream().use { output -> input.copyTo(output) } }
+        Profiler.split("save file")
+        return Pair(filePath, "image/jpeg")
     }
 
     fun clearCachedImage(saveDir: String, fileName: String) {

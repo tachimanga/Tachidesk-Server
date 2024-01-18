@@ -51,6 +51,13 @@ val serverConfig: ServerConfig by lazy { GlobalConfigManager.module() }
 
 val androidCompat by lazy { AndroidCompat() }
 
+fun envSetup() {
+    System.setProperty("java.net.useSystemProxies", "true")
+    System.setProperty("suwayomi.tachidesk.config.server.debugLogsEnabled", "true")
+    println("prev os.name is " + System.getProperty("os.name"))
+    System.setProperty("os.name", "Mac OS X")
+}
+
 fun applicationSetup() {
     logger.info("Running Tachidesk ${BuildConfig.VERSION} revision ${BuildConfig.REVISION}")
 

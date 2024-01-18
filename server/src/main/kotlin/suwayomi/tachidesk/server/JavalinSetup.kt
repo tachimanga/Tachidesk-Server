@@ -16,6 +16,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.future.future
 import mu.KotlinLogging
+import org.eclipse.jetty.server.Connector
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.handler.MyStatisticsHandler
+import org.eclipse.jetty.util.thread.QueuedThreadPool
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -27,7 +31,6 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import kotlin.NoSuchElementException
 import kotlin.concurrent.thread
 
 object JavalinSetup {
@@ -38,6 +41,7 @@ object JavalinSetup {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var APP_INSTANCE: Javalin? = null
+    private var STAT_HANDLER: MyStatisticsHandler? = null
 
     fun <T> future(block: suspend CoroutineScope.() -> T): CompletableFuture<T> {
         return scope.future(block = block)
@@ -51,6 +55,15 @@ object JavalinSetup {
                 logger.info { "Serving web static files for ${serverConfig.webUIFlavor}" }
                 config.addStaticFiles(applicationDirs.webUIRoot, Location.EXTERNAL)
                 config.addSinglePageRoot("/", applicationDirs.webUIRoot + "/index.html", Location.EXTERNAL)
+            }
+
+            STAT_HANDLER = MyStatisticsHandler()
+
+            config.server {
+                val pool = QueuedThreadPool(100, 8, 60_000).apply { name = "JettyServerThreadPool" }
+                Server(pool).apply {
+                    insertHandler(STAT_HANDLER)
+                }
             }
 
             config.enableCorsForAllOrigins()
@@ -108,21 +121,21 @@ object JavalinSetup {
         app.exception(IOException::class.java) { e, ctx ->
             logger.error("IOException while handling the request", e)
             ctx.status(500)
-            val msg = e.message ?: "Internal Server Error (IOException)"
+            val msg = e.message?.take(100) ?: "Internal Server Error (IOException)"
             ctx.result(msg)
             ctx.header("x-err-msg", msg)
         }
         app.exception(IllegalArgumentException::class.java) { e, ctx ->
             logger.error("IllegalArgumentException while handling the request", e)
             ctx.status(400)
-            val msg = e.message ?: "Bad Request"
+            val msg = e.message?.take(100) ?: "Bad Request"
             ctx.result(msg)
             ctx.header("x-err-msg", msg)
         }
         app.exception(Exception::class.java) { e, ctx ->
             logger.error("Exception while handling the request", e)
             ctx.status(500)
-            val msg = e.message ?: "Internal Server Error"
+            val msg = e.message?.take(100) ?: "Internal Server Error"
             ctx.result(msg)
             ctx.header("x-err-msg", msg)
         }
@@ -143,15 +156,61 @@ object JavalinSetup {
 
         app.after {
             val t = it.attribute<Long>("ATTR_INVOKE_RT") ?: 0
-            println("Profiler: <-- out " + it.req.requestURI + ", cost " + (System.currentTimeMillis() - t) + "ms")
+            println(
+                "Profiler: <-- out ${it.req.requestURI}, cost ${(System.currentTimeMillis() - t)}ms, " +
+                    "code:${it.res.status}, type:${it.res.getHeader("Content-Type")}, res:${it.res}"
+            )
         }
     }
 
     fun javalinStop() {
-        println("javalinStop...")
+        logger.info("javalinStop...")
         APP_INSTANCE?.stop()
         APP_INSTANCE = null
-        println("javalinStop done")
+        logger.info("javalinStop done")
+    }
+
+    private fun getConnector(): Connector? {
+        val connectors = APP_INSTANCE?.jettyServer()?.server()?.connectors
+        if (connectors?.isNotEmpty() == true) {
+            return connectors[0]
+        }
+        return null
+    }
+
+    fun javalinStartSocket() {
+        logger.info("startSocket...")
+        STAT_HANDLER?.cancelShutdown()
+        logger.info("startSocket cancel done")
+        val connector = getConnector()
+        if (connector == null) {
+            logger.info("connector is null")
+            return
+        }
+        connector.start()
+        logger.info("startSocket done")
+    }
+
+    fun javalinWaitRequestDone() {
+        logger.info("waitRequestDone...")
+        if (STAT_HANDLER != null) {
+            val future = STAT_HANDLER!!.shutdown()
+            if (!future.isDone) {
+                future.get()
+            }
+        }
+        logger.info("waitRequestDone done")
+    }
+
+    fun javalinStopSocket() {
+        logger.info("stopSocket...")
+        val connector = getConnector()
+        if (connector == null) {
+            logger.info("connector is null")
+            return
+        }
+        connector.stop()
+        logger.info("stopSocket done")
     }
 
     object Auth {

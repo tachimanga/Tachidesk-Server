@@ -11,7 +11,8 @@ dependencies {
     testImplementation(libs.bundles.sharedTest)
 
     // Android stub library
-    implementation(libs.android.stubs)
+//    implementation(libs.android.stubs)
+    implementation(files("../libs/android.jar"))
 
     // XML
     compileOnly(libs.xmlpull)
@@ -35,5 +36,5 @@ dependencies {
     implementation(libs.icu4j)
 
     // OpenJDK lacks native JPEG encoder and native WEBP decoder
-    implementation(libs.bundles.twelvemonkeys)
+//    implementation(libs.bundles.twelvemonkeys)
 }

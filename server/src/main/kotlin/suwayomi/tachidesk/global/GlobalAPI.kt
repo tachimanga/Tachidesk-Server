@@ -23,6 +23,7 @@ object GlobalAPI {
             post("uploadSettings", SettingsController.uploadSettings)
             get("clearCookies", SettingsController.clearCookies)
             get("uploadUserAgent", SettingsController.uploadUserAgent)
+            get("systemInfo", SettingsController.systemInfo)
         }
     }
 }

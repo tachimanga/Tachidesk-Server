@@ -56,10 +56,14 @@ private class ChapterForRead(
         val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
 
+        // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
         val pageListSrc = source.fetchPageList(
             SChapter.create().apply {
                 url = chapterEntry[ChapterTable.url]
                 name = chapterEntry[ChapterTable.name]
+                date_upload = chapterEntry[ChapterTable.date_upload]
+                chapter_number = chapterEntry[ChapterTable.chapter_number]
+                scanlator = chapterEntry[ChapterTable.scanlator]
             }
         ).awaitSingle()
         val pageList = preprocessPageList(pageListSrc)
@@ -127,6 +131,9 @@ private class ChapterForRead(
         transaction {
             ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
                 it[lastReadAt] = Instant.now().epochSecond
+                if (chapterEntry[pageCount] == 1) {
+                    it[isRead] = true
+                }
             }
         }
     }
@@ -181,6 +188,7 @@ private class ChapterForRead(
     private fun isNotCompletelyDownloaded(): Boolean {
         return !(
             chapterEntry[ChapterTable.isDownloaded] &&
+                chapterEntry[ChapterTable.pageCount] > 0 &&
                 (firstPageExists() || File(getChapterCbzPath(mangaId, chapterEntry[ChapterTable.id].value)).exists())
             )
     }

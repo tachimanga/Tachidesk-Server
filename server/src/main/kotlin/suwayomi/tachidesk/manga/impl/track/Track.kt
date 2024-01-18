@@ -255,7 +255,7 @@ object Track {
         }
     }
 
-    private fun upsertTrackRecord(track: Track): Int {
+    fun upsertTrackRecord(track: Track): Int {
         return transaction {
             TrackRecordTable.insertAndGetId {
                 it[mangaId] = track.manga_id.toInt()

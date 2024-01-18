@@ -69,7 +69,7 @@ class Updater : IUpdater {
             logger.info { "Updating \"${job.manga.title}\" (source: ${job.manga.sourceId})" }
             Chapter.getChapterList(job.manga.id, true)
             job.copy(status = JobStatus.COMPLETE)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             if (e is CancellationException) throw e
             logger.error(e) { "Error while updating ${job.manga.title}" }
             job.copy(status = JobStatus.FAILED)
@@ -92,5 +92,9 @@ class Updater : IUpdater {
         _status.update { UpdateStatus() }
         updateChannels.forEach { (_, channel) -> channel.cancel() }
         updateChannels.clear()
+    }
+
+    override fun markRunning() {
+        updateStatus(true)
     }
 }

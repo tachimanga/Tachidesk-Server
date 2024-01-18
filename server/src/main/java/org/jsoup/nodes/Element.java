@@ -1348,6 +1348,11 @@ public class Element extends Node {
             }, this);
             textContains2_cache = StringUtil.releaseBuilder(accum).trim();
         }
+        // NepNep.kt: status = info.select("li.list-group-item:has(span:contains(Status)) a:contains(scan)").text().toStatus()
+        // text=Ongoing (Scan) search=scan
+        if ("scan".equals(searchText)) {
+            return stringContainsIgnoreCase(textContains2_cache, searchText);
+        }
         return stringContains(textContains2_cache, searchText);
     }
 
@@ -1579,7 +1584,11 @@ public class Element extends Node {
     }
 
     private static boolean stringContains(String text, String searchText) {
-        return text != null && text.contains(searchText);
+        return text != null && searchText != null && text.contains(searchText);
+    }
+
+    private static boolean stringContainsIgnoreCase(String text, String searchText) {
+        return text != null && searchText != null && text.toLowerCase().contains(searchText.toLowerCase());
     }
 
     /**

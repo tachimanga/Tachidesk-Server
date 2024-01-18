@@ -29,7 +29,7 @@ class CloudflareInterceptor : Interceptor {
         } catch (e: Exception) {
             // Check for Readcomiconline.kt
             if (e.message?.contains("Solve captcha in WebView") == true) {
-                blocked = true
+                // blocked = true
             }
             throw e
         } finally {

@@ -7,7 +7,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.table.*
 
-
 object Download {
     fun getDownloadedMangaList(): List<MangaDataClass> {
         val mangaList = transaction {

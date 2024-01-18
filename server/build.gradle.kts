@@ -26,7 +26,6 @@ dependencies {
 
     // Exposed ORM
     implementation(libs.bundles.exposed)
-//    implementation(libs.h2)
     implementation(files("../libs/sqlite-jdbc-ios-3.41.0.0.jar"))
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 

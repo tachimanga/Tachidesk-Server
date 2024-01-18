@@ -21,10 +21,10 @@ object MangaAPI {
         path("extension") {
             get("list", ExtensionController.list)
 
-            get("install/{pkgName}", ExtensionController.install)
+            get("install/{extensionId}", ExtensionController.install)
             post("install", ExtensionController.installFile)
-            get("update/{pkgName}", ExtensionController.update)
-            get("uninstall/{pkgName}", ExtensionController.uninstall)
+            get("update/{extensionId}", ExtensionController.update)
+            get("uninstall/{extensionId}", ExtensionController.uninstall)
 
             get("icon/{apkName}", ExtensionController.icon)
         }
@@ -54,7 +54,7 @@ object MangaAPI {
             get("{mangaId}/category", MangaController.categoryList)
             get("{mangaId}/category/{categoryId}", MangaController.addToCategory)
             delete("{mangaId}/category/{categoryId}", MangaController.removeFromCategory)
-
+            post("{mangaId}/updateCategory", MangaController.updateCategory)
             get("{mangaId}/library", MangaController.addToLibrary)
             delete("{mangaId}/library", MangaController.removeFromLibrary)
 
@@ -145,6 +145,19 @@ object MangaAPI {
             post("search", TrackController.search)
             post("bind", TrackController.bind)
             post("update", TrackController.update)
+        }
+
+        path("import") {
+            post("file", ImportController.protobufImportFile)
+            ws("", ImportController::importerWS)
+        }
+
+        path("repo") {
+            get("list", RepoController.repoList)
+            post("check", RepoController.checkRepo)
+            post("create", RepoController.createRepo)
+            delete("remove/{repoId}", RepoController.removeRepo)
+            post("updateByMetaUrl", RepoController.updateByMetaUrl)
         }
     }
 }
