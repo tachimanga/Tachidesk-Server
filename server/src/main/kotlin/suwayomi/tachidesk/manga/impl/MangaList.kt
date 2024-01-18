@@ -74,10 +74,10 @@ object MangaList {
                 if (mangaEntry == null) { // create manga entry
                     val mangaId = MangaTable.insertAndGetId {
                         it[url] = manga.url
-                        it[title] = manga.title
+                        it[title] = manga.title.take(512)
 
-                        it[artist] = manga.artist
-                        it[author] = manga.author
+                        it[artist] = manga.artist?.take(512)
+                        it[author] = manga.author?.take(512)
                         it[description] = manga.description
                         it[genre] = manga.genre
                         it[status] = manga.status

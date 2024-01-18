@@ -9,4 +9,10 @@ dependencies {
     // Shared
     implementation(libs.bundles.shared)
     testImplementation(libs.bundles.sharedTest)
+
+    // AppDirs
+    implementation(libs.appdirs) {
+        exclude("net.java.dev.jna", "jna")
+        exclude("net.java.dev.jna", "jna-platform")
+    }
 }

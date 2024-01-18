@@ -18,6 +18,7 @@ object ExtensionTable : IntIdTable() {
 
     val name = varchar("name", 128)
     val pkgName = varchar("pkg_name", 128)
+    val pkgFactory = varchar("pkg_factory", 128).nullable()
     val versionName = varchar("version_name", 16)
     val versionCode = integer("version_code")
     val lang = varchar("lang", 32)
@@ -27,5 +28,10 @@ object ExtensionTable : IntIdTable() {
     val hasUpdate = bool("has_update").default(false)
     val isObsolete = bool("is_obsolete").default(false)
 
+    val hasReadme = bool("has_readme").default(false)
+    val hasChangelog = bool("has_changelog").default(false)
+
     val classFQName = varchar("class_name", 1024).default("") // fully qualified name
+
+    val repoId = integer("repo_id").default(0)
 }

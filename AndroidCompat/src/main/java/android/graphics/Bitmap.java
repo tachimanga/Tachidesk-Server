@@ -127,14 +127,14 @@ public final class Bitmap {
         }
 
         if (nativeCanvasRef != null) {
-            ByteBuffer buffer = getImage(nativeCanvasRef.address(), format.nativeInt, quality);
+            byte[] buffer = getImage(nativeCanvasRef.address(), format.nativeInt, quality);
             writeByteBufferToOutputStream(buffer, stream);
             //System.out.println("nativeImg drawBitmap cost:" + (System.currentTimeMillis() - this.start) + "ms");
             return true;
         }
 
         if (nativeImageRef != null) {
-            ByteBuffer buffer = compressImage(nativeImageRef.address(), format.nativeInt, quality);
+            byte[] buffer = compressImage(nativeImageRef.address(), format.nativeInt, quality);
             writeByteBufferToOutputStream(buffer, stream);
             //System.out.println("nativeImg compressImage cost:" + (System.currentTimeMillis() - this.start) + "ms");
             return true;
@@ -143,10 +143,8 @@ public final class Bitmap {
         return true;
     }
 
-    private void writeByteBufferToOutputStream(ByteBuffer buffer, OutputStream stream) {
+    private void writeByteBufferToOutputStream(byte[] buff, OutputStream stream) {
         try {
-            byte[] buff = new byte[buffer.remaining()];
-            buffer.get(buff);
             stream.write(buff);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -182,9 +180,11 @@ public final class Bitmap {
 
     private native void drawBitmap(long imageRef, long canvasRef, int[] src, int []dst);
 
-    private native ByteBuffer getImage(long canvasRef, int format, int quality);
+    // format  CompressFormat.nativeInt
+    // quality 0 100
+    private native byte[] getImage(long canvasRef, int format, int quality);
 
-    private native ByteBuffer compressImage(long imageRef, int format, int quality);
+    private native byte[] compressImage(long imageRef, int format, int quality);
 
     private native void releaseNativeImage(long imageRef);
     private native void releaseNativeCanvas(long canvasRef);

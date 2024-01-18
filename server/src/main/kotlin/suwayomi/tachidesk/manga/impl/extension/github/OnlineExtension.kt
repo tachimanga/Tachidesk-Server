@@ -25,5 +25,7 @@ data class OnlineExtension(
     val hasReadme: Boolean,
     val hasChangelog: Boolean,
     val sources: List<OnlineExtensionSource>,
-    val iconUrl: String
+    val iconUrl: String,
+    val repoId: Int?,
+    val repoName: String?
 )

@@ -51,6 +51,15 @@ object GetCatalogueSource {
         "EnableNativeNetInterceptor"
     )
 
+    private val FORCE_UA_MAP = mapOf(
+        6551136894818591762L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0",
+        5234610795363016972L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0"
+    )
+
+    private val FORCE_EXT_UA = setOf(
+        8061953015808280611L
+    )
+
     private fun getCatalogueSource(sourceId: Long): CatalogueSource? {
         val cachedResult: CatalogueSource? = sourceCache[sourceId]
         if (cachedResult != null) {
@@ -200,6 +209,14 @@ object GetCatalogueSource {
         return getSourceRandomUa(sourceId)
     }
 
+    fun getForceUaByClient(client: OkHttpClient?): String? {
+        if (client == null) {
+            return null
+        }
+        val sourceId = clientToSourceMap[client] ?: return null
+        return FORCE_UA_MAP[sourceId]
+    }
+
     fun setSourceRandomUaByClient(client: OkHttpClient?, randomUa: Boolean) {
         if (client == null) {
             return
@@ -209,6 +226,9 @@ object GetCatalogueSource {
     }
 
     private fun getSourceRandomUa(sourceId: Long): Boolean {
+        if (FORCE_EXT_UA.contains(sourceId)) {
+            return false
+        }
         var randomUa = sourceRandomUaMap[sourceId]
         if (randomUa == null) {
             val source = transaction {

@@ -19,16 +19,12 @@ import okhttp3.Request
 import okio.buffer
 import okio.sink
 import okio.source
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
-import suwayomi.tachidesk.manga.impl.extension.ExtensionsList.extensionTableAsDataClass
 import suwayomi.tachidesk.manga.impl.extension.github.ExtensionGithubApi
 import suwayomi.tachidesk.manga.impl.util.PackageTools
 import suwayomi.tachidesk.manga.impl.util.PackageTools.EXTENSION_FEATURE
@@ -36,6 +32,7 @@ import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MAX
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MIN
 import suwayomi.tachidesk.manga.impl.util.PackageTools.METADATA_NSFW
 import suwayomi.tachidesk.manga.impl.util.PackageTools.METADATA_SOURCE_CLASS
+import suwayomi.tachidesk.manga.impl.util.PackageTools.METADATA_SOURCE_FACTORY
 import suwayomi.tachidesk.manga.impl.util.PackageTools.dex2jar
 import suwayomi.tachidesk.manga.impl.util.PackageTools.getPackageInfo
 import suwayomi.tachidesk.manga.impl.util.PackageTools.loadExtensionSources
@@ -43,7 +40,9 @@ import suwayomi.tachidesk.manga.impl.util.network.await
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getCachedImageResponse
 import suwayomi.tachidesk.manga.model.table.ExtensionTable
+import suwayomi.tachidesk.manga.model.table.RepoTable
 import suwayomi.tachidesk.manga.model.table.SourceTable
+import suwayomi.tachidesk.manga.model.table.toDataClass
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.io.File
@@ -57,12 +56,22 @@ object Extension {
     private val logger = KotlinLogging.logger {}
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
 
-    suspend fun installExtension(pkgName: String): Int {
-        logger.debug("Installing $pkgName")
-        val extensionRecord = extensionTableAsDataClass().first { it.pkgName == pkgName }
-
-        return installAPK {
-            val apkURL = ExtensionGithubApi.getApkUrl(extensionRecord)
+    suspend fun installExtension(extensionId: Int): Int {
+        logger.debug("Installing $extensionId")
+        val extensionRecord = transaction {
+            ExtensionTable.select { ExtensionTable.id eq extensionId }.first()
+        }
+        val extApkName = extensionRecord[ExtensionTable.apkName]
+        if (extApkName == "tachiyomi-all.komga-v1.4.47.apk") {
+            return preInstallExtension(extApkName)
+        }
+        if (extensionRecord[ExtensionTable.isInstalled]) {
+            return 302 // extension was already installed
+        }
+        val repoRecord = transaction { RepoTable.select { RepoTable.id eq extensionRecord[ExtensionTable.repoId] }.first() }
+        val repo = RepoTable.toDataClass(repoRecord)
+        return installAPK(extensionId) {
+            val apkURL = ExtensionGithubApi.getApkUrl(repo, extApkName)
             val apkName = Uri.parse(apkURL).lastPathSegment!!
             val apkSavePath = "${applicationDirs.extensionsRoot}/$apkName"
             // download apk file
@@ -73,7 +82,7 @@ object Extension {
     }
 
     suspend fun installExternalExtension(inputStream: InputStream, apkName: String): Int {
-        return installAPK(true) {
+        return installAPK(null) {
             val savePath = "${applicationDirs.extensionsRoot}/$apkName"
             logger.debug { "Saving apk at $apkName" }
             // download apk file
@@ -123,30 +132,15 @@ object Extension {
     // pkgName eu.kanade.tachiyomi.extension.all.komga
     suspend fun preInstallExtension(apkName: String): Int {
         logger.debug("preInstallExtension $apkName")
-
-        val isInstalled = transaction {
-            ExtensionTable.select { ExtensionTable.apkName eq apkName }.firstOrNull()
-        }?.get(ExtensionTable.isInstalled) ?: false
-        if (isInstalled) {
-            logger.info("already preInstallExtension $apkName")
-            return 0
-        }
-
-        return installAPK {
+        return installAPK(null) {
             // copy apk
             preCopyExtension(apkName)
         }
     }
 
-    suspend fun installAPK(forceReinstall: Boolean = false, fetcher: suspend () -> String): Int {
+    suspend fun installAPK(extensionId: Int?, fetcher: suspend () -> String): Int {
         val apkFilePath = fetcher()
         val apkName = File(apkFilePath).name
-
-        // check if we don't have the extension already installed
-        // if it's installed and we want to update, it first has to be uninstalled
-        val isInstalled = transaction {
-            ExtensionTable.select { ExtensionTable.apkName eq apkName }.firstOrNull()
-        }?.get(ExtensionTable.isInstalled) ?: false
 
         val fileNameWithoutType = apkName.substringBefore(".apk")
 
@@ -156,11 +150,10 @@ object Extension {
 
         val packageInfo = getPackageInfo(apkFilePath)
         val pkgName = packageInfo.packageName
-        if (isInstalled && forceReinstall) {
-            uninstallExtension(pkgName)
-        }
 
-        if (!isInstalled || forceReinstall) {
+        uninstallExtension(pkgName)
+
+        if (true) {
             if (!packageInfo.reqFeatures.orEmpty().any { it.name == EXTENSION_FEATURE }) {
                 throw Exception("This apk is not a Tachiyomi extension")
             }
@@ -187,6 +180,8 @@ object Extension {
 
             val className =
                 packageInfo.packageName + packageInfo.applicationInfo.metaData.getString(METADATA_SOURCE_CLASS)
+
+            val pkgFactory = packageInfo.applicationInfo.metaData.getString(METADATA_SOURCE_FACTORY)
 
             logger.debug("Main class for extension is $className")
 
@@ -220,32 +215,39 @@ object Extension {
 
             // update extension info
             transaction {
-                if (ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.firstOrNull() == null) {
-                    ExtensionTable.insert {
-                        it[this.apkName] = apkName
-                        it[name] = extensionName
-                        it[this.pkgName] = packageInfo.packageName
-                        it[versionName] = packageInfo.versionName
-                        it[versionCode] = packageInfo.versionCode
-                        it[lang] = extensionLang
-                        it[this.isNsfw] = isNsfw
+                val dbExtensionId = if (extensionId != null) {
+                    extensionId
+                } else {
+                    val record = ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.firstOrNull()
+                    if (record != null) {
+                        record[ExtensionTable.id].value
+                    } else {
+                        ExtensionTable.insertAndGetId {
+                            it[this.apkName] = apkName
+                            it[name] = extensionName
+                            it[this.pkgName] = packageInfo.packageName
+                            it[versionName] = packageInfo.versionName
+                            it[versionCode] = packageInfo.versionCode
+                            it[lang] = extensionLang
+                            it[this.isNsfw] = isNsfw
+                            it[this.pkgFactory] = pkgFactory
+                        }.value
                     }
                 }
 
-                ExtensionTable.update({ ExtensionTable.pkgName eq pkgName }) {
+                ExtensionTable.update({ ExtensionTable.id eq dbExtensionId }) {
                     it[this.apkName] = apkName
                     it[this.isInstalled] = true
                     it[this.classFQName] = className
+                    it[this.pkgFactory] = pkgFactory
                 }
 
-                val extensionId =
-                    ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.first()[ExtensionTable.id].value
                 sources.forEach { httpSource ->
                     SourceTable.insert {
                         it[id] = httpSource.id
                         it[name] = httpSource.name
                         it[lang] = httpSource.lang
-                        it[extension] = extensionId
+                        it[extension] = dbExtensionId
                         it[SourceTable.isNsfw] = isNsfw
                         it[SourceTable.isDirect] = directMap[httpSource.id]
                     }
@@ -323,22 +325,32 @@ object Extension {
     }
 
     fun uninstallExtension(pkgName: String) {
-        logger.debug("Uninstalling $pkgName")
+        logger.debug("Uninstalling pkgName:$pkgName")
+        val existsExtList = transaction {
+            ExtensionTable.select { (ExtensionTable.pkgName eq pkgName) and (ExtensionTable.isInstalled eq true) }
+                .toList()
+        }
+        existsExtList.forEach {
+            uninstallExtensionById(it[ExtensionTable.id].value)
+        }
+    }
 
-        val extensionRecord = transaction { ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.first() }
+    fun uninstallExtensionById(extensionId: Int) {
+        logger.debug("Uninstalling $extensionId")
+
+        val extensionRecord = transaction { ExtensionTable.select { ExtensionTable.id eq extensionId }.first() }
+        logger.debug("Uninstalling ${extensionRecord[ExtensionTable.pkgName]}")
         val fileNameWithoutType = extensionRecord[ExtensionTable.apkName].substringBefore(".apk")
         val jarPath = "${applicationDirs.extensionsRoot}/$fileNameWithoutType.jar"
         val sources = transaction {
-            val extensionId = extensionRecord[ExtensionTable.id].value
-
             val sources = SourceTable.select { SourceTable.extension eq extensionId }.map { it[SourceTable.id].value }
 
             SourceTable.deleteWhere { SourceTable.extension eq extensionId }
 
             if (extensionRecord[ExtensionTable.isObsolete]) {
-                ExtensionTable.deleteWhere { ExtensionTable.pkgName eq pkgName }
+                ExtensionTable.deleteWhere { ExtensionTable.id eq extensionId }
             } else {
-                ExtensionTable.update({ ExtensionTable.pkgName eq pkgName }) {
+                ExtensionTable.update({ ExtensionTable.id eq extensionId }) {
                     it[isInstalled] = false
                 }
             }
@@ -357,11 +369,11 @@ object Extension {
         }
     }
 
-    suspend fun updateExtension(pkgName: String): Int {
-        val targetExtension = ExtensionsList.updateMap.remove(pkgName)!!
-        uninstallExtension(pkgName)
+    suspend fun updateExtension(extensionId: Int): Int {
+        val targetExtension = ExtensionsList.updateMap.remove(extensionId) ?: return 200
+        uninstallExtensionById(extensionId)
         transaction {
-            ExtensionTable.update({ ExtensionTable.pkgName eq pkgName }) {
+            ExtensionTable.update({ ExtensionTable.id eq extensionId }) {
                 it[name] = targetExtension.name
                 it[versionName] = targetExtension.versionName
                 it[versionCode] = targetExtension.versionCode
@@ -372,7 +384,7 @@ object Extension {
                 it[hasUpdate] = false
             }
         }
-        return installExtension(pkgName)
+        return installExtension(extensionId)
     }
 
     suspend fun getExtensionIcon(apkName: String): Pair<InputStream, String> {

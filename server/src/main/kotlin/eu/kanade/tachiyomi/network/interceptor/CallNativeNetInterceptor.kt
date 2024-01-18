@@ -8,12 +8,10 @@ package eu.kanade.tachiyomi.network.interceptor
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import io.javalin.plugin.json.JsonMapper
+import okhttp3.*
 import okhttp3.Headers.Companion.toHeaders
-import okhttp3.Interceptor
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.internal.http.RealResponseBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.kodein.di.DI
 import org.kodein.di.conf.global
@@ -94,9 +92,8 @@ class CallNativeNetInterceptor : Interceptor {
             .sentRequestAtMillis(t)
             .receivedResponseAtMillis(System.currentTimeMillis())
         if (resp.byteBuffer != null) {
-            val buffer = Buffer()
-            buffer.write(resp.byteBuffer)
-            builder.body(RealResponseBody(contentType, buffer.size, buffer))
+            val type = contentType?.toMediaTypeOrNull()
+            builder.body(resp.byteBuffer.toResponseBody(type))
         }
         return builder.build()
     }

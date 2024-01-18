@@ -25,18 +25,18 @@
 
 package android.graphics;
 
-class NativeRef {
+public class NativeRef {
 
     private volatile long address;
-    NativeRef(long address) {
+    public NativeRef(long address) {
         this.address = address;
     }
 
-    long address() {
+    public long address() {
         return address;
     }
 
-    void clear() {
+    public void clear() {
         address = 0;
     }
 }

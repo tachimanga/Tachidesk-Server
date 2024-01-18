@@ -68,6 +68,11 @@ zip --delete android.jar android/os/Environment.class
 zip --delete android.jar android/text/format/Formatter.class
 zip --delete android.jar android/text/Html.class
 
+echo "Removing resources"
+zip --delete android.jar assets/*
+zip --delete android.jar res/*
+zip --delete android.jar resources.arsc
+
 # Dedup overridden Android classes
 ABS_JAR="$(realpath android.jar)"
 function dedup() {
@@ -87,7 +92,7 @@ dedup AndroidCompat/src/main/java
 dedup server/src/main/kotlin
 
 echo "Copying Android.jar to library folder..."
-mv tmp/android.jar AndroidCompat/lib
+mv tmp/android.jar libs/android.jar
 
 echo "Cleaning up..."
 rm -rf "tmp"

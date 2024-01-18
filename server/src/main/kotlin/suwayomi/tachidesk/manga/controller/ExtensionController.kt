@@ -48,17 +48,17 @@ object ExtensionController {
 
     /** install extension identified with "pkgName" */
     val install = handler(
-        pathParam<String>("pkgName"),
+        pathParam<Int>("extensionId"),
         documentWith = {
             withOperation {
                 summary("Extension install")
                 description("install extension identified with \"pkgName\"")
             }
         },
-        behaviorOf = { ctx, pkgName ->
+        behaviorOf = { ctx, extensionId ->
             ctx.future(
                 future {
-                    Extension.installExtension(pkgName)
+                    Extension.installExtension(extensionId)
                 }
             )
         },
@@ -100,17 +100,17 @@ object ExtensionController {
 
     /** update extension identified with "pkgName" */
     val update = handler(
-        pathParam<String>("pkgName"),
+        pathParam<Int>("extensionId"),
         documentWith = {
             withOperation {
                 summary("Extension update")
                 description("Update extension identified with \"pkgName\"")
             }
         },
-        behaviorOf = { ctx, pkgName ->
+        behaviorOf = { ctx, extensionId ->
             ctx.future(
                 future {
-                    Extension.updateExtension(pkgName)
+                    Extension.updateExtension(extensionId)
                 }
             )
         },
@@ -124,15 +124,15 @@ object ExtensionController {
 
     /** uninstall extension identified with "pkgName" */
     val uninstall = handler(
-        pathParam<String>("pkgName"),
+        pathParam<Int>("extensionId"),
         documentWith = {
             withOperation {
                 summary("Extension uninstall")
                 description("Uninstall extension identified with \"pkgName\"")
             }
         },
-        behaviorOf = { ctx, pkgName ->
-            Extension.uninstallExtension(pkgName)
+        behaviorOf = { ctx, extensionId ->
+            Extension.uninstallExtensionById(extensionId)
             ctx.status(200)
         },
         withResults = {

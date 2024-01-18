@@ -8,6 +8,7 @@ package suwayomi.tachidesk.manga.controller
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import eu.kanade.tachiyomi.source.local.LocalSource
+import io.javalin.http.ContentType
 import io.javalin.http.HttpCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -94,10 +95,17 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId ->
+            ctx.contentType(ContentType.IMAGE_JPEG)
             ctx.future(
-                future { Manga.getMangaThumbnail(mangaId) }
+                future {
+                    try {
+                        Manga.getMangaThumbnail(mangaId)
+                    } catch (e: Exception) {
+                        ctx.contentType(ContentType.PLAIN)
+                        throw e
+                    }
+                }
                     .thenApply {
-                        ctx.header("content-type", it.second)
                         val httpCacheSeconds = 1.days.inWholeSeconds
                         ctx.header("cache-control", "max-age=$httpCacheSeconds")
                         it.first
@@ -199,6 +207,20 @@ object MangaController {
         behaviorOf = { ctx, mangaId, categoryId ->
             CategoryManga.removeMangaFromCategory(mangaId, categoryId)
             ctx.status(200)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val updateCategory = handler(
+        pathParam<Int>("mangaId"),
+        documentWith = {},
+        behaviorOf = { ctx, mangaId ->
+            val input = json.decodeFromString<CategoryManga.MangaCategoryUpdateInput>(ctx.body())
+            if (input.categoryIdList != null) {
+                CategoryManga.updateCategory(mangaId, input.categoryIdList)
+            }
         },
         withResults = {
             httpCode(HttpCode.OK)
@@ -358,7 +380,7 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead ->
-            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead bookmarked $bookmarked")
+            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead bookmarked $bookmarked lastPageRead:$lastPageRead")
             Chapter.modifyChapter(mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead)
 
             ctx.status(200)
@@ -423,15 +445,20 @@ object MangaController {
             }
         },
         behaviorOf = { ctx, mangaId, chapterIndex, index ->
+            ctx.contentType(ContentType.IMAGE_JPEG)
             ctx.future(
                 future {
                     Profiler.start()
-                    val r = Page.getPageImage(mangaId, chapterIndex, index)
-                    Profiler.all()
-                    r
+                    try {
+                        val r = Page.getPageImage(mangaId, chapterIndex, index)
+                        Profiler.all()
+                        r
+                    } catch (e: Exception) {
+                        ctx.contentType(ContentType.PLAIN)
+                        throw e
+                    }
                 }
                     .thenApply {
-                        ctx.header("content-type", it.second)
                         val httpCacheSeconds = 1.days.inWholeSeconds
                         ctx.header("cache-control", "max-age=$httpCacheSeconds")
                         it.first

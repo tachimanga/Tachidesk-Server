@@ -7,10 +7,9 @@ package suwayomi.tachidesk.manga.impl
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.manga.impl.Manga.getManga
 import suwayomi.tachidesk.manga.model.table.CategoryMangaTable
 import suwayomi.tachidesk.manga.model.table.CategoryTable
@@ -23,20 +22,18 @@ object Library {
         if (!manga.inLibrary) {
             transaction {
                 val defaultCategories = CategoryTable.select { CategoryTable.isDefault eq true }.toList()
-                val existingCategories = CategoryMangaTable.select { CategoryMangaTable.manga eq mangaId }.toList()
 
                 MangaTable.update({ MangaTable.id eq manga.id }) {
                     it[inLibrary] = true
                     it[inLibraryAt] = Instant.now().epochSecond
-                    it[defaultCategory] = defaultCategories.isEmpty() && existingCategories.isEmpty()
+                    it[defaultCategory] = defaultCategories.isEmpty()
                 }
 
-                if (existingCategories.isEmpty()) {
-                    defaultCategories.forEach { category ->
-                        CategoryMangaTable.insert {
-                            it[CategoryMangaTable.category] = category[CategoryTable.id].value
-                            it[CategoryMangaTable.manga] = mangaId
-                        }
+                CategoryMangaTable.deleteWhere { (CategoryMangaTable.manga eq mangaId) }
+                defaultCategories.forEach { category ->
+                    CategoryMangaTable.insert {
+                        it[CategoryMangaTable.category] = category[CategoryTable.id].value
+                        it[CategoryMangaTable.manga] = mangaId
                     }
                 }
             }

@@ -38,7 +38,7 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogue
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.StubSource
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.clearCachedImage
-import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getCachedImageResponse
+import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getFastCachedImageResponse
 import suwayomi.tachidesk.manga.impl.util.storage.ImageUtil
 import suwayomi.tachidesk.manga.impl.util.updateMangaDownloadDir
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
@@ -77,7 +77,15 @@ object Manga {
             val sManga = SManga.create().apply {
                 url = mangaEntry[MangaTable.url]
                 title = mangaEntry[MangaTable.title]
+                artist = mangaEntry[MangaTable.artist]
+                author = mangaEntry[MangaTable.author]
+                description = mangaEntry[MangaTable.description]
+                genre = mangaEntry[MangaTable.genre]
+                status = mangaEntry[MangaTable.status]
+                thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
+                initialized = mangaEntry[MangaTable.initialized]
             }
+            // tachiyomi: val chapters = state.source.getChapterList(state.manga.toSManga())
             val networkManga = source.fetchMangaDetails(sManga).awaitSingle()
             sManga.copyFrom(networkManga)
 
@@ -87,13 +95,13 @@ object Manga {
                         val canUpdateTitle = updateMangaDownloadDir(mangaId, sManga.title)
 
                         if (canUpdateTitle) {
-                            it[MangaTable.title] = sManga.title
+                            it[MangaTable.title] = sManga.title.take(512)
                         }
                     }
                     it[MangaTable.initialized] = true
 
-                    it[MangaTable.artist] = sManga.artist
-                    it[MangaTable.author] = sManga.author
+                    it[MangaTable.artist] = sManga.artist?.take(512)
+                    it[MangaTable.author] = sManga.author?.take(512)
                     it[MangaTable.description] = truncate(sManga.description, 4096)
                     it[MangaTable.genre] = sManga.genre
                     it[MangaTable.status] = sManga.status
@@ -258,7 +266,7 @@ object Manga {
         val sourceId = mangaEntry[MangaTable.sourceReference]
 
         return when (val source = getCatalogueSourceOrStub(sourceId)) {
-            is HttpSource -> getCachedImageResponse(cacheSaveDir, fileName) {
+            is HttpSource -> getFastCachedImageResponse(cacheSaveDir, fileName) {
                 val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
                     ?: if (!mangaEntry[MangaTable.initialized]) {
                         // initialize then try again
@@ -290,7 +298,7 @@ object Manga {
                 imageFile.inputStream() to contentType
             }
 
-            is StubSource -> getCachedImageResponse(cacheSaveDir, fileName) {
+            is StubSource -> getFastCachedImageResponse(cacheSaveDir, fileName) {
                 val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
                     ?: throw NullPointerException("No thumbnail found")
                 network.client.newCall(

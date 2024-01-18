@@ -8,6 +8,7 @@ package suwayomi.tachidesk.manga.controller
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import io.javalin.http.HttpCode
+import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Category
 import suwayomi.tachidesk.manga.impl.CategoryManga
 import suwayomi.tachidesk.manga.model.dataclass.CategoryDataClass
@@ -44,15 +45,11 @@ object CategoryController {
             }
         },
         behaviorOf = { ctx, name ->
-            if (Category.createCategory(name) != -1) {
-                ctx.status(200)
-            } else {
-                ctx.status(HttpCode.BAD_REQUEST)
-            }
+            Category.createCategory(name)
+            ctx.status(200)
         },
         withResults = {
             httpCode(HttpCode.OK)
-            httpCode(HttpCode.BAD_REQUEST)
         }
     )
 
@@ -104,7 +101,9 @@ object CategoryController {
             }
         },
         behaviorOf = { ctx, categoryId ->
-            ctx.json(CategoryManga.getCategoryMangaList(categoryId))
+            Profiler.start()
+            ctx.json(CategoryManga.getCategoryMangaListV2(categoryId))
+            Profiler.all()
         },
         withResults = {
             json<Array<MangaDataClass>>(HttpCode.OK)

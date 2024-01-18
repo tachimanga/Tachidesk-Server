@@ -159,10 +159,10 @@ object Chapter {
                         my.addBatch()
 
                         my[ChapterTable.url] = fetchedChapter.url
-                        my[ChapterTable.name] = fetchedChapter.name
+                        my[ChapterTable.name] = fetchedChapter.name.take(512)
                         my[ChapterTable.date_upload] = fetchedChapter.date_upload
                         my[ChapterTable.chapter_number] = fetchedChapter.chapter_number
-                        my[scanlator] = fetchedChapter.scanlator
+                        my[scanlator] = fetchedChapter.scanlator?.take(128)
 
                         my[ChapterTable.sourceOrder] = index + 1
                         my[ChapterTable.fetchedAt] = now++
@@ -208,10 +208,10 @@ object Chapter {
                     val index = pair.first
                     val fetchedChapter = pair.second
                     ChapterTable.update({ ChapterTable.manga eq mangaId and (ChapterTable.url eq fetchedChapter.url) }) {
-                        it[name] = fetchedChapter.name
+                        it[name] = fetchedChapter.name.take(512)
                         it[date_upload] = fetchedChapter.date_upload
                         it[chapter_number] = fetchedChapter.chapter_number
-                        it[scanlator] = fetchedChapter.scanlator
+                        it[scanlator] = fetchedChapter.scanlator?.take(128)
 
                         it[sourceOrder] = index + 1
                         it[ChapterTable.manga] = mangaId
@@ -509,30 +509,43 @@ object Chapter {
     }
 
     fun getRecentChapters(pageNum: Int): PaginatedList<MangaChapterDataClass> {
+        val minFetchedAt = System.currentTimeMillis() / 1000 - 86400 * 3
+
         val mangaList = transaction {
             MangaTable
-                .select { (MangaTable.inLibrary eq true) }
+                .select { (MangaTable.inLibrary eq true) and (MangaTable.chaptersLastFetchedAt greater minFetchedAt) }
                 .map {
                     MangaTable.toDataClass(it)
                 }
         }
         val mangaMap = mangaList.associateBy { it.id }
-        val minFetchedAt = System.currentTimeMillis() / 1000 - 86400 * 3
-        val chapters = transaction {
+
+        val counter = mutableMapOf<Int, Int>()
+        val chapterRows = transaction {
             ChapterTable
                 .select { (ChapterTable.manga inList mangaMap.keys) and (ChapterTable.fetchedAt greater minFetchedAt) }
                 .orderBy(ChapterTable.fetchedAt to SortOrder.DESC)
-                .limit(1000)
-                .map { ChapterTable.toDataClass(it) }
+                .limit(3000)
+                .toList()
         }
+
+        val chapters = ArrayList<ResultRow>(chapterRows.size)
+        chapterRows.forEach {
+            val cnt = counter.getOrDefault(it[ChapterTable.manga].value, 0)
+            if (cnt < 10) {
+                counter[it[ChapterTable.manga].value] = cnt + 1
+                chapters.add(it)
+            }
+        }
+
         val paginatedList = paginatedFrom(pageNum, paginationFactor = 100) {
             chapters
         }
         return PaginatedList(
             paginatedList.page.map {
                 MangaChapterDataClass(
-                    mangaMap[it.mangaId]!!,
-                    it
+                    mangaMap[it[ChapterTable.manga].value]!!,
+                    ChapterTable.toDataClass(it)
                 )
             },
             paginatedList.hasNextPage

@@ -20,11 +20,11 @@ public class NativeNet {
         String json = jsonMapper.toJsonString(req);
         System.out.println("NativeNet: req: " + json);
 
-        ByteBuffer[] byteBuffers = call_utf8(stringToUtf8ByteArray(json), buffer);
+        byte[][] byteBuffers = call_utf8(stringToUtf8ByteArray(json), buffer);
         System.out.println("NativeNet: byteBuffers:" + Arrays.toString(byteBuffers));
 
         // read meta
-        ByteBuffer b0 = byteBuffers[0];
+        byte[] b0 = byteBuffers[0];
         if (b0 == null) {
             return Resp.of(500, "native net error");
         }
@@ -33,12 +33,12 @@ public class NativeNet {
         Resp resp = jsonMapper.fromJsonString(metaString, Resp.class);
 
         // read body
-        ByteBuffer b1 = byteBuffers[1];
+        byte[] b1 = byteBuffers[1];
         resp.setByteBuffer(b1);
         return resp;
     }
 
-    static native ByteBuffer[] call_utf8(byte[] jsonUtf8, Buffer buffer);
+    static native byte[][] call_utf8(byte[] jsonUtf8, Buffer buffer);
 
     static byte[] stringToUtf8ByteArray(String str) {
         if (str == null) {
@@ -47,13 +47,11 @@ public class NativeNet {
         return str.getBytes(StandardCharsets.UTF_8);
     }
 
-    static String utf8ByteBufferToString(ByteBuffer buffer) {
+    static String utf8ByteBufferToString(byte[] buffer) {
         if (buffer == null) {
             return null;
         }
-        byte[] buff = new byte[buffer.remaining()];
-        buffer.get(buff);
-        return new String(buff, StandardCharsets.UTF_8);
+        return new String(buffer, StandardCharsets.UTF_8);
     }
 
     public static class Req {
@@ -97,7 +95,7 @@ public class NativeNet {
         private String message;
         private String error;
         private Map<String, String> headers;
-        private ByteBuffer byteBuffer;
+        private byte[] byteBuffer;
 
         public static Resp of(int code, String error) {
             Resp resp = new Resp();
@@ -138,11 +136,11 @@ public class NativeNet {
             this.headers = headers;
         }
 
-        public ByteBuffer getByteBuffer() {
+        public byte[] getByteBuffer() {
             return byteBuffer;
         }
 
-        public void setByteBuffer(ByteBuffer byteBuffer) {
+        public void setByteBuffer(byte[] byteBuffer) {
             this.byteBuffer = byteBuffer;
         }
     }

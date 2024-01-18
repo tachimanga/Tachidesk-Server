@@ -7,6 +7,7 @@ package suwayomi.tachidesk.manga.impl.download
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import io.javalin.plugin.json.JsonMapper
 import io.javalin.websocket.WsContext
 import io.javalin.websocket.WsMessageContext
 import kotlinx.coroutines.*
@@ -18,6 +19,9 @@ import mu.KotlinLogging
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.kodein.di.DI
+import org.kodein.di.conf.global
+import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Downloading
@@ -43,7 +47,7 @@ object DownloadManager {
     private val clients = ConcurrentHashMap<String, WsContext>()
     private val downloadQueue = CopyOnWriteArrayList<DownloadChapter>()
     private val downloaders = ConcurrentHashMap<Long, Downloader>()
-
+    private val jsonMapper by DI.global.instance<JsonMapper>()
     fun addClient(ctx: WsContext) {
         logger.info { "DownloadManager onConnect ${ctx.sessionId}" }
         clients[ctx.sessionId] = ctx
@@ -55,7 +59,7 @@ object DownloadManager {
     }
 
     fun notifyClient(ctx: WsContext) {
-        logger.info { "DownloadManager notifyClient" }
+        logger.info { "DownloadManager notifyClient " }
         ctx.send(
             getStatus()
         )
@@ -89,6 +93,7 @@ object DownloadManager {
 
     private fun sendStatusToAllClients() {
         val status = getStatus()
+        // logger.info { "DownloadManager sendStatusToAllClients, json:${jsonMapper.toJsonString(status)}" }
         clients.forEach {
             it.value.send(status)
         }

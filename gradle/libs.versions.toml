@@ -156,7 +156,6 @@ shared = [
     "slf4japi",
     "logback",
     "kotlinlogging",
-    "appdirs",
     "rxjava",
     "jsoup",
     "config",

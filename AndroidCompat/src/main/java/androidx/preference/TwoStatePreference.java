@@ -13,6 +13,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class TwoStatePreference extends Preference {
     // Note: remove @JsonIgnore and implement methods if any extension ever uses these methods or the variables behind them
 
+    private CharSequence summaryOn;
+    private CharSequence summaryOff;
+
     public TwoStatePreference(Context context) {
         super(context);
         setDefaultValue(false);
@@ -28,13 +31,29 @@ public class TwoStatePreference extends Preference {
     public CharSequence getSummaryOn() { throw new RuntimeException("Stub!"); }
 
     @JsonIgnore
-    public void setSummaryOn(CharSequence summary) { throw new RuntimeException("Stub!"); }
+    public void setSummaryOn(CharSequence summary) {
+        this.summaryOn = summary;
+        updateSummary();
+    }
 
     @JsonIgnore
     public CharSequence getSummaryOff() { throw new RuntimeException("Stub!"); }
 
     @JsonIgnore
-    public void setSummaryOff(CharSequence summary) { throw new RuntimeException("Stub!"); }
+    public void setSummaryOff(CharSequence summary) {
+        this.summaryOff = summary;
+        updateSummary();
+    }
+
+    private void updateSummary() {
+        if (this.summaryOn != null && this.summaryOff != null) {
+            super.setSummary("ON: " + this.summaryOn + "\nOFF: " + this.summaryOff);
+        } else if (this.summaryOn != null) {
+            super.setSummary("ON: " + this.summaryOn);
+        } else if (this.summaryOff != null) {
+            super.setSummary("OFF: " + this.summaryOff);
+        }
+    }
 
     @JsonIgnore
     public boolean getDisableDependentsState() { throw new RuntimeException("Stub!"); }

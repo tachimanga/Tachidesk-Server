@@ -15,13 +15,14 @@ import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MAX
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MIN
-import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass
+import suwayomi.tachidesk.manga.model.dataclass.RepoDataClass
 import uy.kohesive.injekt.injectLazy
+import java.util.concurrent.ConcurrentHashMap
 
 object ExtensionGithubApi {
-    private var REPO_URL_PREFIX = ""
-    private var FALLBACK_REPO_URL_PREFIX = ""
+    private val requiresFallbackSourceMap = ConcurrentHashMap<Int, Boolean>()
     private val logger = KotlinLogging.logger {}
+    private val GITHUB_REGEX = Regex("https://raw\\.githubusercontent\\.com/(.*?)/(.*?)/(.*)")
 
     @Serializable
     private data class ExtensionJsonObject(
@@ -45,34 +46,29 @@ object ExtensionGithubApi {
         val baseUrl: String
     )
 
-    private var requiresFallbackSource = false
-
-    suspend fun findExtensions(repoUrl: String): List<OnlineExtension> {
-        REPO_URL_PREFIX = repoUrl
-        FALLBACK_REPO_URL_PREFIX = repoUrl
-        val githubResponse = if (requiresFallbackSource) {
+    suspend fun findExtensions(repo: RepoDataClass): List<OnlineExtension> {
+        val fallback = requiresFallbackSourceMap[repo.id]
+        val githubResponse = if (fallback == true) {
             null
         } else {
             try {
-                client.newCall(GET("${REPO_URL_PREFIX}index.min.json")).await()
+                client.newCall(GET(repo.metaUrl)).await()
             } catch (e: Throwable) {
-                logger.error(e) { "Failed to get extensions from GitHub" }
-                requiresFallbackSource = true
+                logger.error(e) { "Failed to get extensions from GitHub, repo:$repo" }
+                requiresFallbackSourceMap[repo.id] = true
                 null
             }
         }
-
         val response = githubResponse ?: run {
-            client.newCall(GET("${FALLBACK_REPO_URL_PREFIX}index.min.json")).await()
+            client.newCall(GET(toJsDeliverUrl(repo.metaUrl))).await()
         }
-
         return response
             .parseAs<List<ExtensionJsonObject>>()
-            .toExtensions()
+            .toExtensions(repo)
     }
 
-    fun getApkUrl(extension: ExtensionDataClass): String {
-        return "$REPO_URL_PREFIX/apk/${extension.apkName}"
+    fun getApkUrl(repo: RepoDataClass, apkName: String): String {
+        return "${toJsDeliverUrlIfNeeded(repo, repo.baseUrl)}apk/$apkName"
     }
 
     private val client by lazy {
@@ -87,7 +83,8 @@ object ExtensionGithubApi {
             .build()
     }
 
-    private fun List<ExtensionJsonObject>.toExtensions(): List<OnlineExtension> {
+    private fun List<ExtensionJsonObject>.toExtensions(repo: RepoDataClass): List<OnlineExtension> {
+        val baseUrl = toJsDeliverUrlIfNeeded(repo, repo.baseUrl)
         return this
             .filter {
                 val libVersion = it.version.substringBeforeLast('.').toDouble()
@@ -105,7 +102,9 @@ object ExtensionGithubApi {
                     hasChangelog = it.hasChangelog == 1,
                     sources = it.sources?.toExtensionSources() ?: emptyList(),
                     apkName = it.apk,
-                    iconUrl = "${REPO_URL_PREFIX}icon/${it.apk.replace(".apk", ".png")}"
+                    iconUrl = "${baseUrl}icon/${it.pkg}.png",
+                    repoId = repo.id,
+                    repoName = repo.name
                 )
             }
     }
@@ -119,5 +118,21 @@ object ExtensionGithubApi {
                 baseUrl = it.baseUrl
             )
         }
+    }
+
+    private fun toJsDeliverUrlIfNeeded(repo: RepoDataClass, url: String): String {
+        val fallback = requiresFallbackSourceMap[repo.id]
+        return if (fallback == true) {
+            toJsDeliverUrl(url)
+        } else {
+            url
+        }
+    }
+
+    private fun toJsDeliverUrl(url: String): String {
+        if (GITHUB_REGEX.matches(url)) {
+            return GITHUB_REGEX.replace(url, "https://gcore.jsdelivr.net/gh/$1/$2@$3")
+        }
+        return url
     }
 }

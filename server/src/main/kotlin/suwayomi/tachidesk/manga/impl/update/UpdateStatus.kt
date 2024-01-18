@@ -1,6 +1,5 @@
 package suwayomi.tachidesk.manga.impl.update
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import mu.KotlinLogging
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 
@@ -8,7 +7,6 @@ val logger = KotlinLogging.logger {}
 data class UpdateStatus(
     val statusMap: Map<JobStatus, List<MangaDataClass>> = emptyMap(),
     val running: Boolean = false,
-    @JsonIgnore
     val numberOfJobs: Int = 0
 ) {
 
