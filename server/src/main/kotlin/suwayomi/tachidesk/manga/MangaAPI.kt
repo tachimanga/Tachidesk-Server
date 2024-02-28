@@ -132,7 +132,7 @@ object MangaAPI {
 
         path("update") {
             get("recentChapters/{pageNum}", UpdateController.recentChapters)
-            post("fetch", UpdateController.categoryUpdate)
+            post("fetch2", UpdateController.categoryUpdate2)
             post("reset", UpdateController.reset)
             get("summary", UpdateController.updateSummary)
             ws("", UpdateController::categoryUpdateWS)
@@ -158,6 +158,13 @@ object MangaAPI {
             post("create", RepoController.createRepo)
             delete("remove/{repoId}", RepoController.removeRepo)
             post("updateByMetaUrl", RepoController.updateByMetaUrl)
+        }
+
+        path("migrate") {
+            get("info", MigrateController.info)
+            get("sourceList", MigrateController.sourceList)
+            get("mangaList", MigrateController.mangaList)
+            post("migrate", MigrateController.migrate)
         }
     }
 }

@@ -54,7 +54,7 @@ class Updater : IUpdater {
         return channel
     }
 
-    private fun updateStatus(running: Boolean?) {
+    override fun updateStatus(running: Boolean?) {
         val flag = running
             ?: tracker.any { (_, job) ->
                 job.status == JobStatus.PENDING || job.status == JobStatus.RUNNING
@@ -92,9 +92,5 @@ class Updater : IUpdater {
         _status.update { UpdateStatus() }
         updateChannels.forEach { (_, channel) -> channel.cancel() }
         updateChannels.clear()
-    }
-
-    override fun markRunning() {
-        updateStatus(true)
     }
 }

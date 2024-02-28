@@ -57,20 +57,29 @@ object MangaList {
                 throw Exception("Source $source doesn't support latest")
             }
         }
-        Profiler.split("before processEntries")
         return mangasPage.processEntries(sourceId)
     }
 
     fun MangasPage.processEntries(sourceId: Long): PagedMangaListDataClass {
+        val mangasPage = this
+        if (mangasPage.mangas.isEmpty()) {
+            return PagedMangaListDataClass(
+                emptyList(),
+                mangasPage.hasNextPage
+            )
+        }
         val source = getCatalogueSourceOrStub(sourceId)
         val meta = getCatalogueSourceMeta(source)
-
-        val mangasPage = this
+        Profiler.split("before processEntries")
+        val dbMangaMap = transaction {
+            val urls = mangasPage.mangas.map { it.url }.toList()
+            MangaTable.select {
+                (MangaTable.url inList urls) and (MangaTable.sourceReference eq sourceId)
+            }.associateBy { it[MangaTable.url] }
+        }
         val mangaList = transaction {
             return@transaction mangasPage.mangas.map { manga ->
-                var mangaEntry = MangaTable.select {
-                    (MangaTable.url eq manga.url) and (MangaTable.sourceReference eq sourceId)
-                }.firstOrNull()
+                val mangaEntry = dbMangaMap[manga.url]
                 if (mangaEntry == null) { // create manga entry
                     val mangaId = MangaTable.insertAndGetId {
                         it[url] = manga.url

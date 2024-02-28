@@ -108,7 +108,7 @@ public final class Bitmap {
 
     public void getPixels(int[] pixels, int offset, int stride,
                           int x, int y, int width, int height) {
-        throw new RuntimeException("请在设置中禁用移除包子漫画横幅");
+        throw new RuntimeException("请在包子漫画的设置中禁用移除包子漫画横幅");
     }
 
     public boolean compress(CompressFormat format, int quality, OutputStream stream) {

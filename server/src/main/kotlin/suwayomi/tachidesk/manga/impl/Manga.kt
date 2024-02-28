@@ -91,11 +91,11 @@ object Manga {
 
             transaction {
                 MangaTable.update({ MangaTable.id eq mangaId }) {
-                    if (sManga.title != mangaEntry[MangaTable.title]) {
-                        val canUpdateTitle = updateMangaDownloadDir(mangaId, sManga.title)
-
+                    val title = sManga.title.take(512)
+                    if (title != mangaEntry[MangaTable.title]) {
+                        val canUpdateTitle = updateMangaDownloadDir(mangaId, title)
                         if (canUpdateTitle) {
-                            it[MangaTable.title] = sManga.title.take(512)
+                            it[MangaTable.title] = title
                         }
                     }
                     it[MangaTable.initialized] = true

@@ -109,9 +109,11 @@ object Chapter {
             sourceChapterNameDuplicate = chapterList
                 .associateBy { it.name }
                 .size != chapterList.size
-            sourceChapterNumDuplicate = chapterList
+            val numChapterList = chapterList
                 .filter { it.chapter_number > -1 }
-                .associateBy { it.name }.size != chapterList.size
+            sourceChapterNumDuplicate = numChapterList
+                .associateBy { it.chapter_number }
+                .size != numChapterList.size
         }
 
         Profiler.split("after toDeleteChapterList")
