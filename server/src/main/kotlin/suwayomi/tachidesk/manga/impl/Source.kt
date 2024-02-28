@@ -18,6 +18,7 @@ import eu.kanade.tachiyomi.source.sourceSupportDirect
 import io.javalin.plugin.json.JsonMapper
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -26,6 +27,9 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.extension.Extension.getExtensionIconUrl
+import suwayomi.tachidesk.manga.impl.extension.ExtensionsList
+import suwayomi.tachidesk.manga.impl.extension.github.OnlineExtension
+import suwayomi.tachidesk.manga.impl.extension.github.OnlineExtensionSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
@@ -101,6 +105,83 @@ object Source {
                 catalogueSource is ConfigurableSource,
                 source[SourceTable.isNsfw],
                 catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
+            )
+        }
+    }
+
+    fun getSourceList(sourceIdList: List<Long>): List<SourceDataClass> {
+        val sourceList = transaction {
+            SourceTable.select { SourceTable.id inList sourceIdList }
+                .toList()
+        }
+        val extensionIdList = sourceList.map { it[SourceTable.extension].value }.distinct()
+        val extensionMap = transaction {
+            ExtensionTable.select { ExtensionTable.id inList extensionIdList }
+                .associateBy { it[ExtensionTable.id].value }
+        }
+        val catalogueSourceMap = sourceList.mapNotNull {
+            getCatalogueSourceOrNull(it[SourceTable.id].value)
+        }.associateBy { it.id }
+
+        return sourceList.mapNotNull {
+            buildSourceDataClass(
+                it,
+                extensionMap[it[SourceTable.extension].value],
+                catalogueSourceMap[it[SourceTable.id].value]
+            )
+        }
+    }
+
+    private fun buildSourceDataClass(source: ResultRow, extension: ResultRow?, catalogueSource: CatalogueSource?): SourceDataClass? {
+        if (extension == null) {
+            return null
+        }
+        if (catalogueSource == null) {
+            return null
+        }
+        return SourceDataClass(
+            source[SourceTable.id].value.toString(),
+            source[SourceTable.name],
+            source[SourceTable.lang],
+            getExtensionIconUrl(extension[ExtensionTable.apkName], extension[ExtensionTable.iconUrl]),
+            if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+            extension[ExtensionTable.pkgName],
+            catalogueSource.supportsLatest,
+            catalogueSource is ConfigurableSource,
+            source[SourceTable.isNsfw],
+            catalogueSource.toString()
+        )
+    }
+
+    fun getFullSourceList(sourceIdList: List<Long>): List<SourceDataClass> {
+        val installedSourceMap = getSourceList(sourceIdList).associateBy { it.id }
+        val onlineExtensionMap = mutableMapOf<Long, OnlineExtension>()
+        val onlineSourceMap = mutableMapOf<Long, OnlineExtensionSource>()
+        for (onlineExtension in ExtensionsList.cachedOnlineExtensionList) {
+            for (source in onlineExtension.sources) {
+                onlineExtensionMap[source.id] = onlineExtension
+                onlineSourceMap[source.id] = source
+            }
+        }
+        return sourceIdList.mapNotNull {
+            val source = installedSourceMap[it.toString()]
+            if (source != null) {
+                return@mapNotNull source
+            }
+            val onlineSource = onlineSourceMap[it] ?: return@mapNotNull null
+            val onlineExtension = onlineExtensionMap[it] ?: return@mapNotNull null
+            SourceDataClass(
+                it.toString(),
+                onlineSource.name,
+                onlineSource.lang,
+                getExtensionIconUrl(onlineExtension.apkName, onlineExtension.iconUrl),
+                onlineSource.baseUrl,
+                onlineExtension.pkgName,
+                supportsLatest = false,
+                isConfigurable = true,
+                isNsfw = false,
+                displayName = onlineSource.name,
+                installed = false
             )
         }
     }

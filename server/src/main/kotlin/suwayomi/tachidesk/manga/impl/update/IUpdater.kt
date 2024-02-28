@@ -7,5 +7,5 @@ interface IUpdater {
     fun addMangaToQueue(manga: MangaDataClass)
     val status: StateFlow<UpdateStatus>
     fun reset()
-    fun markRunning()
+    fun updateStatus(running: Boolean?)
 }

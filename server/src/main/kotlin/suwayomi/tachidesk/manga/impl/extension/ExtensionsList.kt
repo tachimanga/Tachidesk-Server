@@ -34,6 +34,7 @@ object ExtensionsList {
 
     private var lastUpdateCheck: Long = 0
     val updateMap = ConcurrentHashMap<Int, OnlineExtension>()
+    var cachedOnlineExtensionList: List<OnlineExtension> = listOf()
 
     suspend fun getExtensionList(initBaseUrl: String): List<ExtensionDataClass> {
         // update if 60 seconds has passed or requested offline and database is empty
@@ -110,7 +111,10 @@ object ExtensionsList {
             logger.error("all fail")
             extensions[0].getOrThrow()
         }
-        return extensions.mapNotNull { it.getOrNull() }.flatten()
+
+        val list = extensions.mapNotNull { it.getOrNull() }.flatten()
+        cachedOnlineExtensionList = list
+        return list
     }
 
     suspend fun getExtensionListForImport(defaultRepoUrl: String): Pair<List<ExtensionDataClass>, List<OnlineExtension>> {

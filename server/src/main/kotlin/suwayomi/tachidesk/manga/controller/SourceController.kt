@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.controller
 import io.javalin.http.HttpCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import mu.KotlinLogging
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -29,6 +30,8 @@ import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
 
 object SourceController {
+    private val logger = KotlinLogging.logger {}
+
     /** list of sources */
     val list = handler(
         documentWith = {
@@ -222,7 +225,9 @@ object SourceController {
             // body<FilterData>()
         },
         behaviorOf = { ctx, sourceId, pageNum ->
-            val filter = json.decodeFromString<FilterData>(ctx.body())
+            val body = ctx.body()
+            logger.info("quickSearchSingle $body")
+            val filter = json.decodeFromString<FilterData>(body)
             ctx.future(future { Search.sourceFilter(sourceId, pageNum, filter) })
         },
         withResults = {
