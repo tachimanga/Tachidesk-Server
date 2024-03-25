@@ -142,6 +142,16 @@ class LocalSource : CatalogueSource {
             }
             return 200
         }
+
+        suspend fun deleteManga(fileName: String) {
+            val dir = File("${applicationDirs.localMangaRoot}/$fileName")
+            if (dir.exists() && dir.isDirectory) {
+                dir.deleteRecursively()
+                println("Directory '$dir' has been deleted.")
+            } else {
+                println("Directory '$dir' does not exist in the specified directory.")
+            }
+        }
     }
 
     override val id = ID

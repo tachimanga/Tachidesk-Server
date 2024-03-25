@@ -72,6 +72,7 @@ object MangaAPI {
             get("{mangaId}/chapter/{chapterIndex}/page/{index}", MangaController.pageRetrieve)
 
             post("install", MangaController.installFile)
+            delete("removeLocal", MangaController.removeLocalManga)
         }
 
         path("history") {

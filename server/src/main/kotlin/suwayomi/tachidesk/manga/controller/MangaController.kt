@@ -343,17 +343,19 @@ object MangaController {
     val chapterRetrieve = handler(
         pathParam<Int>("mangaId"),
         pathParam<Int>("chapterIndex"),
+        queryParam("incognito", false),
         documentWith = {
             withOperation {
                 summary("Get a chapter")
                 description("Get the chapter from the manga id and chapter index. It will also retrieve the pages for this chapter.")
             }
         },
-        behaviorOf = { ctx, mangaId, chapterIndex ->
+        behaviorOf = { ctx, mangaId, chapterIndex, incognito ->
             ctx.future(
                 future {
                     Profiler.start()
-                    val r = getChapterReadReady(chapterIndex, mangaId)
+                    logger.info { "incognito $incognito" }
+                    val r = getChapterReadReady(chapterIndex, mangaId, incognito)
                     Profiler.all()
                     r
                 }
@@ -492,6 +494,29 @@ object MangaController {
             httpCode(HttpCode.CREATED)
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
+        }
+    )
+
+    val removeLocalManga = handler(
+        queryParam("mangaId", 0),
+        documentWith = {
+        },
+        behaviorOf = { ctx, mangaId ->
+            logger.info { "removeLocalManga $mangaId" }
+            ctx.future(
+                future {
+                    if (mangaId > 0) {
+                        val manga = Manga.getManga(mangaId)
+                        if (manga.sourceId == "0") {
+                            LocalSource.deleteManga(manga.url)
+                            Library.removeMangaFromLibrary(mangaId)
+                        }
+                    }
+                }
+            )
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
         }
     )
 }

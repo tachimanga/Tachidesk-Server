@@ -37,7 +37,7 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.StubSource
-import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.clearCachedImage
+import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.clearFastCachedImage
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getFastCachedImageResponse
 import suwayomi.tachidesk.manga.impl.util.storage.ImageUtil
 import suwayomi.tachidesk.manga.impl.util.updateMangaDownloadDir
@@ -314,6 +314,6 @@ object Manga {
         val saveDir = applicationDirs.thumbnailsRoot
         val fileName = mangaId.toString()
 
-        clearCachedImage(saveDir, fileName)
+        clearFastCachedImage(saveDir, fileName)
     }
 }

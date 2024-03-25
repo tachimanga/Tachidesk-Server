@@ -37,7 +37,11 @@ public class SimpleDateFormat extends java.text.DateFormat {
     }
 
     public SimpleDateFormat(String pattern, Locale loc) {
-        delegate = new com.ibm.icu.text.SimpleDateFormat(pattern, loc);
+        if (loc != null && "th".equals(loc.getLanguage())) {
+            delegate = new com.ibm.icu.text.SimpleDateFormat(pattern, new Locale("th-u-ca-gregory"));
+        } else {
+            delegate = new com.ibm.icu.text.SimpleDateFormat(pattern, loc);
+        }
     }
 
     public SimpleDateFormat(String pattern, ULocale loc) {

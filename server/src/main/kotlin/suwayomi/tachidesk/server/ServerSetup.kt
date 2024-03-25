@@ -20,7 +20,6 @@ import org.kodein.di.conf.global
 import org.kodein.di.singleton
 import suwayomi.tachidesk.manga.impl.update.IUpdater
 import suwayomi.tachidesk.manga.impl.update.Updater
-import suwayomi.tachidesk.manga.impl.util.lang.renameTo
 import suwayomi.tachidesk.server.database.databaseUp
 import xyz.nulldev.androidcompat.AndroidCompat
 import xyz.nulldev.androidcompat.AndroidCompatInitializer
@@ -29,7 +28,7 @@ import xyz.nulldev.ts.config.ConfigKodeinModule
 import xyz.nulldev.ts.config.GlobalConfigManager
 import java.io.File
 import java.security.Security
-import java.util.Locale
+import java.util.*
 
 private val logger = KotlinLogging.logger {}
 
@@ -37,11 +36,10 @@ class ApplicationDirs(
     val dataRoot: String = ApplicationRootDir,
     val tempRoot: String = "${System.getProperty("java.io.tmpdir")}/Tachidesk"
 ) {
-    val cacheRoot = System.getProperty("java.io.tmpdir") + "/tachidesk"
     val extensionsRoot = "$dataRoot/extensions"
     val thumbnailsRoot = "$dataRoot/thumbnails"
     val mangaDownloadsRoot = serverConfig.downloadsPath.ifBlank { "$dataRoot/downloads" }
-    val localMangaRoot = "$dataRoot/local"
+    val localMangaRoot = "${System.getProperty("user.home")}/Documents/local"
     val webUIRoot = "$dataRoot/webUI"
 
     val tempMangaCacheRoot = "$tempRoot/manga-cache"
@@ -80,10 +78,8 @@ fun applicationSetup() {
 
     logger.debug("Data Root directory is set to: ${applicationDirs.dataRoot}")
 
-    // Migrate Directories from old versions
-    File("$ApplicationRootDir/manga-thumbnails").renameTo(applicationDirs.thumbnailsRoot)
-    File("$ApplicationRootDir/manga-local").renameTo(applicationDirs.localMangaRoot)
-    File("$ApplicationRootDir/anime-thumbnails").delete()
+    val localDirExist =
+        File(applicationDirs.localMangaRoot).exists()
 
     // make dirs we need
     listOf(
@@ -135,6 +131,34 @@ fun applicationSetup() {
         logger.error("Exception while copying Local source's icon", e)
     }
 
+    if (!localDirExist) {
+        copyDemoManga(applicationDirs)
+    }
+
+    // fixes #119 , ref: https://github.com/Suwayomi/Tachidesk-Server/issues/119#issuecomment-894681292 , source Id calculation depends on String.lowercase()
+    Locale.setDefault(Locale.ENGLISH)
+
+    databaseUp()
+
+    LocalSource.register()
+
+    // Disable jetty's logging
+    System.setProperty("org.eclipse.jetty.util.log.announce", "false")
+    System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog")
+    System.setProperty("org.eclipse.jetty.LEVEL", "OFF")
+
+    // socks proxy settings
+    if (serverConfig.socksProxyEnabled) {
+        System.getProperties()["socksProxyHost"] = serverConfig.socksProxyHost
+        System.getProperties()["socksProxyPort"] = serverConfig.socksProxyPort
+        logger.info("Socks Proxy is enabled to ${serverConfig.socksProxyHost}:${serverConfig.socksProxyPort}")
+    }
+
+    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
+    Security.addProvider(BouncyCastleProvider())
+}
+
+fun copyDemoManga(applicationDirs: ApplicationDirs) {
     try {
         val list = listOf(
             "Top to bottom",
@@ -155,30 +179,4 @@ fun applicationSetup() {
     } catch (e: Exception) {
         logger.error("Exception while copying demo manga", e)
     }
-
-    // fixes #119 , ref: https://github.com/Suwayomi/Tachidesk-Server/issues/119#issuecomment-894681292 , source Id calculation depends on String.lowercase()
-    Locale.setDefault(Locale.ENGLISH)
-
-    databaseUp()
-
-    LocalSource.register()
-
-    // create system tray
-    if (serverConfig.systemTrayEnabled) {
-    }
-
-    // Disable jetty's logging
-    System.setProperty("org.eclipse.jetty.util.log.announce", "false")
-    System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog")
-    System.setProperty("org.eclipse.jetty.LEVEL", "OFF")
-
-    // socks proxy settings
-    if (serverConfig.socksProxyEnabled) {
-        System.getProperties()["socksProxyHost"] = serverConfig.socksProxyHost
-        System.getProperties()["socksProxyPort"] = serverConfig.socksProxyPort
-        logger.info("Socks Proxy is enabled to ${serverConfig.socksProxyHost}:${serverConfig.socksProxyPort}")
-    }
-
-    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
-    Security.addProvider(BouncyCastleProvider())
 }

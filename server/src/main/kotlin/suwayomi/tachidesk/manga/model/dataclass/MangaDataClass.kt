@@ -8,7 +8,6 @@ package suwayomi.tachidesk.manga.model.dataclass
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
-import suwayomi.tachidesk.manga.impl.util.lang.trimAll
 import suwayomi.tachidesk.manga.model.table.MangaStatus
 import java.time.Instant
 
@@ -50,6 +49,7 @@ data class MangaDataClass(
     var lastChapterRead: ChapterDataClass? = null,
     // MAX(ChapterTable.fetchedAt)
     var latestChapterFetchAt: Long? = null,
+    var latestChapterUploadAt: Long? = null,
 
     val trackers: List<MangaTrackerDataClass>? = null,
 
@@ -62,4 +62,4 @@ data class PagedMangaListDataClass(
     val hasNextPage: Boolean
 )
 
-internal fun String?.toGenreList() = this?.split(",")?.trimAll().orEmpty()
+internal fun String?.toGenreList() = this?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
