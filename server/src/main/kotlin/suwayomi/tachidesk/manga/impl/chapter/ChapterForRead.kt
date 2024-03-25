@@ -19,6 +19,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import suwayomi.tachidesk.manga.impl.History
 import suwayomi.tachidesk.manga.impl.Page.getPageName
 import suwayomi.tachidesk.manga.impl.util.getChapterCbzPath
 import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath
@@ -35,10 +36,10 @@ import suwayomi.tachidesk.manga.model.table.toDataClass
 import java.io.File
 import java.time.Instant
 
-suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int): ChapterDataClass {
+suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int, incognito: Boolean): ChapterDataClass {
     val chapter = ChapterForRead(chapterIndex, mangaId)
     val data = chapter.asReadReady()
-    chapter.updateLastReadAt()
+    chapter.updateLastReadAt(incognito)
     return data
 }
 
@@ -126,7 +127,7 @@ private class ChapterForRead(
         }
     }
 
-    public fun updateLastReadAt() {
+    public fun updateLastReadAt(incognito: Boolean) {
         // chapter may be downloaded but if we are here, then images might be deleted and database data be false
         transaction {
             ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
@@ -134,6 +135,9 @@ private class ChapterForRead(
                 if (chapterEntry[pageCount] == 1) {
                     it[isRead] = true
                 }
+            }
+            if (!incognito) {
+                History.upsertHistory(mangaId, chapterEntry[ChapterTable.id].value)
             }
         }
     }

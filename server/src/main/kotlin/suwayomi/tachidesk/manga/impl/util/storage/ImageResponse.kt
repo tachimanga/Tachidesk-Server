@@ -122,4 +122,14 @@ object ImageResponse {
             File(it).delete()
         }
     }
+
+    fun clearFastCachedImage(saveDir: String, fileName: String) {
+        val file = File(saveDir, fileName)
+        if (file.exists()) {
+            file.delete()
+            println("clearFastCachedImage $fileName deleted successfully.")
+        } else {
+            println("clearFastCachedImage $fileName does not exist.")
+        }
+    }
 }

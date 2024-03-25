@@ -26,7 +26,7 @@ object HistoryController {
     val list = handler(
         behaviorOf = { ctx ->
             Profiler.start()
-            ctx.json(History.getHistoryMangaList())
+            ctx.json(History.getHistoryMangaListV2())
             Profiler.all()
         },
         withResults = {
@@ -37,7 +37,7 @@ object HistoryController {
     val batchDelete = handler(
         behaviorOf = { ctx ->
             val input = json.decodeFromString<History.BatchInput>(ctx.body())
-            History.batchDelete(input)
+            History.batchDeleteV2(input)
         },
         withResults = {
             httpCode(HttpCode.OK)

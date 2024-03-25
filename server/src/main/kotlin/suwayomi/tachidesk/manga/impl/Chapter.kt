@@ -19,7 +19,6 @@ import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tachiyomi.Profiler
-import suwayomi.tachidesk.manga.impl.Manga.getManga
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
@@ -68,15 +67,26 @@ object Chapter {
     }
 
     private suspend fun getSourceChapters(mangaId: Int): List<ChapterDataClass> {
-        val manga = getManga(mangaId)
-        val source = getCatalogueSourceOrStub(manga.sourceId.toLong())
+        // val manga = getManga(mangaId)
+        val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
+        val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
         Profiler.split("getManga")
+        // tachiyomi: state.source.getMangaDetails(state.manga.toSManga())
         val sManga = SManga.create().apply {
-            title = manga.title
-            url = manga.url
+            url = mangaEntry[MangaTable.url]
+            title = mangaEntry[MangaTable.title]
+            artist = mangaEntry[MangaTable.artist]
+            author = mangaEntry[MangaTable.author]
+            description = mangaEntry[MangaTable.description]
+            genre = mangaEntry[MangaTable.genre]
+            status = mangaEntry[MangaTable.status]
+            thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
+            initialized = mangaEntry[MangaTable.initialized]
         }
 
-        val chapterList = source.fetchChapterList(sManga).awaitSingle()
+        val rawChapterList = source.fetchChapterList(sManga).awaitSingle()
+        val chapterList = rawChapterList
+            .distinctBy { it.url }
         Profiler.split("after fetchChapterList")
         // Recognize number for new chapters.
         chapterList.forEach {
@@ -99,22 +109,10 @@ object Chapter {
             .toList()
 
         val toDeleteChapterNameMap = toDeleteChapterList
-            .associateBy { it[ChapterTable.name] }
+            .groupBy { it[ChapterTable.name] }
         val toDeleteChapterNumMap = toDeleteChapterList
             .filter { it[ChapterTable.chapter_number] > -1 }
-            .associateBy { it[ChapterTable.chapter_number] }
-        var sourceChapterNameDuplicate = false
-        var sourceChapterNumDuplicate = false
-        if (toDeleteChapterList.isNotEmpty()) {
-            sourceChapterNameDuplicate = chapterList
-                .associateBy { it.name }
-                .size != chapterList.size
-            val numChapterList = chapterList
-                .filter { it.chapter_number > -1 }
-            sourceChapterNumDuplicate = numChapterList
-                .associateBy { it.chapter_number }
-                .size != numChapterList.size
-        }
+            .groupBy { it[ChapterTable.chapter_number] }
 
         Profiler.split("after toDeleteChapterList")
 
@@ -172,10 +170,13 @@ object Chapter {
 
                         my[ChapterTable.realUrl] = realUrlMap[index]
 
-                        val toDeleteChapter = if (!sourceChapterNameDuplicate && toDeleteChapterNameMap[fetchedChapter.name] != null) {
-                            toDeleteChapterNameMap[fetchedChapter.name]
-                        } else if (!sourceChapterNumDuplicate && toDeleteChapterNumMap[fetchedChapter.chapter_number] != null) {
-                            toDeleteChapterNumMap[fetchedChapter.chapter_number]
+                        val sameNameChapterList = toDeleteChapterNameMap[fetchedChapter.name]
+                        val sameNumChapterList = toDeleteChapterNumMap[fetchedChapter.chapter_number]
+
+                        val toDeleteChapter = if (sameNameChapterList?.size == 1) {
+                            sameNameChapterList[0]
+                        } else if (sameNumChapterList?.size == 1) {
+                            sameNumChapterList[0]
                         } else {
                             null
                         }
@@ -183,6 +184,9 @@ object Chapter {
                             my[ChapterTable.isDownloaded] = toDeleteChapter[ChapterTable.isDownloaded]
                             my[ChapterTable.isBookmarked] = toDeleteChapter[ChapterTable.isBookmarked]
                             my[ChapterTable.isRead] = toDeleteChapter[ChapterTable.isRead]
+                            my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
+                            my[ChapterTable.lastPageRead] = toDeleteChapter[ChapterTable.lastPageRead]
+                            my[ChapterTable.lastReadAt] = toDeleteChapter[ChapterTable.lastReadAt]
                         }
                     }
 
@@ -228,7 +232,7 @@ object Chapter {
             Profiler.split("update MangaTable")
         }
 
-        if (toDeleteChapterList.isNotEmpty()) {
+        if (toDeleteChapterList.isNotEmpty() && chapterList.isNotEmpty()) {
             transaction {
                 toDeleteChapterList.forEach { dbChapter ->
                     PageTable.deleteWhere { PageTable.chapter eq dbChapter[ChapterTable.id] }
@@ -386,6 +390,7 @@ object Chapter {
         // Handle deleting separately
         if (delete == true) {
             deleteChapters(input, mangaId)
+            return
         }
 
         // return early if there are no other changes

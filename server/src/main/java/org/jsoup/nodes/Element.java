@@ -1,10 +1,10 @@
 package org.jsoup.nodes;
 
+import org.tachiyomi.NativeString;
 import org.jsoup.helper.ChangeNotifyingArrayList;
 import org.jsoup.helper.Consumer;
 import org.jsoup.helper.Validate;
 import org.jsoup.internal.NonnullByDefault;
-import org.jsoup.internal.Normalizer;
 import org.jsoup.internal.StringUtil;
 import org.jsoup.parser.ParseSettings;
 import org.jsoup.parser.Tag;
@@ -1584,7 +1584,7 @@ public class Element extends Node {
     }
 
     private static boolean stringContains(String text, String searchText) {
-        return text != null && searchText != null && text.contains(searchText);
+        return text != null && searchText != null && NativeString.indexOf(text, searchText) > -1;
     }
 
     private static boolean stringContainsIgnoreCase(String text, String searchText) {

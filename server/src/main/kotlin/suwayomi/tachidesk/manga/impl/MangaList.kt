@@ -94,6 +94,9 @@ object MangaList {
                         it[updateStrategy] = manga.update_strategy.name
 
                         it[sourceReference] = sourceId
+
+                        // tachiyomi: networkToLocalManga.await(it.toDomainManga(sourceId))
+                        it[initialized] = manga.initialized
                     }.value
                     MangaDataClass(
                         id = mangaId,

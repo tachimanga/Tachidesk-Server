@@ -175,6 +175,7 @@ object CategoryManga {
         val chapterCount = ChapterTable.id.count()
         val lastReadAt = ChapterTable.lastReadAt.max()
         val latestChapterFetchAt = ChapterTable.fetchedAt.max()
+        val latestChapterUploadAt = ChapterTable.date_upload.max()
 
         val mangaMap = mangaList.associateBy { it.id }
         transaction {
@@ -184,7 +185,8 @@ object CategoryManga {
                 downloadedCount,
                 chapterCount,
                 lastReadAt,
-                latestChapterFetchAt
+                latestChapterFetchAt,
+                latestChapterUploadAt
             )
                 .select { ChapterTable.manga inList mangaIds }
                 .groupBy(ChapterTable.manga)
@@ -196,6 +198,7 @@ object CategoryManga {
                         dataClass.downloadCount = it[downloadedCount]?.toLong()
                         dataClass.chapterCount = it[chapterCount]
                         dataClass.latestChapterFetchAt = it[latestChapterFetchAt]
+                        dataClass.latestChapterUploadAt = it[latestChapterUploadAt]
                     }
                 }
         }
