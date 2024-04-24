@@ -9,10 +9,16 @@ import java.io.StringReader;
 import java.util.List;
 
 /**
- * Parses HTML into a {@link org.jsoup.nodes.Document}. Generally best to use one of the  more convenient parse methods
- * in {@link org.jsoup.Jsoup}.
- */
+ Parses HTML or XML into a {@link org.jsoup.nodes.Document}. Generally, it is simpler to use one of the parse methods in
+ {@link org.jsoup.Jsoup}.
+ <p>Note that a Parser instance object is not threadsafe. To reuse a Parser configuration in a multi-threaded
+ environment, use {@link #newInstance()} to make copies. */
 public class Parser {
+    public static final String NamespaceHtml = "http://www.w3.org/1999/xhtml";
+    public static final String NamespaceXml = "http://www.w3.org/XML/1998/namespace";
+    public static final String NamespaceMathml = "http://www.w3.org/1998/Math/MathML";
+    public static final String NamespaceSvg = "http://www.w3.org/2000/svg";
+
     private TreeBuilder treeBuilder;
     private ParseErrorList errors;
     private ParseSettings settings;
@@ -147,6 +153,10 @@ public class Parser {
         return getTreeBuilder().isContentForTagData(normalName);
     }
 
+    public String defaultNamespace() {
+        return getTreeBuilder().defaultNamespace();
+    }
+
     // static parse functions below
     /**
      * Parse HTML into a Document.
@@ -235,7 +245,9 @@ public class Parser {
      * @return an unescaped string
      */
     public static String unescapeEntities(String string, boolean inAttribute) {
-        Tokeniser tokeniser = new Tokeniser(new CharacterReader(string), ParseErrorList.noTracking());
+        Parser parser = Parser.htmlParser();
+        parser.treeBuilder.initialiseParse(new StringReader(string), "", parser);
+        Tokeniser tokeniser = new Tokeniser(parser.treeBuilder);
         return tokeniser.unescapeEntities(inAttribute);
     }
 

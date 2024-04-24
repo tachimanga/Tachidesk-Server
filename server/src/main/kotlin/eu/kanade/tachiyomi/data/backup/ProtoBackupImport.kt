@@ -9,20 +9,17 @@ package eu.kanade.tachiyomi.data.backup
 
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
-import eu.kanade.tachiyomi.data.backup.models.BackupSerializer
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.BackupUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
 import mu.KotlinLogging
-import okio.buffer
-import okio.gzip
 import okio.source
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -84,7 +81,7 @@ object ProtoBackupImport {
     private suspend fun performRestore0(sourceStream: InputStream, defaultRepoUrl: String): ImportResult {
         // decode
         logger.info { "[Import]decode start" }
-        val backup = decode(sourceStream)
+        val backup = BackupUtil.decodeBackup(sourceStream)
         logger.info { "[Import]decode done" }
 
         // validate
@@ -104,12 +101,6 @@ object ProtoBackupImport {
             }
         }
         return ImportResult("")
-    }
-
-    @OptIn(ExperimentalSerializationApi::class)
-    private fun decode(sourceStream: InputStream): Backup {
-        val backupString = sourceStream.source().gzip().buffer().use { it.readByteArray() }
-        return parser.decodeFromByteArray(BackupSerializer, backupString)
     }
 
     private fun validate(backup: Backup) {

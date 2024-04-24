@@ -4,13 +4,14 @@ import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.UncheckedIOException;
 import org.jsoup.UnsupportedMimeTypeException;
-import org.jsoup.internal.ConstrainableInputStream;
+import org.jsoup.internal.ControllableInputStream;
+import org.jsoup.internal.SharedConstants;
 import org.jsoup.internal.StringUtil;
 import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
 import org.jsoup.parser.TokenQueue;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.BufferedInputStream;
@@ -23,12 +24,9 @@ import java.io.OutputStreamWriter;
 import java.net.CookieManager;
 import java.net.CookieStore;
 import java.net.HttpURLConnection;
-import java.net.IDN;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.Buffer;
@@ -47,6 +45,7 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
 import static org.jsoup.Connection.Method.HEAD;
+import static org.jsoup.helper.DataUtil.UTF_8;
 import static org.jsoup.internal.Normalizer.lowerCase;
 
 /**
@@ -68,7 +67,6 @@ public class HttpConnection implements Connection {
     public static final String FORM_URL_ENCODED = "application/x-www-form-urlencoded";
     private static final int HTTP_TEMP_REDIR = 307; // http/1.1 temporary redirect, not in Java's set.
     private static final String DefaultUploadType = "application/octet-stream";
-    private static final Charset UTF_8 = Charset.forName("UTF-8"); // Don't use StandardCharsets, not in Android API 10.
     private static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
 
     /**
@@ -94,64 +92,19 @@ public class HttpConnection implements Connection {
     }
 
     /**
-     Creates a new, empty HttpConnection.
+     Create a new, empty HttpConnection.
      */
     public HttpConnection() {
         req = new Request();
     }
 
     /**
-     Create a new Request by deep-copying an existing Request
+     Create a new Request by deep-copying an existing Request. Note that the data and body of the original are not
+     copied. All other settings (proxy, parser, cookies, etc) are copied.
      @param copy the request to copy
      */
     HttpConnection(Request copy) {
         req = new Request(copy);
-    }
-
-    /**
-     * Encodes the input URL into a safe ASCII URL string
-     * @param url unescaped URL
-     * @return escaped URL
-     */
-	private static String encodeUrl(String url) {
-        try {
-            URL u = new URL(url);
-            return encodeUrl(u).toExternalForm();
-        } catch (Exception e) {
-            return url;
-        }
-	}
-
-    static URL encodeUrl(URL u) {
-	    u = punyUrl(u);
-        try {
-            //  odd way to encode urls, but it works!
-            String urlS = u.toExternalForm(); // URL external form may have spaces which is illegal in new URL() (odd asymmetry)
-            urlS = urlS.replace(" ", "%20");
-            final URI uri = new URI(urlS);
-            return new URL(uri.toASCIIString());
-        } catch (URISyntaxException | MalformedURLException e) {
-            // give up and return the original input
-            return u;
-        }
-    }
-
-    /**
-     Convert an International URL to a Punycode URL.
-     @param url input URL that may include an international hostname
-     @return a punycode URL if required, or the original URL
-     */
-    private static URL punyUrl(URL url) {
-        if (!StringUtil.isAscii(url.getHost())) {
-            try {
-                String puny = IDN.toASCII(url.getHost());
-                url = new URL(url.getProtocol(), puny, url.getPort(), url.getFile()); // file will include ref, query if any
-            } catch (MalformedURLException e) {
-                // if passed a valid URL initially, cannot happen
-                throw new IllegalArgumentException(e);
-            }
-        }
-        return url;
     }
 
     private static String encodeMimeName(String val) {
@@ -159,7 +112,7 @@ public class HttpConnection implements Connection {
     }
 
     private HttpConnection.Request req;
-    private @Nullable Connection.Response res;
+    private Connection.@Nullable Response res;
 
     @Override
     public Connection newRequest() {
@@ -173,84 +126,98 @@ public class HttpConnection implements Connection {
         this.res = res;
     }
 
+    @Override
     public Connection url(URL url) {
         req.url(url);
         return this;
     }
 
+    @Override
     public Connection url(String url) {
         Validate.notEmptyParam(url, "url");
         try {
-            req.url(new URL(encodeUrl(url)));
+            req.url(new URL(url));
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(String.format("The supplied URL, '%s', is malformed. Make sure it is an absolute URL, and starts with 'http://' or 'https://'. See https://jsoup.org/cookbook/extracting-data/working-with-urls", url), e);
         }
         return this;
     }
 
+    @Override
     public Connection proxy(@Nullable Proxy proxy) {
         req.proxy(proxy);
         return this;
     }
 
+    @Override
     public Connection proxy(String host, int port) {
         req.proxy(host, port);
         return this;
     }
 
+    @Override
     public Connection userAgent(String userAgent) {
         Validate.notNullParam(userAgent, "userAgent");
         req.header(USER_AGENT, userAgent);
         return this;
     }
 
+    @Override
     public Connection timeout(int millis) {
         req.timeout(millis);
         return this;
     }
 
+    @Override
     public Connection maxBodySize(int bytes) {
         req.maxBodySize(bytes);
         return this;
     }
 
+    @Override
     public Connection followRedirects(boolean followRedirects) {
         req.followRedirects(followRedirects);
         return this;
     }
 
+    @Override
     public Connection referrer(String referrer) {
         Validate.notNullParam(referrer, "referrer");
         req.header("Referer", referrer);
         return this;
     }
 
+    @Override
     public Connection method(Method method) {
         req.method(method);
         return this;
     }
 
+    @Override
     public Connection ignoreHttpErrors(boolean ignoreHttpErrors) {
 		req.ignoreHttpErrors(ignoreHttpErrors);
 		return this;
 	}
 
+    @Override
     public Connection ignoreContentType(boolean ignoreContentType) {
         req.ignoreContentType(ignoreContentType);
         return this;
     }
 
-
+    @Override
     public Connection data(String key, String value) {
         req.data(KeyVal.create(key, value));
         return this;
     }
 
+    @Override
     public Connection sslSocketFactory(SSLSocketFactory sslSocketFactory) {
 	    req.sslSocketFactory(sslSocketFactory);
 	    return this;
     }
 
+    @Override
     public Connection data(String key, String filename, InputStream inputStream) {
         req.data(KeyVal.create(key, filename, inputStream));
         return this;
@@ -262,6 +229,7 @@ public class HttpConnection implements Connection {
         return this;
     }
 
+    @Override
     public Connection data(Map<String, String> data) {
         Validate.notNullParam(data, "data");
         for (Map.Entry<String, String> entry : data.entrySet()) {
@@ -270,6 +238,7 @@ public class HttpConnection implements Connection {
         return this;
     }
 
+    @Override
     public Connection data(String... keyvals) {
         Validate.notNullParam(keyvals, "keyvals");
         Validate.isTrue(keyvals.length %2 == 0, "Must supply an even number of key value pairs");
@@ -283,6 +252,7 @@ public class HttpConnection implements Connection {
         return this;
     }
 
+    @Override
     public Connection data(Collection<Connection.KeyVal> data) {
         Validate.notNullParam(data, "data");
         for (Connection.KeyVal entry: data) {
@@ -291,6 +261,7 @@ public class HttpConnection implements Connection {
         return this;
     }
 
+    @Override
     public Connection.KeyVal data(String key) {
         Validate.notEmptyParam(key, "key");
         for (Connection.KeyVal keyVal : request().data()) {
@@ -300,16 +271,19 @@ public class HttpConnection implements Connection {
         return null;
     }
 
+    @Override
     public Connection requestBody(String body) {
         req.requestBody(body);
         return this;
     }
 
+    @Override
     public Connection header(String name, String value) {
         req.header(name, value);
         return this;
     }
 
+    @Override
     public Connection headers(Map<String,String> headers) {
         Validate.notNullParam(headers, "headers");
         for (Map.Entry<String,String> entry : headers.entrySet()) {
@@ -318,11 +292,13 @@ public class HttpConnection implements Connection {
         return this;
     }
 
+    @Override
     public Connection cookie(String name, String value) {
         req.cookie(name, value);
         return this;
     }
 
+    @Override
     public Connection cookies(Map<String, String> cookies) {
         Validate.notNullParam(cookies, "cookies");
         for (Map.Entry<String, String> entry : cookies.entrySet()) {
@@ -343,11 +319,13 @@ public class HttpConnection implements Connection {
         return req.cookieManager.getCookieStore();
     }
 
+    @Override
     public Connection parser(Parser parser) {
         req.parser(parser);
         return this;
     }
 
+    @Override
     public Document get() throws IOException {
         req.method(Method.GET);
         execute();
@@ -355,6 +333,7 @@ public class HttpConnection implements Connection {
         return res.parse();
     }
 
+    @Override
     public Document post() throws IOException {
         req.method(Method.POST);
         execute();
@@ -362,20 +341,24 @@ public class HttpConnection implements Connection {
         return res.parse();
     }
 
+    @Override
     public Connection.Response execute() throws IOException {
         res = Response.execute(req);
         return res;
     }
 
+    @Override
     public Connection.Request request() {
         return req;
     }
 
+    @Override
     public Connection request(Connection.Request request) {
         req = (HttpConnection.Request) request; // will throw a class-cast exception if the user has extended some but not all of Connection; that's desired
         return this;
     }
 
+    @Override
     public Connection.Response response() {
         if (res == null) {
             throw new IllegalArgumentException("You must execute the request before getting a response.");
@@ -383,16 +366,22 @@ public class HttpConnection implements Connection {
         return res;
     }
 
+    @Override
     public Connection response(Connection.Response response) {
         res = response;
         return this;
     }
 
+    @Override
     public Connection postDataCharset(String charset) {
         req.postDataCharset(charset);
         return this;
     }
 
+    @Override public Connection auth(RequestAuthenticator authenticator) {
+        req.auth(authenticator);
+        return this;
+    }
 
     @SuppressWarnings("unchecked")
     private static abstract class Base<T extends Connection.Base<T>> implements Connection.Base<T> {
@@ -425,28 +414,33 @@ public class HttpConnection implements Connection {
             cookies = new LinkedHashMap<>(); cookies.putAll(copy.cookies); // just holds strings
         }
 
+        @Override
         public URL url() {
             if (url == UnsetUrl)
                 throw new IllegalArgumentException("URL not set. Make sure to call #url(...) before executing the request.");
             return url;
         }
 
+        @Override
         public T url(URL url) {
             Validate.notNullParam(url, "url");
-            this.url = punyUrl(url); // if calling url(url) directly, does not go through encodeUrl, so we punycode it explicitly. todo - should we encode here as well?
+            this.url = new UrlBuilder(url).build();
             return (T) this;
         }
 
+        @Override
         public Method method() {
             return method;
         }
 
+        @Override
         public T method(Method method) {
             Validate.notNullParam(method, "method");
             this.method = method;
             return (T) this;
         }
 
+        @Override
         public String header(String name) {
             Validate.notNullParam(name, "name");
             List<String> vals = getHeadersCaseInsensitive(name);
@@ -459,7 +453,7 @@ public class HttpConnection implements Connection {
         }
 
         @Override
-        public T addHeader(String name, String value) {
+        public T addHeader(String name, @Nullable String value) {
             Validate.notEmptyParam(name, "name");
             //noinspection ConstantConditions
             value = value == null ? "" : value;
@@ -469,7 +463,7 @@ public class HttpConnection implements Connection {
                 values = new ArrayList<>();
                 headers.put(name, values);
             }
-            values.add(fixHeaderEncoding(value));
+            values.add(value);
 
             return (T) this;
         }
@@ -480,55 +474,7 @@ public class HttpConnection implements Connection {
             return getHeadersCaseInsensitive(name);
         }
 
-        private static String fixHeaderEncoding(String val) {
-            byte[] bytes = val.getBytes(ISO_8859_1);
-            if (!looksLikeUtf8(bytes))
-                return val;
-            return new String(bytes, UTF_8);
-        }
-
-        private static boolean looksLikeUtf8(byte[] input) {
-            int i = 0;
-            // BOM:
-            if (input.length >= 3
-                && (input[0] & 0xFF) == 0xEF
-                && (input[1] & 0xFF) == 0xBB
-                && (input[2] & 0xFF) == 0xBF) {
-                i = 3;
-            }
-
-            int end;
-            for (int j = input.length; i < j; ++i) {
-                int o = input[i];
-                if ((o & 0x80) == 0) {
-                    continue; // ASCII
-                }
-
-                // UTF-8 leading:
-                if ((o & 0xE0) == 0xC0) {
-                    end = i + 1;
-                } else if ((o & 0xF0) == 0xE0) {
-                    end = i + 2;
-                } else if ((o & 0xF8) == 0xF0) {
-                    end = i + 3;
-                } else {
-                    return false;
-                }
-
-                if (end >= input.length)
-                    return false;
-
-                while (i < end) {
-                    i++;
-                    o = input[i];
-                    if ((o & 0xC0) != 0x80) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-
+        @Override
         public T header(String name, String value) {
             Validate.notEmptyParam(name, "name");
             removeHeader(name); // ensures we don't get an "accept-encoding" and a "Accept-Encoding"
@@ -536,6 +482,7 @@ public class HttpConnection implements Connection {
             return (T) this;
         }
 
+        @Override
         public boolean hasHeader(String name) {
             Validate.notEmptyParam(name, "name");
             return !getHeadersCaseInsensitive(name).isEmpty();
@@ -544,6 +491,7 @@ public class HttpConnection implements Connection {
         /**
          * Test if the request has a header with this value (case insensitive).
          */
+        @Override
         public boolean hasHeaderWithValue(String name, String value) {
             Validate.notEmpty(name);
             Validate.notEmpty(value);
@@ -555,6 +503,7 @@ public class HttpConnection implements Connection {
             return false;
         }
 
+        @Override
         public T removeHeader(String name) {
             Validate.notEmptyParam(name, "name");
             Map.Entry<String, List<String>> entry = scanHeaders(name); // remove is case-insensitive too
@@ -563,6 +512,7 @@ public class HttpConnection implements Connection {
             return (T) this;
         }
 
+        @Override
         public Map<String, String> headers() {
             LinkedHashMap<String, String> map = new LinkedHashMap<>(headers.size());
             for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
@@ -590,7 +540,7 @@ public class HttpConnection implements Connection {
             return Collections.emptyList();
         }
 
-        private @Nullable Map.Entry<String, List<String>> scanHeaders(String name) {
+        private Map.@Nullable Entry<String, List<String>> scanHeaders(String name) {
             String lc = lowerCase(name);
             for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
                 if (lowerCase(entry.getKey()).equals(lc))
@@ -599,11 +549,13 @@ public class HttpConnection implements Connection {
             return null;
         }
 
+        @Override
         public String cookie(String name) {
             Validate.notEmptyParam(name, "name");
             return cookies.get(name);
         }
 
+        @Override
         public T cookie(String name, String value) {
             Validate.notEmptyParam(name, "name");
             Validate.notNullParam(value, "value");
@@ -611,17 +563,20 @@ public class HttpConnection implements Connection {
             return (T) this;
         }
 
+        @Override
         public boolean hasCookie(String name) {
             Validate.notEmptyParam(name, "name");
             return cookies.containsKey(name);
         }
 
+        @Override
         public T removeCookie(String name) {
             Validate.notEmptyParam(name, "name");
             cookies.remove(name);
             return (T) this;
         }
 
+        @Override
         public Map<String, String> cookies() {
             return cookies;
         }
@@ -646,6 +601,7 @@ public class HttpConnection implements Connection {
         private String postDataCharset = DataUtil.defaultCharsetName;
         private @Nullable SSLSocketFactory sslSocketFactory;
         private CookieManager cookieManager;
+        private @Nullable RequestAuthenticator authenticator;
         private volatile boolean executing = false;
 
         Request() {
@@ -668,115 +624,138 @@ public class HttpConnection implements Connection {
             timeoutMilliseconds = copy.timeoutMilliseconds;
             maxBodySizeBytes = copy.maxBodySizeBytes;
             followRedirects = copy.followRedirects;
-            data = new ArrayList<>(); data.addAll(copy.data()); // this is shallow, but holds immutable string keyval, and possibly an InputStream which can only be read once anyway, so using as a prototype would be unsupported
-            body = copy.body;
+            data = new ArrayList<>(); // data not copied
+            //body not copied
             ignoreHttpErrors = copy.ignoreHttpErrors;
             ignoreContentType = copy.ignoreContentType;
             parser = copy.parser.newInstance(); // parsers and their tree-builders maintain state, so need a fresh copy
             parserDefined = copy.parserDefined;
             sslSocketFactory = copy.sslSocketFactory; // these are all synchronized so safe to share
             cookieManager = copy.cookieManager;
+            authenticator = copy.authenticator;
             executing = false;
         }
 
+        @Override
         public Proxy proxy() {
             return proxy;
         }
 
+        @Override
         public Request proxy(@Nullable Proxy proxy) {
             this.proxy = proxy;
             return this;
         }
 
+        @Override
         public Request proxy(String host, int port) {
             this.proxy = new Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved(host, port));
             return this;
         }
 
+        @Override
         public int timeout() {
             return timeoutMilliseconds;
         }
 
+        @Override
         public Request timeout(int millis) {
             Validate.isTrue(millis >= 0, "Timeout milliseconds must be 0 (infinite) or greater");
             timeoutMilliseconds = millis;
             return this;
         }
 
+        @Override
         public int maxBodySize() {
             return maxBodySizeBytes;
         }
 
+        @Override
         public Connection.Request maxBodySize(int bytes) {
             Validate.isTrue(bytes >= 0, "maxSize must be 0 (unlimited) or larger");
             maxBodySizeBytes = bytes;
             return this;
         }
 
+        @Override
         public boolean followRedirects() {
             return followRedirects;
         }
 
+        @Override
         public Connection.Request followRedirects(boolean followRedirects) {
             this.followRedirects = followRedirects;
             return this;
         }
 
+        @Override
         public boolean ignoreHttpErrors() {
             return ignoreHttpErrors;
         }
 
+        @Override
         public SSLSocketFactory sslSocketFactory() {
             return sslSocketFactory;
         }
 
+        @Override
         public void sslSocketFactory(SSLSocketFactory sslSocketFactory) {
             this.sslSocketFactory = sslSocketFactory;
         }
 
+        @Override
         public Connection.Request ignoreHttpErrors(boolean ignoreHttpErrors) {
             this.ignoreHttpErrors = ignoreHttpErrors;
             return this;
         }
 
+        @Override
         public boolean ignoreContentType() {
             return ignoreContentType;
         }
 
+        @Override
         public Connection.Request ignoreContentType(boolean ignoreContentType) {
             this.ignoreContentType = ignoreContentType;
             return this;
         }
 
+        @Override
         public Request data(Connection.KeyVal keyval) {
             Validate.notNullParam(keyval, "keyval");
             data.add(keyval);
             return this;
         }
 
+        @Override
         public Collection<Connection.KeyVal> data() {
             return data;
         }
 
+        @Override
         public Connection.Request requestBody(@Nullable String body) {
             this.body = body;
             return this;
         }
 
+        @Override
         public String requestBody() {
             return body;
         }
 
+        @Override
         public Request parser(Parser parser) {
             this.parser = parser;
             parserDefined = true;
             return this;
         }
 
+        @Override
         public Parser parser() {
             return parser;
         }
 
+        @Override
         public Connection.Request postDataCharset(String charset) {
             Validate.notNullParam(charset, "charset");
             if (!Charset.isSupported(charset)) throw new IllegalCharsetNameException(charset);
@@ -784,12 +763,22 @@ public class HttpConnection implements Connection {
             return this;
         }
 
+        @Override
         public String postDataCharset() {
             return postDataCharset;
         }
 
         CookieManager cookieManager() {
             return cookieManager;
+        }
+
+        @Override public Connection.Request auth(@Nullable RequestAuthenticator authenticator) {
+            this.authenticator = authenticator;
+            return this;
+        }
+
+        @Override @Nullable public RequestAuthenticator auth() {
+            return authenticator;
         }
     }
 
@@ -799,7 +788,7 @@ public class HttpConnection implements Connection {
         private final int statusCode;
         private final String statusMessage;
         private @Nullable ByteBuffer byteData;
-        private @Nullable InputStream bodyStream;
+        private @Nullable ControllableInputStream bodyStream;
         private @Nullable HttpURLConnection conn;
         private @Nullable String charset;
         private @Nullable final String contentType;
@@ -809,9 +798,9 @@ public class HttpConnection implements Connection {
         private final HttpConnection.Request req;
 
         /*
-         * Matches XML content types (like text/xml, application/xhtml+xml;charset=UTF8, etc)
+         * Matches XML content types (like text/xml, image/svg+xml, application/xhtml+xml;charset=UTF8, etc)
          */
-        private static final Pattern xmlContentTypeRxp = Pattern.compile("(application|text)/\\w*\\+?xml.*");
+        private static final Pattern xmlContentTypeRxp = Pattern.compile("(\\w+)/\\w*\\+?xml.*");
 
         /**
          <b>Internal only! </b>Creates a dummy HttpConnection.Response, useful for testing. All actual responses
@@ -881,7 +870,7 @@ public class HttpConnection implements Connection {
                     if (location.startsWith("http:/") && location.charAt(6) != '/') // fix broken Location: http:/temp/AAG_New/en/index.php
                         location = location.substring(6);
                     URL redir = StringUtil.resolve(req.url(), location);
-                    req.url(encodeUrl(redir));
+                    req.url(redir);
 
                     req.executing = false;
                     return execute(req, res);
@@ -896,7 +885,7 @@ public class HttpConnection implements Connection {
                         && !contentType.startsWith("text/")
                         && !xmlContentTypeRxp.matcher(contentType).matches()
                         )
-                    throw new UnsupportedMimeTypeException("Unhandled content type. Must be text/*, application/xml, or application/*+xml",
+                    throw new UnsupportedMimeTypeException("Unhandled content type. Must be text/*, */xml, or */*+xml",
                             contentType, req.url().toString());
 
                 // switch to the XML parser if content type is xml and not parser not explicitly set
@@ -906,17 +895,15 @@ public class HttpConnection implements Connection {
 
                 res.charset = DataUtil.getCharsetFromContentType(res.contentType); // may be null, readInputStream deals with it
                 if (conn.getContentLength() != 0 && req.method() != HEAD) { // -1 means unknown, chunked. sun throws an IO exception on 500 response with no content when trying to read body
-                    res.bodyStream = conn.getErrorStream() != null ? conn.getErrorStream() : conn.getInputStream();
-                    Validate.notNull(res.bodyStream);
-                    if (res.hasHeaderWithValue(CONTENT_ENCODING, "gzip")) {
-                        res.bodyStream = new GZIPInputStream(res.bodyStream);
-                    } else if (res.hasHeaderWithValue(CONTENT_ENCODING, "deflate")) {
-                        res.bodyStream = new InflaterInputStream(res.bodyStream, new Inflater(true));
-                    }
-                    res.bodyStream = ConstrainableInputStream
-                        .wrap(res.bodyStream, DataUtil.bufferSize, req.maxBodySize())
-                        .timeout(startTime, req.timeout())
-                    ;
+                    InputStream stream = conn.getErrorStream() != null ? conn.getErrorStream() : conn.getInputStream();
+                    if (res.hasHeaderWithValue(CONTENT_ENCODING, "gzip"))
+                        stream = new GZIPInputStream(stream);
+                    else if (res.hasHeaderWithValue(CONTENT_ENCODING, "deflate"))
+                        stream = new InflaterInputStream(stream, new Inflater(true));
+                    
+                    res.bodyStream = ControllableInputStream.wrap(
+                        stream, SharedConstants.DefaultBufferSize, req.maxBodySize())
+                        .timeout(startTime, req.timeout());
                 } else {
                     res.byteData = DataUtil.emptyByteBuffer();
                 }
@@ -925,41 +912,51 @@ public class HttpConnection implements Connection {
                 throw e;
             } finally {
                 req.executing = false;
+
+                // detach any thread local auth delegate
+                if (req.authenticator != null)
+                    AuthenticationHandler.handler.remove();
             }
 
             res.executed = true;
             return res;
         }
 
+        @Override
         public int statusCode() {
             return statusCode;
         }
 
+        @Override
         public String statusMessage() {
             return statusMessage;
         }
 
+        @Override
         public String charset() {
             return charset;
         }
 
+        @Override
         public Response charset(String charset) {
             this.charset = charset;
             return this;
         }
 
+        @Override
         public String contentType() {
             return contentType;
         }
 
         public Document parse() throws IOException {
             Validate.isTrue(executed, "Request must be executed (with .execute(), .get(), or .post() before parsing response");
+            InputStream stream = bodyStream;
             if (byteData != null) { // bytes have been read in to the buffer, parse that
-                bodyStream = new ByteArrayInputStream(byteData.array());
+                stream = new ByteArrayInputStream(byteData.array());
                 inputStreamRead = false; // ok to reparse if in bytes
             }
             Validate.isFalse(inputStreamRead, "Input stream already read and parsed, cannot re-read.");
-            Document doc = DataUtil.parseInputStream(bodyStream, charset, url.toExternalForm(), req.parser());
+            Document doc = DataUtil.parseInputStream(stream, charset, url.toExternalForm(), req.parser());
             doc.connection(new HttpConnection(req, this)); // because we're static, don't have the connection obj. // todo - maybe hold in the req?
             charset = doc.outputSettings().charset().name(); // update charset from meta-equiv, possibly
             inputStreamRead = true;
@@ -982,16 +979,18 @@ public class HttpConnection implements Connection {
             }
         }
 
+        @Override
         public String body() {
             prepareByteData();
             Validate.notNull(byteData);
             // charset gets set from header on execute, and from meta-equiv on parse. parse may not have happened yet
-            String body = (charset == null ? DataUtil.UTF_8 : Charset.forName(charset))
+            String body = (charset == null ? UTF_8 : Charset.forName(charset))
                 .decode(byteData).toString();
             ((Buffer)byteData).rewind(); // cast to avoid covariant return type change in jdk9
             return body;
         }
 
+        @Override
         public byte[] bodyAsBytes() {
             prepareByteData();
             Validate.notNull(byteData);
@@ -1007,9 +1006,16 @@ public class HttpConnection implements Connection {
         @Override
         public BufferedInputStream bodyStream() {
             Validate.isTrue(executed, "Request must be executed (with .execute(), .get(), or .post() before getting response body");
+
+            // if we have read to bytes (via buffer up), return those as a stream.
+            if (byteData != null) {
+                return new BufferedInputStream(new ByteArrayInputStream(byteData.array()), SharedConstants.DefaultBufferSize);
+            }
+
             Validate.isFalse(inputStreamRead, "Request has already been read");
+            Validate.notNull(bodyStream);
             inputStreamRead = true;
-            return ConstrainableInputStream.wrap(bodyStream, DataUtil.bufferSize, req.maxBodySize());
+            return bodyStream.inputStream();
         }
 
         // set up connection defaults, and details from request
@@ -1028,6 +1034,8 @@ public class HttpConnection implements Connection {
 
             if (req.sslSocketFactory() != null && conn instanceof HttpsURLConnection)
                 ((HttpsURLConnection) conn).setSSLSocketFactory(req.sslSocketFactory());
+            if (req.authenticator != null)
+                AuthenticationHandler.handler.enable(req.authenticator, conn); // removed in finally
             if (req.method().hasBody())
                 conn.setDoOutput(true);
             CookieUtil.applyCookiesToRequest(req, conn); // from the Request key/val cookies and the Cookie Store
@@ -1060,7 +1068,7 @@ public class HttpConnection implements Connection {
         }
 
         // set up url, method, header, cookies
-        private Response(HttpURLConnection conn, HttpConnection.Request request, @Nullable HttpConnection.Response previousResponse) throws IOException {
+        private Response(HttpURLConnection conn, HttpConnection.Request request, HttpConnection.@Nullable Response previousResponse) throws IOException {
             this.conn = conn;
             this.req = request;
             method = Method.valueOf(conn.getRequestMethod());
@@ -1133,9 +1141,69 @@ public class HttpConnection implements Connection {
                     }
                 }
                 for (String value : values) {
-                    addHeader(name, value);
+                    addHeader(name, fixHeaderEncoding(value));
                 }
             }
+        }
+
+        /**
+         Servers may encode response headers in UTF-8 instead of RFC defined 8859. This method attempts to detect that
+         and re-decode the string as UTF-8.
+         * @param val a header value string that may have been incorrectly decoded as 8859.
+         * @return a potentially re-decoded string.
+         */
+        @Nullable
+        private static String fixHeaderEncoding(@Nullable String val) {
+            if (val == null) return val;
+            byte[] bytes = val.getBytes(ISO_8859_1);
+            if (looksLikeUtf8(bytes))
+                return new String(bytes, UTF_8);
+            else
+                return val;
+        }
+
+        private static boolean looksLikeUtf8(byte[] input) {
+            int i = 0;
+            // BOM:
+            if (input.length >= 3
+                && (input[0] & 0xFF) == 0xEF
+                && (input[1] & 0xFF) == 0xBB
+                && (input[2] & 0xFF) == 0xBF) {
+                i = 3;
+            }
+
+            int end;
+            boolean foundNonAscii = false;
+            for (int j = input.length; i < j; ++i) {
+                int o = input[i];
+                if ((o & 0x80) == 0) {
+                    continue; // ASCII
+                }
+                foundNonAscii = true;
+
+                // UTF-8 leading:
+                if ((o & 0xE0) == 0xC0) {
+                    end = i + 1;
+                } else if ((o & 0xF0) == 0xE0) {
+                    end = i + 2;
+                } else if ((o & 0xF8) == 0xF0) {
+                    end = i + 3;
+                } else {
+                    return false;
+                }
+
+                if (end >= input.length)
+                    return false;
+
+                while (i < end) {
+                    i++;
+                    o = input[i];
+                    if ((o & 0xC0) != 0x80) {
+                        return false;
+                    }
+                }
+            }
+            return foundNonAscii;
         }
 
         private @Nullable static String setOutputContentType(final Connection.Request req) {
@@ -1220,32 +1288,13 @@ public class HttpConnection implements Connection {
 
         // for get url reqs, serialise the data map into the url
         private static void serialiseRequestUrl(Connection.Request req) throws IOException {
-            URL in = req.url();
-            StringBuilder url = StringUtil.borrowBuilder();
-            boolean first = true;
-            // reconstitute the query, ready for appends
-            url
-                .append(in.getProtocol())
-                .append("://")
-                .append(in.getAuthority()) // includes host, port
-                .append(in.getPath())
-                .append("?");
-            if (in.getQuery() != null) {
-                url.append(in.getQuery());
-                first = false;
-            }
+            UrlBuilder in = new UrlBuilder(req.url());
+
             for (Connection.KeyVal keyVal : req.data()) {
                 Validate.isFalse(keyVal.hasInputStream(), "InputStream data not supported in URL query string.");
-                if (!first)
-                    url.append('&');
-                else
-                    first = false;
-                url
-                    .append(URLEncoder.encode(keyVal.key(), DataUtil.defaultCharsetName))
-                    .append('=')
-                    .append(URLEncoder.encode(keyVal.value(), DataUtil.defaultCharsetName));
+                in.appendKeyVal(keyVal);
             }
-            req.url(new URL(StringUtil.releaseBuilder(url)));
+            req.url(in.build());
             req.data().clear(); // moved into url as get params
         }
     }
@@ -1281,22 +1330,26 @@ public class HttpConnection implements Connection {
             this.value = value;
         }
 
+        @Override
         public KeyVal key(String key) {
             Validate.notEmptyParam(key, "key");
             this.key = key;
             return this;
         }
 
+        @Override
         public String key() {
             return key;
         }
 
+        @Override
         public KeyVal value(String value) {
             Validate.notNullParam(value, "value");
             this.value = value;
             return this;
         }
 
+        @Override
         public String value() {
             return value;
         }
@@ -1307,10 +1360,12 @@ public class HttpConnection implements Connection {
             return this;
         }
 
+        @Override
         public InputStream inputStream() {
             return stream;
         }
 
+        @Override
         public boolean hasInputStream() {
             return stream != null;
         }

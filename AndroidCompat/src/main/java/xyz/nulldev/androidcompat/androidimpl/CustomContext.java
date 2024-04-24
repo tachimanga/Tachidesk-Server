@@ -16,6 +16,7 @@
 
 package xyz.nulldev.androidcompat.androidimpl;
 
+import android.app.ActivityManager;
 import android.content.*;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -84,6 +85,7 @@ public class CustomContext extends Context implements DIAware {
     {
         serviceMap.put(Context.CONNECTIVITY_SERVICE, ConnectivityManager.INSTANCE);
         serviceMap.put(Context.POWER_SERVICE, PowerManager.INSTANCE);
+        serviceMap.put(Context.ACTIVITY_SERVICE, new ActivityManager());
     }
 
     @Override

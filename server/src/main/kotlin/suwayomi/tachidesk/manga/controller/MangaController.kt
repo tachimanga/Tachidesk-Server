@@ -75,7 +75,10 @@ object MangaController {
         behaviorOf = { ctx, mangaId, onlineFetch ->
             ctx.future(
                 future {
-                    Manga.getMangaFull(mangaId, onlineFetch)
+                    Profiler.start()
+                    val r = Manga.getMangaFull(mangaId, onlineFetch)
+                    Profiler.all()
+                    r
                 }
             )
         },
@@ -116,6 +119,17 @@ object MangaController {
             image(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
         }
+    )
+
+    val mangaRealUrl = handler(
+        pathParam<Int>("mangaId"),
+        documentWith = {},
+        behaviorOf = { ctx, mangaId ->
+            ctx.future(
+                future { Manga.getMangaRealUrl(mangaId) }
+            )
+        },
+        withResults = { httpCode(HttpCode.OK) }
     )
 
     /** adds the manga to library */
@@ -365,6 +379,18 @@ object MangaController {
             json<ChapterDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
         }
+    )
+
+    val chapterRealUrl = handler(
+        pathParam<Int>("mangaId"),
+        pathParam<Int>("chapterIndex"),
+        documentWith = {},
+        behaviorOf = { ctx, mangaId, chapterIndex ->
+            ctx.future(
+                future { Chapter.getChapterRealUrl(mangaId, chapterIndex) }
+            )
+        },
+        withResults = { httpCode(HttpCode.OK) }
     )
 
     /** used to modify a chapter's parameters */

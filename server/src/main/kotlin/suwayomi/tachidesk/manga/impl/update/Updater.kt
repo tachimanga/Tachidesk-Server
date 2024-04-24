@@ -1,5 +1,6 @@
 package suwayomi.tachidesk.manga.impl.update
 
+import com.jichao.tachiyomi.Profiler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,7 +68,9 @@ class Updater : IUpdater {
         updateStatus(true)
         tracker[job.manga.id] = try {
             logger.info { "Updating \"${job.manga.title}\" (source: ${job.manga.sourceId})" }
+            Profiler.start()
             Chapter.getChapterList(job.manga.id, true)
+            Profiler.all()
             job.copy(status = JobStatus.COMPLETE)
         } catch (e: Throwable) {
             if (e is CancellationException) throw e

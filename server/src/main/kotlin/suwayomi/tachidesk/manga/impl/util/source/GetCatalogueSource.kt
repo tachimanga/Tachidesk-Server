@@ -144,6 +144,9 @@ object GetCatalogueSource {
                     break
                 }
             }
+            if (client.networkInterceptors.isNotEmpty()) {
+                sInterceptors = false
+            }
             if (sCookie && sRedirects && sInterceptors && sAuth) {
                 meta.simpleClient = true
             }

@@ -54,7 +54,12 @@ class AppModule(val app: Application) : InjektModule {
 //
 //        addSingletonFactory { LibrarySyncManager(app) }
 
-        addSingletonFactory { Json { ignoreUnknownKeys = true } }
+        addSingletonFactory {
+            Json {
+                ignoreUnknownKeys = true
+                explicitNulls = false
+            }
+        }
 
         // Asynchronously init expensive components for a faster cold start
 

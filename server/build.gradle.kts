@@ -41,6 +41,9 @@ dependencies {
     implementation(libs.rxjava)
 //    implementation(libs.jsoup)
 
+    // for jsoup
+    compileOnly("org.jspecify:jspecify:0.3.0")
+
     // Sort
     implementation(libs.sort)
 

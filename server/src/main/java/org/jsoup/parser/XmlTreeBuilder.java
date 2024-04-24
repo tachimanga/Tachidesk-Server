@@ -7,14 +7,16 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.DocumentType;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Entities;
+import org.jsoup.nodes.LeafNode;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.nodes.XmlDeclaration;
 
-import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.List;
+
+import static org.jsoup.parser.Parser.NamespaceXml;
 
 /**
  * Use the {@code XmlTreeBuilder} when you want to parse XML without any of the HTML DOM rules being applied to the
@@ -24,14 +26,14 @@ import java.util.List;
  * @author Jonathan Hedley
  */
 public class XmlTreeBuilder extends TreeBuilder {
-    ParseSettings defaultSettings() {
+    @Override ParseSettings defaultSettings() {
         return ParseSettings.preserveCase;
     }
 
-    @Override @ParametersAreNonnullByDefault
+    @Override
     protected void initialiseParse(Reader input, String baseUri, Parser parser) {
         super.initialiseParse(input, baseUri, parser);
-        stack.add(doc); // place the document onto the stack. differs from HtmlTreeBuilder (not on stack)
+        stack.add(doc); // place the document onto the stack. differs from HtmlTreeBuilder (not on stack). Note not push()ed, so not onNodeInserted.
         doc.outputSettings()
             .syntax(Document.OutputSettings.Syntax.xml)
             .escapeMode(Entities.EscapeMode.xhtml)
@@ -51,24 +53,30 @@ public class XmlTreeBuilder extends TreeBuilder {
         return new XmlTreeBuilder();
     }
 
+    @Override public String defaultNamespace() {
+        return NamespaceXml;
+    }
+
     @Override
     protected boolean process(Token token) {
+        currentToken = token;
+
         // start tag, end tag, doctype, comment, character, eof
         switch (token.type) {
             case StartTag:
-                insert(token.asStartTag());
+                insertElementFor(token.asStartTag());
                 break;
             case EndTag:
                 popStackToClose(token.asEndTag());
                 break;
             case Comment:
-                insert(token.asComment());
+                insertCommentFor(token.asComment());
                 break;
             case Character:
-                insert(token.asCharacter());
+                insertCharacterFor(token.asCharacter());
                 break;
             case Doctype:
-                insert(token.asDoctype());
+                insertDoctypeFor(token.asDoctype());
                 break;
             case EOF: // could put some normalisation here if desired
                 break;
@@ -78,55 +86,63 @@ public class XmlTreeBuilder extends TreeBuilder {
         return true;
     }
 
-    protected void insertNode(Node node) {
-        currentElement().appendChild(node);
-        onNodeInserted(node, null);
-    }
-
-    protected void insertNode(Node node, Token token) {
-        currentElement().appendChild(node);
-        onNodeInserted(node, token);
-    }
-
-    Element insert(Token.StartTag startTag) {
+    void insertElementFor(Token.StartTag startTag) {
         Tag tag = tagFor(startTag.name(), settings);
-        // todo: wonder if for xml parsing, should treat all tags as unknown? because it's not html.
-        if (startTag.hasAttributes())
+        if (startTag.attributes != null)
             startTag.attributes.deduplicate(settings);
 
         Element el = new Element(tag, null, settings.normalizeAttributes(startTag.attributes));
-        insertNode(el, startTag);
+        currentElement().appendChild(el);
+        push(el);
+
         if (startTag.isSelfClosing()) {
-            if (!tag.isKnownTag()) // unknown tag, remember this is self closing for output. see above.
-                tag.setSelfClosing();
-        } else {
-            stack.add(el);
+            tag.setSelfClosing();
+            pop(); // push & pop ensures onNodeInserted & onNodeClosed
         }
-        return el;
     }
 
-    void insert(Token.Comment commentToken) {
+    void insertLeafNode(LeafNode node) {
+        currentElement().appendChild(node);
+        onNodeInserted(node);
+    }
+
+    void insertCommentFor(Token.Comment commentToken) {
         Comment comment = new Comment(commentToken.getData());
-        Node insert = comment;
+        LeafNode insert = comment;
         if (commentToken.bogus && comment.isXmlDeclaration()) {
             // xml declarations are emitted as bogus comments (which is right for html, but not xml)
             // so we do a bit of a hack and parse the data as an element to pull the attributes out
+            // todo - refactor this to parse more appropriately
             XmlDeclaration decl = comment.asXmlDeclaration(); // else, we couldn't parse it as a decl, so leave as a comment
             if (decl != null)
                 insert = decl;
         }
-        insertNode(insert, commentToken);
+        insertLeafNode(insert);
     }
 
-    void insert(Token.Character token) {
+    void insertCharacterFor(Token.Character token) {
         final String data = token.getData();
-        insertNode(token.isCData() ? new CDataNode(data) : new TextNode(data), token);
+        insertLeafNode(token.isCData() ? new CDataNode(data) : new TextNode(data));
     }
 
-    void insert(Token.Doctype d) {
-        DocumentType doctypeNode = new DocumentType(settings.normalizeTag(d.getName()), d.getPublicIdentifier(), d.getSystemIdentifier());
-        doctypeNode.setPubSysKey(d.getPubSysKey());
-        insertNode(doctypeNode, d);
+    void insertDoctypeFor(Token.Doctype token) {
+        DocumentType doctypeNode = new DocumentType(settings.normalizeTag(token.getName()), token.getPublicIdentifier(), token.getSystemIdentifier());
+        doctypeNode.setPubSysKey(token.getPubSysKey());
+        insertLeafNode(doctypeNode);
+    }
+
+    /** @deprecated unused and will be removed. */
+    @Deprecated
+    protected void insertNode(Node node) {
+        currentElement().appendChild(node);
+        onNodeInserted(node);
+    }
+
+    /** @deprecated unused and will be removed. */
+    @Deprecated
+    protected void insertNode(Node node, Token token) {
+        currentElement().appendChild(node);
+        onNodeInserted(node);
     }
 
     /**
@@ -154,17 +170,13 @@ public class XmlTreeBuilder extends TreeBuilder {
             return; // not found, skip
 
         for (int pos = stack.size() -1; pos >= 0; pos--) {
-            Element next = stack.get(pos);
-            stack.remove(pos);
+            Element next = pop();
             if (next == firstFound) {
-                onNodeClosed(next, endTag);
                 break;
             }
         }
     }
     private static final int maxQueueDepth = 256; // an arbitrary tension point between real XML and crafted pain
-
-
 
     List<Node> parseFragment(String inputFragment, String baseUri, Parser parser) {
         initialiseParse(new StringReader(inputFragment), baseUri, parser);
@@ -172,7 +184,7 @@ public class XmlTreeBuilder extends TreeBuilder {
         return doc.childNodes();
     }
 
-    List<Node> parseFragment(String inputFragment, Element context, String baseUri, Parser parser) {
+    @Override List<Node> parseFragment(String inputFragment, Element context, String baseUri, Parser parser) {
         return parseFragment(inputFragment, baseUri, parser);
     }
 }

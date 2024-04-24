@@ -72,6 +72,21 @@ fun MangaTable.toDataClass(mangaEntry: ResultRow) =
         updateStrategy = UpdateStrategy.valueOf(mangaEntry[updateStrategy])
     )
 
+// tachiyomi: state.source.getMangaDetails(state.manga.toSManga())
+// tachiyomi: val chapters = state.source.getChapterList(state.manga.toSManga())
+fun MangaTable.toSManga(mangaEntry: ResultRow) =
+    SManga.create().apply {
+        url = mangaEntry[MangaTable.url]
+        title = mangaEntry[MangaTable.title]
+        artist = mangaEntry[MangaTable.artist]
+        author = mangaEntry[MangaTable.author]
+        description = mangaEntry[MangaTable.description]
+        genre = mangaEntry[MangaTable.genre]
+        status = mangaEntry[MangaTable.status]
+        thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
+        initialized = mangaEntry[MangaTable.initialized]
+    }
+
 enum class MangaStatus(val value: Int) {
     UNKNOWN(0),
     ONGOING(1),

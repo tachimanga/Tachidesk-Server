@@ -11,7 +11,6 @@ import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.sourceSupportDirect
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
@@ -29,10 +28,7 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogue
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.buildImgDataClass
-import suwayomi.tachidesk.manga.model.table.ChapterTable
-import suwayomi.tachidesk.manga.model.table.MangaTable
-import suwayomi.tachidesk.manga.model.table.PageTable
-import suwayomi.tachidesk.manga.model.table.toDataClass
+import suwayomi.tachidesk.manga.model.table.*
 import java.io.File
 import java.time.Instant
 
@@ -58,15 +54,8 @@ private class ChapterForRead(
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
 
         // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
-        val pageListSrc = source.fetchPageList(
-            SChapter.create().apply {
-                url = chapterEntry[ChapterTable.url]
-                name = chapterEntry[ChapterTable.name]
-                date_upload = chapterEntry[ChapterTable.date_upload]
-                chapter_number = chapterEntry[ChapterTable.chapter_number]
-                scanlator = chapterEntry[ChapterTable.scanlator]
-            }
-        ).awaitSingle()
+        val sChapter = ChapterTable.toSChapter(chapterEntry)
+        val pageListSrc = source.fetchPageList(sChapter).awaitSingle()
         val pageList = preprocessPageList(pageListSrc)
 
         val meta = GetCatalogueSource.getCatalogueSourceMeta(source)

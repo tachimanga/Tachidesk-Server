@@ -50,6 +50,7 @@ object MangaAPI {
             get("{mangaId}", MangaController.retrieve)
             get("{mangaId}/full", MangaController.retrieveFull)
             get("{mangaId}/thumbnail", MangaController.thumbnail)
+            get("{mangaId}/realUrl", MangaController.mangaRealUrl)
 
             get("{mangaId}/category", MangaController.categoryList)
             get("{mangaId}/category/{categoryId}", MangaController.addToCategory)
@@ -67,6 +68,7 @@ object MangaAPI {
             patch("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
             put("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
             delete("{mangaId}/chapter/{chapterIndex}", MangaController.chapterDelete)
+            get("{mangaId}/chapter/{chapterIndex}/realUrl", MangaController.chapterRealUrl)
 
             patch("{mangaId}/chapter/{chapterIndex}/meta", MangaController.chapterMeta)
             get("{mangaId}/chapter/{chapterIndex}/page/{index}", MangaController.pageRetrieve)
