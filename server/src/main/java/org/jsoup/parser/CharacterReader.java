@@ -2,8 +2,8 @@ package org.jsoup.parser;
 
 import org.jsoup.UncheckedIOException;
 import org.jsoup.helper.Validate;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -116,6 +116,11 @@ public final class CharacterReader {
         return readerPos + bufPos;
     }
 
+    /** Tests if the buffer has been fully read. */
+    boolean readFully() {
+        return readFully;
+    }
+
     /**
      Enables or disables line number tracking. By default, will be <b>off</b>.Tracking line numbers improves the
      legibility of parser error messages, for example. Tracking should be enabled before any content is read to be of
@@ -185,13 +190,13 @@ public final class CharacterReader {
     }
 
     /**
-     Get a formatted string representing the current line and cursor positions. E.g. <code>5:10</code> indicating line
+     Get a formatted string representing the current line and column positions. E.g. <code>5:10</code> indicating line
      number 5 and column number 10.
      @return line:col position
      @since 1.14.3
      @see #trackNewlines(boolean)
      */
-    String cursorPos() {
+    String posLineCol() {
         return lineNumber() + ":" + columnNumber();
     }
 
@@ -446,11 +451,12 @@ public final class CharacterReader {
                     break OUTER;
                 case '\'':
                     if (single) break OUTER;
+                    break;
                 case '"':
                     if (!single) break OUTER;
-                default:
-                    pos++;
+                    break;
             }
+            pos++;
         }
         bufPos = pos;
         return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";

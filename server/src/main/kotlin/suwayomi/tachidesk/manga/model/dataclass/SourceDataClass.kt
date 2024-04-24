@@ -29,5 +29,7 @@ data class SourceDataClass(
     /** A nicer version of [name] */
     val displayName: String,
 
+    val direct: Boolean? = null,
+
     val installed: Boolean = true
 )

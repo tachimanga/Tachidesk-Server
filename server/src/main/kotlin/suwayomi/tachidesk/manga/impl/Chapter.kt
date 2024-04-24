@@ -8,7 +8,6 @@ package suwayomi.tachidesk.manga.impl
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import eu.kanade.tachiyomi.source.model.SChapter
-import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
 import kotlinx.serialization.Serializable
@@ -72,18 +71,7 @@ object Chapter {
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
         Profiler.split("getManga")
         // tachiyomi: state.source.getMangaDetails(state.manga.toSManga())
-        val sManga = SManga.create().apply {
-            url = mangaEntry[MangaTable.url]
-            title = mangaEntry[MangaTable.title]
-            artist = mangaEntry[MangaTable.artist]
-            author = mangaEntry[MangaTable.author]
-            description = mangaEntry[MangaTable.description]
-            genre = mangaEntry[MangaTable.genre]
-            status = mangaEntry[MangaTable.status]
-            thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
-            initialized = mangaEntry[MangaTable.initialized]
-        }
-
+        val sManga = MangaTable.toSManga(mangaEntry)
         val rawChapterList = source.fetchChapterList(sManga).awaitSingle()
         val chapterList = rawChapterList
             .distinctBy { it.url }
@@ -557,5 +545,29 @@ object Chapter {
             },
             paginatedList.hasNextPage
         )
+    }
+
+    fun getChapterRealUrl(mangaId: Int, chapterIndex: Int): ChapterDataClass {
+        val chapterEntry = transaction {
+            ChapterTable.select {
+                (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId)
+            }.first()
+        }
+
+        val chapterData = ChapterTable.toDataClass(chapterEntry)
+        if (chapterData.realUrl?.isNotEmpty() == true) {
+            return chapterData
+        }
+
+        val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
+        val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
+
+        return if (source is HttpSource) {
+            val sChapter = ChapterTable.toSChapter(chapterEntry)
+            val realUrl = source.getChapterUrl(sChapter)
+            return chapterData.copy(realUrl = realUrl)
+        } else {
+            chapterData
+        }
     }
 }

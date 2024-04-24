@@ -95,6 +95,25 @@ class CallNativeNetInterceptor : Interceptor {
             val type = contentType?.toMediaTypeOrNull()
             builder.body(resp.byteBuffer.toResponseBody(type))
         }
+
+        if (resp.currentUrl != null) {
+            val priorResp = Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .message(message)
+                .code(302)
+                .headers(headers.toHeaders())
+                .sentRequestAtMillis(t)
+                .receivedResponseAtMillis(System.currentTimeMillis())
+                .build()
+            builder.priorResponse(priorResp)
+
+            val currentReq = request.newBuilder()
+                .url(resp.currentUrl)
+                .build()
+            builder.request(currentReq)
+        }
+
         return builder.build()
     }
 }

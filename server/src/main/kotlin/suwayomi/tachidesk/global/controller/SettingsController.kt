@@ -90,6 +90,7 @@ object SettingsController {
             logger.info { "uploadUserAgent: $ua" }
             if (ua != null) {
                 HttpSource.DEFAULT_USER_AGENT = ua
+                System.setProperty("http.agent", ua)
             }
         },
         withResults = {

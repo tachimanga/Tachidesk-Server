@@ -1,12 +1,10 @@
 package org.jsoup.select;
 
 import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
-
-import static org.jsoup.select.NodeFilter.FilterResult.CONTINUE;
-import static org.jsoup.select.NodeFilter.FilterResult.STOP;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Collects a list of elements that match the supplied criteria.
@@ -24,33 +22,11 @@ public class Collector {
      @return list of matches; empty if none
      */
     public static Elements collect (Evaluator eval, Element root) {
-        Elements elements = new Elements();
-        NodeTraversor.traverse(new Accumulator(root, elements, eval), root);
-        return elements;
-    }
+        eval.reset();
 
-    private static class Accumulator implements NodeVisitor {
-        private final Element root;
-        private final Elements elements;
-        private final Evaluator eval;
-
-        Accumulator(Element root, Elements elements, Evaluator eval) {
-            this.root = root;
-            this.elements = elements;
-            this.eval = eval;
-        }
-
-        public void head(Node node, int depth) {
-            if (node instanceof Element) {
-                Element el = (Element) node;
-                if (eval.matches(root, el))
-                    elements.add(el);
-            }
-        }
-
-        public void tail(Node node, int depth) {
-            // void
-        }
+        return root.stream()
+            .filter(eval.asPredicate(root))
+            .collect(Collectors.toCollection(Elements::new));
     }
 
     /**
@@ -61,42 +37,9 @@ public class Collector {
      @return the first match; {@code null} if none
      */
     public static @Nullable Element findFirst(Evaluator eval, Element root) {
-        FirstFinder finder = new FirstFinder(eval);
-        return finder.find(root, root);
+        eval.reset();
+
+        Optional<Element> first = root.stream().filter(eval.asPredicate(root)).findFirst();
+        return first.orElse(null);
     }
-
-    static class FirstFinder implements NodeFilter {
-        private @Nullable Element evalRoot = null;
-        private @Nullable Element match = null;
-        private final Evaluator eval;
-
-        FirstFinder(Evaluator eval) {
-            this.eval = eval;
-        }
-
-        @Nullable Element find(Element root, Element start) {
-            evalRoot = root;
-            match = null;
-            NodeTraversor.filter(this, start);
-            return match;
-        }
-
-        @Override
-        public FilterResult head(Node node, int depth) {
-            if (node instanceof Element) {
-                Element el = (Element) node;
-                if (eval.matches(evalRoot, el)) {
-                    match = el;
-                    return STOP;
-                }
-            }
-            return CONTINUE;
-        }
-
-        @Override
-        public FilterResult tail(Node node, int depth) {
-            return CONTINUE;
-        }
-    }
-
 }

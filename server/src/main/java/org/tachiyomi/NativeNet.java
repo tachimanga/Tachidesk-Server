@@ -97,6 +97,8 @@ public class NativeNet {
         private Map<String, String> headers;
         private byte[] byteBuffer;
 
+        private String currentUrl;
+
         public static Resp of(int code, String error) {
             Resp resp = new Resp();
             resp.code = code;
@@ -142,6 +144,14 @@ public class NativeNet {
 
         public void setByteBuffer(byte[] byteBuffer) {
             this.byteBuffer = byteBuffer;
+        }
+
+        public String getCurrentUrl() {
+            return currentUrl;
+        }
+
+        public void setCurrentUrl(String currentUrl) {
+            this.currentUrl = currentUrl;
         }
     }
 }

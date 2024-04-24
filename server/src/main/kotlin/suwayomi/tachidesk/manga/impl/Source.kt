@@ -52,15 +52,9 @@ object Source {
         val sourceList = transaction {
             SourceTable.selectAll().toList()
         }
-        var limit = 0
         return sourceList.mapNotNull {
             val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
-            // val sourceExtension = ExtensionTable.select { ExtensionTable.id eq it[SourceTable.extension] }.first()
             val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
-            if (it[SourceTable.isDirect] == null && limit++ < 10) {
-                it[SourceTable.isDirect] = fillSourceDirectFlag(catalogueSource)
-            }
-            val direct = it[SourceTable.isDirect] == true
             SourceDataClass(
                 it[SourceTable.id].value.toString(),
                 it[SourceTable.name],
@@ -71,20 +65,9 @@ object Source {
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
                 it[SourceTable.isNsfw],
-                catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
+                catalogueSource.toString()
             )
         }
-    }
-
-    private fun fillSourceDirectFlag(source: CatalogueSource): Boolean {
-        println("fillSourceDirectFlag: id=${source.id}, name=${source.name}")
-        val direct = sourceSupportDirect(GetCatalogueSource.getCatalogueSourceMeta(source))
-        transaction {
-            SourceTable.update({ SourceTable.id eq source.id }) {
-                it[SourceTable.isDirect] = direct
-            }
-        }
-        return direct
     }
 
     fun getSource(sourceId: Long): SourceDataClass? { // all the data extracted fresh form the source instance
@@ -104,7 +87,8 @@ object Source {
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
                 source[SourceTable.isNsfw],
-                catalogueSource.toString() + if (direct) { " ⚡" } else { "" }
+                catalogueSource.toString(),
+                direct = direct
             )
         }
     }

@@ -38,11 +38,26 @@ public class DataNode extends LeafNode {
         return this;
     }
 
-	void outerHtmlHead(Appendable accum, int depth, Document.OutputSettings out) throws IOException {
-        accum.append(getWholeData()); // data is not escaped in return from data nodes, so " in script, style is plain
+    @Override
+    void outerHtmlHead(Appendable accum, int depth, Document.OutputSettings out) throws IOException {
+        /* For XML output, escape the DataNode in a CData section. The data may contain pseudo-CData content if it was
+        parsed as HTML, so don't double up Cdata. Output in polygot HTML / XHTML / XML format. */
+        final String data = getWholeData();
+        if (out.syntax() == Document.OutputSettings.Syntax.xml && !data.contains("<![CDATA[")) {
+            if (parentNameIs("script"))
+                accum.append("//<![CDATA[\n").append(data).append("\n//]]>");
+            else if (parentNameIs("style"))
+                accum.append("/*<![CDATA[*/\n").append(data).append("\n/*]]>*/");
+            else
+                accum.append("<![CDATA[").append(data).append("]]>");
+        } else {
+            // In HTML, data is not escaped in the output of data nodes, so < and & in script, style is OK
+            accum.append(getWholeData());
+        }
     }
 
-	void outerHtmlTail(Appendable accum, int depth, Document.OutputSettings out) {}
+    @Override
+    void outerHtmlTail(Appendable accum, int depth, Document.OutputSettings out) {}
 
     @Override
     public String toString() {

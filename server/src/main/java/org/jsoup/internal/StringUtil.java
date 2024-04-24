@@ -1,8 +1,8 @@
 package org.jsoup.internal;
 
 import org.jsoup.helper.Validate;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
@@ -256,7 +256,7 @@ public final class StringUtil {
         final int len = haystack.length;
         for (int i = 0; i < len; i++) {
             if (haystack[i].equals(needle))
-            return true;
+               return true;
         }
         return false;
     }
@@ -310,6 +310,10 @@ public final class StringUtil {
      * @return an absolute URL if one was able to be generated, or the empty string if not
      */
     public static String resolve(String baseUrl, String relUrl) {
+        // https://jsoup.org/cookbook/extracting-data/working-with-urls
+        if (relUrl != null && (relUrl.startsWith("https://") || relUrl.startsWith("http://"))) {
+            return relUrl;
+        }
         // workaround: java will allow control chars in a path URL and may treat as relative, but Chrome / Firefox will strip and may see as a scheme. Normalize to browser's view.
         baseUrl = stripControlChars(baseUrl); relUrl = stripControlChars(relUrl);
         try {
@@ -335,12 +339,7 @@ public final class StringUtil {
         return controlChars.matcher(input).replaceAll("");
     }
 
-    private static final ThreadLocal<Stack<StringBuilder>> threadLocalBuilders = new ThreadLocal<Stack<StringBuilder>>() {
-        @Override
-        protected Stack<StringBuilder> initialValue() {
-            return new Stack<>();
-        }
-    };
+    private static final ThreadLocal<Stack<StringBuilder>> threadLocalBuilders = ThreadLocal.withInitial(Stack::new);
 
     /**
      * Maintains cached StringBuilders in a flyweight pattern, to minimize new StringBuilder GCs. The StringBuilder is

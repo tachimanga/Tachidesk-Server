@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import mu.KotlinLogging
+import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Chapter
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import java.util.concurrent.ConcurrentHashMap
@@ -67,7 +68,9 @@ class Updater : IUpdater {
         updateStatus(true)
         tracker[job.manga.id] = try {
             logger.info { "Updating \"${job.manga.title}\" (source: ${job.manga.sourceId})" }
+            Profiler.start()
             Chapter.getChapterList(job.manga.id, true)
+            Profiler.all()
             job.copy(status = JobStatus.COMPLETE)
         } catch (e: Throwable) {
             if (e is CancellationException) throw e

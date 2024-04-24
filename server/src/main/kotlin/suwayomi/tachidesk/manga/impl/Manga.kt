@@ -12,7 +12,6 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
-import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import org.jetbrains.exposed.sql.ResultRow
@@ -74,18 +73,8 @@ object Manga {
             if (source == null) {
                 return getMangaDataClass(mangaId, mangaEntry, meta)
             }
-            val sManga = SManga.create().apply {
-                url = mangaEntry[MangaTable.url]
-                title = mangaEntry[MangaTable.title]
-                artist = mangaEntry[MangaTable.artist]
-                author = mangaEntry[MangaTable.author]
-                description = mangaEntry[MangaTable.description]
-                genre = mangaEntry[MangaTable.genre]
-                status = mangaEntry[MangaTable.status]
-                thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
-                initialized = mangaEntry[MangaTable.initialized]
-            }
             // tachiyomi: val chapters = state.source.getChapterList(state.manga.toSManga())
+            val sManga = MangaTable.toSManga(mangaEntry)
             val networkManga = source.fetchMangaDetails(sManga).awaitSingle()
             sManga.copyFrom(networkManga)
 
@@ -185,6 +174,24 @@ object Manga {
             mangaDaaClass.lastChapterRead = lastChapterRead?.let { ChapterTable.toDataClass(it) }
 
             mangaDaaClass
+        }
+    }
+
+    fun getMangaRealUrl(mangaId: Int): MangaDataClass {
+        val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
+        val source = getCatalogueSourceOrNull(mangaEntry[MangaTable.sourceReference])
+        val meta = if (source != null) {
+            GetCatalogueSource.getCatalogueSourceMeta(source)
+        } else {
+            null
+        }
+        val mangaData = getMangaDataClass(mangaId, mangaEntry, meta)
+        return if (source is HttpSource && mangaData.realUrl.isNullOrEmpty()) {
+            val sManga = MangaTable.toSManga(mangaEntry)
+            val realUrl = source.getMangaUrl(sManga)
+            mangaData.copy(realUrl = realUrl)
+        } else {
+            mangaData
         }
     }
 

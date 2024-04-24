@@ -3,6 +3,8 @@ package org.jsoup.helper;
 import org.jsoup.internal.StringUtil;
 import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Attributes;
+import org.jsoup.parser.HtmlTreeBuilder;
+import org.jsoup.parser.Parser;
 import org.jsoup.select.NodeTraversor;
 import org.jsoup.select.NodeVisitor;
 import org.jsoup.select.Selector;
@@ -15,8 +17,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -77,6 +79,8 @@ public class W3CDom {
 
     /**
      Update the namespace aware setting. This impacts the factory that is used to create W3C nodes from jsoup nodes.
+     <p>For HTML documents, controls if the document will be in the default {@code http://www.w3.org/1999/xhtml}
+     namespace if otherwise unset.</p>.
      @param namespaceAware the updated setting
      @return this W3CDom, for chaining.
      */
@@ -203,12 +207,16 @@ public class W3CDom {
             org.jsoup.nodes.Document inDoc = in.ownerDocument();
             org.jsoup.nodes.DocumentType doctype = inDoc != null ? inDoc.documentType() : null;
             if (doctype != null) {
-                org.w3c.dom.DocumentType documentType = impl.createDocumentType(doctype.name(), doctype.publicId(), doctype.systemId());
-                out.appendChild(documentType);
+                try {
+                    org.w3c.dom.DocumentType documentType = impl.createDocumentType(doctype.name(), doctype.publicId(), doctype.systemId());
+                    out.appendChild(documentType);
+                } catch (DOMException ignored) {
+                    // invalid / empty doctype dropped
+                }
             }
             out.setXmlStandalone(true);
             // if in is Document, use the root element, not the wrapping document, as the context:
-            org.jsoup.nodes.Element context = (in instanceof org.jsoup.nodes.Document) ? in.child(0) : in;
+            org.jsoup.nodes.Element context = (in instanceof org.jsoup.nodes.Document) ? in.firstElementChild() : in;
             out.setUserData(ContextProperty, context, null);
             convert(inDoc != null ? inDoc : in, out);
             return out;
@@ -248,7 +256,7 @@ public class W3CDom {
             }
             builder.syntax = inDoc.outputSettings().syntax();
         }
-        org.jsoup.nodes.Element rootEl = in instanceof org.jsoup.nodes.Document ? in.child(0) : in; // skip the #root node if a Document
+        org.jsoup.nodes.Element rootEl = in instanceof org.jsoup.nodes.Document ? in.firstElementChild() : in; // skip the #root node if a Document
         NodeTraversor.traverse(builder, rootEl);
     }
 
@@ -284,7 +292,8 @@ public class W3CDom {
             nodeList = (NodeList) expression.evaluate(contextNode, XPathConstants.NODESET); // love the strong typing here /s
             Validate.notNull(nodeList);
         } catch (XPathExpressionException | XPathFactoryConfigurationException e) {
-            throw new Selector.SelectorParseException("Could not evaluate XPath query [%s]: %s", xpath, e.getMessage());
+            throw new Selector.SelectorParseException(
+                e, "Could not evaluate XPath query [%s]: %s", xpath, e.getMessage());
         }
         return nodeList;
     }
@@ -335,6 +344,7 @@ public class W3CDom {
      * Implements the conversion by walking the input.
      */
     protected static class W3CBuilder implements NodeVisitor {
+        // TODO: move the namespace handling stuff into XmlTreeBuilder / HtmlTreeBuilder, now that Tags have namespaces
         private static final String xmlnsKey = "xmlns";
         private static final String xmlnsPrefix = "xmlns:";
 
@@ -343,14 +353,19 @@ public class W3CDom {
         private final Stack<HashMap<String, String>> namespacesStack = new Stack<>(); // stack of namespaces, prefix => urn
         private Node dest;
         private Syntax syntax = Syntax.xml; // the syntax (to coerce attributes to). From the input doc if available.
-        @Nullable private final org.jsoup.nodes.Element contextElement;
+        /*@Nullable*/ private final org.jsoup.nodes.Element contextElement; // todo - unsure why this can't be marked nullable?
 
         public W3CBuilder(Document doc) {
             this.doc = doc;
             namespacesStack.push(new HashMap<>());
             dest = doc;
             contextElement = (org.jsoup.nodes.Element) doc.getUserData(ContextProperty); // Track the context jsoup Element, so we can save the corresponding w3c element
-        }
+            final org.jsoup.nodes.Document inDoc = contextElement.ownerDocument();
+            if (namespaceAware && inDoc != null && inDoc.parser().getTreeBuilder() instanceof HtmlTreeBuilder) {
+              // as per the WHATWG HTML5 spec § 2.1.3, elements are in the HTML namespace by default
+              namespacesStack.peek().put("", Parser.NamespaceHtml);
+            }
+          }
 
         public void head(org.jsoup.nodes.Node source, int depth) {
             namespacesStack.push(new HashMap<>(namespacesStack.peek())); // inherit from above on the stack
@@ -366,9 +381,9 @@ public class W3CDom {
                 tagname to something safe, because that isn't going to be meaningful downstream. This seems(?) to be
                 how browsers handle the situation, also. https://github.com/jhy/jsoup/issues/1093 */
                 try {
-                    Element el = namespace == null && tagName.contains(":") ?
-                        doc.createElementNS("", tagName) : // doesn't have a real namespace defined
-                        doc.createElementNS(namespace, tagName);
+                    // use an empty namespace if none is present but the tag name has a prefix
+                    String imputedNamespace = namespace == null && tagName.contains(":") ? "" : namespace;
+                    Element el = doc.createElementNS(imputedNamespace, tagName);
                     copyAttributes(sourceEl, el);
                     append(el, sourceEl);
                     if (sourceEl == contextElement)
