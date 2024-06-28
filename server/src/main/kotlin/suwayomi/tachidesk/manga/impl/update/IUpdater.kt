@@ -8,4 +8,5 @@ interface IUpdater {
     val status: StateFlow<UpdateStatus>
     fun reset()
     fun updateStatus(running: Boolean?)
+    fun getQueueStatus(): Pair<Int, Int>
 }

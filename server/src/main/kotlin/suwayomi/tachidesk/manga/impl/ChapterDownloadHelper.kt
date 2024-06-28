@@ -30,8 +30,12 @@ object ChapterDownloadHelper {
         return provider(mangaId, chapterId).download(download, scope, step)
     }
 
-    // return the appropriate provider based on how the download was saved. For the logic is simple but will evolve when new types of downloads are available
     private fun provider(mangaId: Int, chapterId: Int): DownloadedFilesProvider {
+        return FolderProvider(mangaId, chapterId)
+    }
+
+    // return the appropriate provider based on how the download was saved. For the logic is simple but will evolve when new types of downloads are available
+    private fun provider0(mangaId: Int, chapterId: Int): DownloadedFilesProvider {
         val chapterFolder = File(getChapterDownloadPath(mangaId, chapterId))
         val cbzFile = File(getChapterCbzPath(mangaId, chapterId))
         if (cbzFile.exists()) return ArchiveProvider(mangaId, chapterId)

@@ -14,8 +14,13 @@ import eu.kanade.tachiyomi.source.SourceFactory
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import okhttp3.Authenticator
+import okhttp3.Headers
 import okhttp3.OkHttpClient
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.select
@@ -51,14 +56,7 @@ object GetCatalogueSource {
         "EnableNativeNetInterceptor"
     )
 
-    private val FORCE_UA_MAP = mapOf(
-        6551136894818591762L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0",
-        5234610795363016972L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0"
-    )
-
-    private val FORCE_EXT_UA = setOf(
-        8061953015808280611L
-    )
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private fun getCatalogueSource(sourceId: Long): CatalogueSource? {
         val cachedResult: CatalogueSource? = sourceCache[sourceId]
@@ -86,7 +84,9 @@ object GetCatalogueSource {
             else -> throw Exception("Unknown source class type! ${instance.javaClass}")
         }.forEach {
             if (it is HttpSource) {
-                clientToSourceMap[it.client] = it.id
+                scope.launch {
+                    clientToSourceMap[it.client] = it.id
+                }
             }
             sourceCache[it.id] = it as HttpSource
         }
@@ -185,7 +185,7 @@ object GetCatalogueSource {
         for (i in 0 until headers.size) {
             map[headers.name(i)] = headers.value(i)
         }
-        if (getSourceRandomUa(source.id)) {
+        if (getSourceRandomUa(source.id) || isAndroidMobileUa(headers)) {
             map["User-Agent"] = HttpSource.DEFAULT_USER_AGENT
         }
         meta.headers = map
@@ -204,6 +204,11 @@ object GetCatalogueSource {
         sourceCache.remove(sourceId)
     }
 
+    fun unregisterCatalogueSourceExt(sourceId: Long) {
+        sourceRandomUaMap.remove(sourceId)
+        metaCache.remove(sourceId)
+    }
+
     fun getSourceRandomUaByClient(client: OkHttpClient?): Boolean {
         if (client == null) {
             return false
@@ -216,12 +221,17 @@ object GetCatalogueSource {
         if (client == null) {
             return null
         }
+//        println("[UA] $clientToSourceMap")
         val sourceId = clientToSourceMap[client] ?: return null
-        return FORCE_UA_MAP[sourceId]
+        return SourceConfig.getForceUaBySourceId(sourceId)
     }
 
     fun setSourceRandomUaByClient(client: OkHttpClient?, randomUa: Boolean) {
         if (client == null) {
+            return
+        }
+        if (client == network.client || client == network.cloudflareClient) {
+            logger.info { "not custom client, skip" }
             return
         }
         val sourceId = clientToSourceMap[client] ?: return
@@ -229,7 +239,7 @@ object GetCatalogueSource {
     }
 
     private fun getSourceRandomUa(sourceId: Long): Boolean {
-        if (FORCE_EXT_UA.contains(sourceId)) {
+        if (SourceConfig.isForceSourceUa(sourceId)) {
             return false
         }
         var randomUa = sourceRandomUaMap[sourceId]
@@ -254,5 +264,14 @@ object GetCatalogueSource {
             }
         }
         sourceRandomUaMap[sourceId] = randomUa
+    }
+
+    fun isAndroidMobileUa(headers: Headers?): Boolean {
+        val userAgent = headers?.get("User-Agent")
+        if (userAgent?.startsWith("Mozilla/5.0 (Linux; Android") == true) {
+            logger.info { "isAndroidMobileUa true, ua:$userAgent" }
+            return true
+        }
+        return false
     }
 }

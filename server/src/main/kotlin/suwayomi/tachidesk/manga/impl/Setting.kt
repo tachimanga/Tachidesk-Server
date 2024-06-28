@@ -6,6 +6,8 @@ import eu.kanade.tachiyomi.source.SourceSetting
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import okhttp3.Cookie
+import suwayomi.tachidesk.manga.impl.download.DownloadManager
+import suwayomi.tachidesk.manga.impl.util.source.SourceConfig
 import uy.kohesive.injekt.injectLazy
 
 /*
@@ -23,7 +25,9 @@ object Setting {
     data class SettingData(
         val cookies: List<CookieInfo>? = null,
         val enableNativeNet: Boolean? = null,
-        val enableFlutterDirect: Boolean? = null
+        val enableFlutterDirect: Boolean? = null,
+        val sourceConfigList: List<SourceConfigInfo>? = null,
+        val downloadTaskInParallel: Int? = null
     )
 
     @Serializable
@@ -37,6 +41,12 @@ object Setting {
         val httpOnly: Boolean? = null
     )
 
+    @Serializable
+    data class SourceConfigInfo(
+        val sourceId: Long? = null,
+        val ua: String? = null
+    )
+
     fun uploadSettings(input: SettingData) {
         if (input.enableNativeNet != null) {
             println("update ENABLE_NATIVE_NET to " + input.enableNativeNet)
@@ -45,6 +55,12 @@ object Setting {
         if (input.enableFlutterDirect != null) {
             println("update enableFlutterDirect to " + input.enableFlutterDirect)
             SourceSetting.ENABLE_FLUTTER_DIRECT = input.enableFlutterDirect
+        }
+        if (input.sourceConfigList != null) {
+            SourceConfig.updateSourceConfig(input.sourceConfigList)
+        }
+        if (input.downloadTaskInParallel != null) {
+            DownloadManager.updateTaskInParallel(input.downloadTaskInParallel)
         }
     }
 

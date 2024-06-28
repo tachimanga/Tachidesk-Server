@@ -61,12 +61,10 @@ class NetworkHelper(context: Context) {
             return builder
         }
 
-//    val client by lazy { baseClientBuilder.cache(Cache(cacheDir, cacheSize)).build() }
-    val client: OkHttpClient
-        get() = baseClientBuilder.build()
+    private val commonClient: OkHttpClient = baseClientBuilder.build()
 
-    val cloudflareClient: OkHttpClient
-        get() = baseClientBuilder.build()
+    val client: OkHttpClient = commonClient
+    val cloudflareClient: OkHttpClient = commonClient
 
     // Tachidesk -->
     val cookies: PersistentCookieStore

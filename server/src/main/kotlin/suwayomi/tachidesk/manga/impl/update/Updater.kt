@@ -96,4 +96,12 @@ class Updater : IUpdater {
         updateChannels.forEach { (_, channel) -> channel.cancel() }
         updateChannels.clear()
     }
+
+    override fun getQueueStatus(): Pair<Int, Int> {
+        val jobs = tracker.values
+        return Pair(
+            jobs.count { i -> i.status == JobStatus.COMPLETE || i.status == JobStatus.FAILED },
+            jobs.size
+        )
+    }
 }

@@ -363,7 +363,11 @@ object Extension {
             PackageTools.jarLoaderMap.remove(jarPath)?.close()
 
             // clear all loaded sources
-            sources.forEach { GetCatalogueSource.unregisterCatalogueSource(it) }
+            sources.forEach {
+                GetCatalogueSource.unregisterCatalogueSource(it)
+                GetCatalogueSource.unregisterCatalogueSourceExt(it)
+                suwayomi.tachidesk.manga.impl.Source.removeSourcePref(it)
+            }
 
             File(jarPath).delete()
         }

@@ -18,7 +18,6 @@ import eu.kanade.tachiyomi.source.sourceSupportDirect
 import io.javalin.plugin.json.JsonMapper
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -196,7 +195,7 @@ object Source {
         val props: Any
     )
 
-    var preferenceScreenMap: MutableMap<Long, PreferenceScreen> = mutableMapOf()
+    private val preferenceScreenMap: MutableMap<Long, PreferenceScreen> = mutableMapOf()
 
     /**
      *  Gets a source's PreferenceScreen, puts the result into [preferenceScreenMap]
@@ -247,5 +246,15 @@ object Source {
 
         // must reload the source because a preference was changed
         unregisterCatalogueSource(sourceId)
+    }
+
+    fun removeSourcePref(sourceId: Long) {
+        val preferences =
+            Injekt.get<Application>().getSharedPreferences("source_$sourceId", Context.MODE_PRIVATE)
+        val editor = preferences.edit()
+        editor.clear()
+        editor.apply()
+
+        preferenceScreenMap.remove(sourceId)
     }
 }
