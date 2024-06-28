@@ -9,8 +9,10 @@ package suwayomi.tachidesk.manga.controller
 
 import io.javalin.http.HttpCode
 import io.javalin.websocket.WsConfig
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import mu.KotlinLogging
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -25,6 +27,7 @@ import suwayomi.tachidesk.server.util.withOperation
 
 object DownloadController {
     private val json by DI.global.instance<Json>()
+    private val logger = KotlinLogging.logger {}
 
     /** Download queue stats */
     fun downloadsWS(ws: WsConfig) {
@@ -85,6 +88,23 @@ object DownloadController {
         behaviorOf = { ctx ->
             ctx.future(
                 future { DownloadManager.clear() }
+            )
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val updateSetting = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<UpdateSettingInput>(ctx.body())
+            logger.info { "updateSetting $input" }
+            ctx.future(
+                future {
+                    if (input.taskInParallel != null) {
+                        DownloadManager.updateTaskInParallel(input.taskInParallel)
+                    }
+                }
             )
         },
         withResults = {
@@ -214,5 +234,10 @@ object DownloadController {
         withResults = {
             httpCode(HttpCode.OK)
         }
+    )
+
+    @Serializable
+    data class UpdateSettingInput(
+        val taskInParallel: Int? = null
     )
 }

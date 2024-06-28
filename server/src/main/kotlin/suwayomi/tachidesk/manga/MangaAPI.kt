@@ -118,6 +118,7 @@ object MangaAPI {
             get("start", DownloadController.start)
             get("stop", DownloadController.stop)
             get("clear", DownloadController.clear)
+            post("updateSetting", DownloadController.updateSetting)
         }
 
         path("download") {
@@ -168,6 +169,10 @@ object MangaAPI {
             get("sourceList", MigrateController.sourceList)
             get("mangaList", MigrateController.mangaList)
             post("migrate", MigrateController.migrate)
+        }
+
+        path("pip") {
+            get("ping", PipController.ping)
         }
     }
 }

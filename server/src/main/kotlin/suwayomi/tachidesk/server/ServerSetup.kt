@@ -40,6 +40,7 @@ class ApplicationDirs(
     val thumbnailsRoot = "$dataRoot/thumbnails"
     val mangaDownloadsRoot = serverConfig.downloadsPath.ifBlank { "$dataRoot/downloads" }
     val localMangaRoot = "${System.getProperty("user.home")}/Documents/local"
+    val prefsRoot = "${System.getProperty("user.home")}/Library/Preferences"
     val webUIRoot = "$dataRoot/webUI"
 
     val tempMangaCacheRoot = "$tempRoot/manga-cache"
@@ -52,7 +53,7 @@ val androidCompat by lazy { AndroidCompat() }
 fun envSetup() {
     System.setProperty("java.net.useSystemProxies", "true")
     System.setProperty("suwayomi.tachidesk.config.server.debugLogsEnabled", "true")
-    println("prev os.name is " + System.getProperty("os.name"))
+    // println("prev os.name is " + System.getProperty("os.name")) //--> prev os.name is Mac OS X
     System.setProperty("os.name", "Mac OS X")
 }
 

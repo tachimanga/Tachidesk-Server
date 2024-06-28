@@ -25,6 +25,7 @@ import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Downloading
+import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Finished
 import suwayomi.tachidesk.manga.impl.download.model.DownloadStatus
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
@@ -37,17 +38,22 @@ import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
-private const val MAX_SOURCES_IN_PARAllEL = 4
+private const val MAX_SOURCES_IN_PARALLEL = 4
+private const val MAX_TASK_IN_PARALLEL = 5
 
 object DownloadManager {
     @OptIn(DelicateCoroutinesApi::class)
-    private val backgroundDispatcher = newFixedThreadPoolContext(MAX_SOURCES_IN_PARAllEL, "Downloader")
+    private val backgroundDispatcher = newFixedThreadPoolContext(MAX_TASK_IN_PARALLEL, "Downloader")
     private val downloadScope = CoroutineScope(SupervisorJob() + backgroundDispatcher)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val clients = ConcurrentHashMap<String, WsContext>()
     private val downloadQueue = CopyOnWriteArrayList<DownloadChapter>()
     private val downloaders = ConcurrentHashMap<Long, Downloader>()
     private val jsonMapper by DI.global.instance<JsonMapper>()
+    private var finishCount: Int = 0
+
+    private var taskInParallel = 1
+
     fun addClient(ctx: WsContext) {
         logger.info { "DownloadManager onConnect ${ctx.sessionId}" }
         clients[ctx.sessionId] = ctx
@@ -126,18 +132,18 @@ object DownloadManager {
             downloaderWatch.sample(1.seconds).collect {
                 val runningDownloaders = downloaders.values.filter { it.isActive }
                 logger.info { "Running: ${runningDownloaders.size}" }
-                if (runningDownloaders.size < MAX_SOURCES_IN_PARAllEL) {
+                if (runningDownloaders.size < MAX_SOURCES_IN_PARALLEL) {
                     downloadQueue.asSequence()
-                        .filter { !(it.state == DownloadState.Error && it.tries >= 3) }
+                        .filter { it.state == DownloadState.Queued || (it.state == DownloadState.Error && it.tries < 3) }
                         .map { it.manga.sourceId.toLong() }
                         .distinct()
                         .minus(
                             runningDownloaders.map { it.sourceId }.toSet()
                         )
-                        .take(MAX_SOURCES_IN_PARAllEL - runningDownloaders.size)
+                        .take(MAX_SOURCES_IN_PARALLEL - runningDownloaders.size)
                         .map { getDownloader(it) }
                         .forEach {
-                            it.start()
+                            it.start(taskInParallel)
                         }
                     notifyAllClients()
                 }
@@ -149,14 +155,36 @@ object DownloadManager {
         start()
     }
 
+    fun updateTaskInParallel(limit: Int) {
+        logger.info { "prev:$taskInParallel curr:$limit" }
+        if (limit <= 0 || limit > MAX_TASK_IN_PARALLEL) {
+            logger.info { "invalid limit, skip" }
+            return
+        }
+        if (taskInParallel == limit) {
+            logger.info { "same limit, skip" }
+            return
+        }
+        taskInParallel = limit
+        val runningDownloaders = downloaders.values.filter { it.isActive }
+        runningDownloaders.forEach {
+            it.start(taskInParallel)
+        }
+    }
+
     private fun getDownloader(sourceId: Long) = downloaders.getOrPut(sourceId) {
         Downloader(
             scope = downloadScope,
             sourceId = sourceId,
             downloadQueue = downloadQueue,
             notifier = ::notifyAllClients,
-            onComplete = ::refreshDownloaders
+            onComplete = ::refreshDownloaders,
+            onDownloadFinish = ::onDownloadFinish
         )
+    }
+
+    private fun onDownloadFinish() {
+        finishCount++
     }
 
     fun enqueueWithChapterIndex(mangaId: Int, chapterIndex: Int) {
@@ -279,6 +307,13 @@ object DownloadManager {
         stop()
         downloadQueue.clear()
         notifyAllClients()
+    }
+
+    fun getQueueStatus(): Pair<Int, Int> {
+        return Pair(
+            downloadQueue.count { i -> i.state == Finished || i.state == DownloadState.Error } + finishCount,
+            downloadQueue.size + finishCount
+        )
     }
 }
 

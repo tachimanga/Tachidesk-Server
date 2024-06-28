@@ -108,33 +108,33 @@ private class ChapterForRead(
     }
 
     private fun markAsNotDownloaded() {
+        val chapterId = chapterEntry[ChapterTable.id].value
         // chapter may be downloaded but if we are here, then images might be deleted and database data be false
         transaction {
-            ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[isDownloaded] = false
             }
         }
     }
 
     public fun updateLastReadAt(incognito: Boolean) {
+        val chapterId = chapterEntry[ChapterTable.id].value
         // chapter may be downloaded but if we are here, then images might be deleted and database data be false
         transaction {
-            ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[lastReadAt] = Instant.now().epochSecond
                 if (chapterEntry[pageCount] == 1) {
                     it[isRead] = true
                 }
             }
             if (!incognito) {
-                History.upsertHistory(mangaId, chapterEntry[ChapterTable.id].value)
+                History.upsertHistory(mangaId, chapterId)
             }
         }
     }
 
     private fun updateDatabasePages(pageList: List<Page>) {
         val chapterId = chapterEntry[ChapterTable.id].value
-        val chapterIndex = chapterEntry[ChapterTable.sourceOrder]
-        val mangaId = chapterEntry[ChapterTable.manga].value
 
         transaction {
             pageList.forEach { page ->
@@ -158,7 +158,7 @@ private class ChapterForRead(
             }
         }
 
-        updatePageCount(pageList, mangaId, chapterIndex)
+        updatePageCount(pageList, chapterId)
 
         // chapter was updated
         chapterEntry = freshChapterEntry()
@@ -166,13 +166,12 @@ private class ChapterForRead(
 
     private fun updatePageCount(
         pageList: List<Page>,
-        mangaId: Int,
-        chapterIndex: Int
+        chapterId: Int
     ) {
         val pageCount = pageList.count()
 
         transaction {
-            ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[ChapterTable.pageCount] = pageCount
             }
         }

@@ -462,7 +462,7 @@ object Chapter {
 
             ChapterDownloadHelper.delete(mangaId, chapterId)
 
-            ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[isDownloaded] = false
             }
         }

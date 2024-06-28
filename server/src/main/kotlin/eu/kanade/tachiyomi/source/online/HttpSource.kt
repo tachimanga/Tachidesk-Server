@@ -69,7 +69,9 @@ abstract class HttpSource : CatalogueSource {
      * Default network client for doing requests.
      */
     open val client: OkHttpClient
-        get() = network.client
+        get() = client0
+
+    private val client0 = network.client.newBuilder().build()
 
     /**
      * Headers builder for requests. Implementations can override this method for custom headers.

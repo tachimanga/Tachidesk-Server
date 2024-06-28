@@ -15,8 +15,9 @@ class UserAgentInterceptor : Interceptor {
 
         val randomUa = GetCatalogueSource.getSourceRandomUaByClient(client)
         val forceUa = GetCatalogueSource.getForceUaByClient(client)
+        val androidMobileUa = GetCatalogueSource.isAndroidMobileUa(originalRequest.headers)
         println("Profiler: forceRandomUa:$randomUa, forceUa:$forceUa")
-        return if (randomUa || originalRequest.header("User-Agent").isNullOrEmpty() || forceUa?.isNotEmpty() == true) {
+        return if (randomUa || originalRequest.header("User-Agent").isNullOrEmpty() || forceUa?.isNotEmpty() == true || androidMobileUa) {
             val newRequest = originalRequest
                 .newBuilder()
                 .removeHeader("User-Agent")

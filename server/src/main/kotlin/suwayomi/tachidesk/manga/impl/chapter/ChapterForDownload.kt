@@ -86,9 +86,10 @@ private class ChapterForDownload(
     }
 
     private fun markAsNotDownloaded() {
+        val chapterId = chapterEntry[ChapterTable.id].value
         // chapter may be downloaded but if we are here, then images might be deleted and database data be false
         transaction {
-            ChapterTable.update({ (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[isDownloaded] = false
             }
             MangaTable.update({ MangaTable.id eq mangaId }) {
@@ -99,8 +100,6 @@ private class ChapterForDownload(
 
     private fun updateDatabasePages(pageList: List<Page>) {
         val chapterId = chapterEntry[ChapterTable.id].value
-        val chapterIndex = chapterEntry[ChapterTable.sourceOrder]
-        val mangaId = chapterEntry[ChapterTable.manga].value
 
         transaction {
             pageList.forEach { page ->
@@ -124,7 +123,7 @@ private class ChapterForDownload(
             }
         }
 
-        updatePageCount(pageList, mangaId, chapterIndex)
+        updatePageCount(pageList, chapterId)
 
         // chapter was updated
         chapterEntry = freshChapterEntry()
@@ -132,13 +131,12 @@ private class ChapterForDownload(
 
     private fun updatePageCount(
         pageList: List<Page>,
-        mangaId: Int,
-        chapterIndex: Int
+        chapterId: Int
     ) {
         val pageCount = pageList.count()
 
         transaction {
-            ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) {
+            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[ChapterTable.pageCount] = pageCount
             }
         }

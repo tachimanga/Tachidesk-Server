@@ -1442,7 +1442,7 @@ public class Element extends Node {
         }
         // NepNep.kt: status = info.select("li.list-group-item:has(span:contains(Status)) a:contains(scan)").text().toStatus()
         // text=Ongoing (Scan) search=scan
-        if ("scan".equals(searchText)) {
+        if ("scan".equals(searchText) || "book".equals(searchText)) {
             return stringContainsIgnoreCase(textContains2_cache, searchText);
         }
         return stringContains(textContains2_cache, searchText);
