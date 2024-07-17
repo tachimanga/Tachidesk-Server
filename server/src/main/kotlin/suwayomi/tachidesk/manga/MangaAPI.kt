@@ -67,6 +67,8 @@ object MangaAPI {
             get("{mangaId}/chapter/{chapterIndex}", MangaController.chapterRetrieve)
             patch("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
             put("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
+            post("chapter/modify", MangaController.chapterModify2)
+
             delete("{mangaId}/chapter/{chapterIndex}", MangaController.chapterDelete)
             get("{mangaId}/chapter/{chapterIndex}/realUrl", MangaController.chapterRealUrl)
 
@@ -80,10 +82,12 @@ object MangaAPI {
         path("history") {
             get("list", HistoryController.list)
             delete("batch", HistoryController.batchDelete)
+            delete("clear", HistoryController.clear)
         }
 
         path("chapter") {
             post("batch", MangaController.anyChapterBatch)
+            post("batchQuery", MangaController.chapterBatchQuery)
         }
 
         path("category") {

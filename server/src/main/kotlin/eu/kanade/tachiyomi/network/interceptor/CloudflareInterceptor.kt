@@ -26,12 +26,6 @@ class CloudflareInterceptor : Interceptor {
                 return originalResponse
             }
             throw IOException("Blocked by Cloudflare")
-        } catch (e: Exception) {
-            // Check for Readcomiconline.kt
-            if (e.message?.contains("Solve captcha in WebView") == true) {
-                // blocked = true
-            }
-            throw e
         } finally {
             if (blocked) {
                 val call = chain.call()

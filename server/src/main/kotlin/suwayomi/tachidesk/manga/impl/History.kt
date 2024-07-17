@@ -3,14 +3,9 @@ package suwayomi.tachidesk.manga.impl
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
-import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.table.*
-import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
@@ -21,44 +16,6 @@ import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 
 object History {
     private val logger = KotlinLogging.logger {}
-
-    fun migrateHistoryIfNeeded() {
-        transaction {
-            val flag = SettingTable.select { SettingTable.key eq SettingKey.HistoryMigrate.name }.count()
-            logger.info { "migrateHistoryIfNeeded flag=$flag" }
-            if (flag > 0) {
-                return@transaction
-            }
-            val list = getHistoryMangaList()
-            val now = System.currentTimeMillis()
-            if (list.isNotEmpty()) {
-                val myBatchInsertStatement = MyBatchInsertStatement(HistoryTable)
-                list.forEach { mangaData ->
-                    val my = myBatchInsertStatement
-
-                    my.addBatch()
-
-                    my[HistoryTable.createAt] = now
-                    my[HistoryTable.updateAt] = now
-                    my[HistoryTable.mangaId] = mangaData.id
-                    my[HistoryTable.lastChapterId] = mangaData.lastChapterRead?.id ?: 0
-                    my[HistoryTable.lastReadAt] = mangaData.lastReadAt ?: 0
-                }
-
-                val sql = myBatchInsertStatement.prepareSQL(this)
-                val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
-                val statement = conn.createStatement()
-                // println(sql)
-                statement.execute(sql)
-            }
-            SettingTable.insert {
-                it[SettingTable.key] = SettingKey.HistoryMigrate.name
-                it[SettingTable.value] = "1"
-                it[SettingTable.createAt] = now
-                it[SettingTable.updateAt] = now
-            }
-        }
-    }
 
     fun upsertHistory(mangaId: Int, chapterId: Int) {
         transaction {
@@ -85,35 +42,6 @@ object History {
                 }
             }
         }
-    }
-
-    fun getHistoryMangaList(): List<MangaDataClass> {
-        val lastChapterList = transaction {
-            ChapterTable
-                .select { (ChapterTable.lastReadAt greater 0) }
-                .orderBy(ChapterTable.lastReadAt to SortOrder.DESC)
-                .limit(1000)
-                .map { ChapterTable.toDataClass(it) }
-        }
-        val lastChapterMap = lastChapterList.groupBy { it.mangaId }
-            .mapValues { it.value.maxByOrNull { item -> item.lastReadAt } }
-        val mangaIds = lastChapterMap.keys.toList()
-        Profiler.split("mangaIds done")
-
-        val mangaList = transaction {
-            // Fetch data from the MangaTable and join with the CategoryMangaTable, if a category is specified
-            MangaTable
-                .select { (MangaTable.id inList mangaIds) }
-                .map {
-                    // Map the data from the result row to the MangaDataClass
-                    val dataClass = MangaTable.toDataClass(it)
-                    dataClass.lastReadAt = lastChapterMap[dataClass.id]?.lastReadAt
-                    dataClass.lastChapterRead = lastChapterMap[dataClass.id]
-                    dataClass
-                }
-        }
-        Profiler.split("mangaList done")
-        return mangaList.sortedByDescending { it.lastReadAt }
     }
 
     fun getHistoryMangaListV2(): List<MangaDataClass> {
@@ -154,17 +82,6 @@ object History {
         return list
     }
 
-    fun batchDelete(input: BatchInput) {
-        if (input.mangaIds.isNullOrEmpty()) {
-            return
-        }
-        transaction {
-            ChapterTable.update({ (ChapterTable.manga inList input.mangaIds) }) { update ->
-                update[ChapterTable.lastReadAt] = 0
-            }
-        }
-    }
-
     fun batchDeleteV2(input: BatchInput) {
         if (input.mangaIds.isNullOrEmpty()) {
             return
@@ -178,7 +95,15 @@ object History {
         }
     }
 
-    fun clearAll() {
+    fun clearHistory(input: ClearInput) {
+        if (input.clearAll == true) {
+            clearAll()
+        } else if (input.lastReadAt != null) {
+            clearAfter(input.lastReadAt)
+        }
+    }
+
+    private fun clearAll() {
         val now = System.currentTimeMillis()
         transaction {
             HistoryTable.update({ (HistoryTable.isDelete eq false) }) { update ->
@@ -188,8 +113,25 @@ object History {
         }
     }
 
+    private fun clearAfter(lastReadAt: Long) {
+        val now = System.currentTimeMillis()
+        transaction {
+            HistoryTable.update({ (HistoryTable.isDelete eq false) and (HistoryTable.lastReadAt greaterEq lastReadAt) }) { update ->
+                update[HistoryTable.isDelete] = true
+                update[HistoryTable.updateAt] = now
+            }
+        }
+    }
+
     @Serializable
     data class BatchInput(
         val mangaIds: List<Int>? = null
+    )
+
+    @Serializable
+    data class ClearInput(
+        // seconds
+        val lastReadAt: Long? = null,
+        val clearAll: Boolean? = null
     )
 }

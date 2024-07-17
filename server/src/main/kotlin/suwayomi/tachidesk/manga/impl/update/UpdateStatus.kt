@@ -7,7 +7,8 @@ val logger = KotlinLogging.logger {}
 data class UpdateStatus(
     val statusMap: Map<JobStatus, List<MangaDataClass>> = emptyMap(),
     val running: Boolean = false,
-    val numberOfJobs: Int = 0
+    val numberOfJobs: Int = 0,
+    val completeTimestamp: Int = 0
 ) {
 
     constructor(jobs: Collection<UpdateJob>, running: Boolean) : this(
@@ -16,6 +17,7 @@ data class UpdateStatus(
                 entry.value.map { it.manga }
             },
         running = running,
-        numberOfJobs = jobs.size
+        numberOfJobs = jobs.size,
+        completeTimestamp = if (running) 0 else (System.currentTimeMillis() / 1000).toInt()
     )
 }

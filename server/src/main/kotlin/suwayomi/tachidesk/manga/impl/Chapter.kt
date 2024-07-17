@@ -21,10 +21,7 @@ import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
-import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
-import suwayomi.tachidesk.manga.model.dataclass.MangaChapterDataClass
-import suwayomi.tachidesk.manga.model.dataclass.PaginatedList
-import suwayomi.tachidesk.manga.model.dataclass.paginatedFrom
+import suwayomi.tachidesk.manga.model.dataclass.*
 import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.manga.model.table.ChapterTable.scanlator
 import suwayomi.tachidesk.server.database.MyBatchInsertStatement
@@ -349,6 +346,63 @@ object Chapter {
         }
     }
 
+    fun modifyChapter2(input: ChapterModifyInput) {
+        if (input.mangaId == null || input.chapterId == null) {
+            return
+        }
+        transaction {
+            if (input.read != null || input.bookmarked != null || input.lastPageRead != null) {
+                ChapterTable.update({ (ChapterTable.id eq input.chapterId) }) {
+                    if (input.read != null) {
+                        it[ChapterTable.isRead] = input.read
+                    }
+                    if (input.bookmarked != null) {
+                        it[ChapterTable.isBookmarked] = input.bookmarked
+                    }
+                    if (input.lastPageRead != null) {
+                        it[ChapterTable.lastPageRead] = input.lastPageRead
+                        it[ChapterTable.lastReadAt] = Instant.now().epochSecond
+                    }
+                }
+            }
+            if (input.markPrevRead == true) {
+                val chapter = ChapterTable.select { ChapterTable.id eq input.chapterId }.first()
+                ChapterTable.update({ (ChapterTable.manga eq input.mangaId) and (ChapterTable.sourceOrder less chapter[ChapterTable.sourceOrder]) }) {
+                    it[ChapterTable.isRead] = true
+                }
+            }
+        }
+        if (input.lastPageRead != null && input.incognito != true) {
+            History.upsertHistory(input.mangaId, input.chapterId)
+        }
+        if (input.read == true || input.markPrevRead == true) {
+            Track.asyncTrackChapter(input.mangaId)
+        }
+    }
+
+    fun chapterBatchQuery(input: ChapterBatchQueryInput): List<ChapterDataClass> {
+        if (input.chapterIds.isNullOrEmpty()) {
+            return listOf()
+        }
+        val chapterList = transaction {
+            ChapterTable
+                .select { (ChapterTable.id inList input.chapterIds) }
+                .map { ChapterTable.toDataClass(it) }
+        }
+        return chapterList
+    }
+
+    @Serializable
+    data class ChapterModifyInput(
+        val mangaId: Int? = null,
+        val chapterId: Int? = null,
+        val read: Boolean? = null,
+        val bookmarked: Boolean? = null,
+        val markPrevRead: Boolean? = null,
+        val lastPageRead: Int? = null,
+        val incognito: Boolean? = null
+    )
+
     @Serializable
     data class ChapterChange(
         val isRead: Boolean? = null,
@@ -368,6 +422,11 @@ object Chapter {
     data class ChapterBatchEditInput(
         val chapterIds: List<Int>? = null,
         val change: ChapterChange?
+    )
+
+    @Serializable
+    data class ChapterBatchQueryInput(
+        val chapterIds: List<Int>? = null
     )
 
     fun modifyChapters(input: MangaChapterBatchEditInput, mangaId: Int? = null) {
@@ -469,7 +528,7 @@ object Chapter {
     }
 
     fun deleteChapters(input: MangaChapterBatchEditInput, mangaId: Int? = null) {
-        if (input.chapterIds != null) {
+        if (input.chapterIds?.isNotEmpty() == true) {
             val chapterIds = input.chapterIds
 
             transaction {
@@ -485,7 +544,7 @@ object Chapter {
                     it[isDownloaded] = false
                 }
             }
-        } else if (input.chapterIndexes != null && mangaId != null) {
+        } else if (input.chapterIndexes?.isNotEmpty() == true && mangaId != null) {
             transaction {
                 val chapterIds = ChapterTable.slice(ChapterTable.manga, ChapterTable.id)
                     .select { (ChapterTable.sourceOrder inList input.chapterIndexes) and (ChapterTable.manga eq mangaId) }
@@ -504,15 +563,18 @@ object Chapter {
     }
 
     fun getRecentChapters(pageNum: Int): PaginatedList<MangaChapterDataClass> {
-        val minFetchedAt = System.currentTimeMillis() / 1000 - 86400 * 3
-
-        val mangaList = transaction {
-            MangaTable
-                .select { (MangaTable.inLibrary eq true) and (MangaTable.chaptersLastFetchedAt greater minFetchedAt) }
-                .map {
-                    MangaTable.toDataClass(it)
-                }
+        var fetchAt = 0L
+        var list: List<MangaDataClass>? = null
+        for (i in 0..2) {
+            fetchAt = System.currentTimeMillis() / 1000 - 86400 * (3 + i * 2)
+            list = getRecentMangaList(fetchAt)
+            if (list.isNotEmpty()) {
+                break
+            }
         }
+        val mangaList = list!!
+        val minFetchedAt = fetchAt
+
         val mangaMap = mangaList.associateBy { it.id }
 
         val counter = mutableMapOf<Int, Int>()
@@ -545,6 +607,21 @@ object Chapter {
             },
             paginatedList.hasNextPage
         )
+    }
+
+    private fun getRecentMangaList(minFetchedAt: Long): List<MangaDataClass> {
+        val mangaList = transaction {
+            MangaTable
+                .select {
+                    (MangaTable.inLibrary eq true) and
+                        (MangaTable.chaptersLastFetchedAt greater minFetchedAt) and
+                        (MangaTable.chaptersLastFetchedAt greater MangaTable.inLibraryAt)
+                }
+                .map {
+                    MangaTable.toDataClass(it)
+                }
+        }
+        return mangaList
     }
 
     fun getChapterRealUrl(mangaId: Int, chapterIndex: Int): ChapterDataClass {

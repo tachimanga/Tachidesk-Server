@@ -13,7 +13,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
-import suwayomi.tachidesk.manga.impl.Category
 import suwayomi.tachidesk.manga.impl.CategoryManga
 import suwayomi.tachidesk.manga.impl.Chapter
 import suwayomi.tachidesk.manga.impl.update.IUpdater
@@ -25,7 +24,6 @@ import suwayomi.tachidesk.manga.model.dataclass.PaginatedList
 import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.toDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
-import suwayomi.tachidesk.server.util.formParam
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
 import suwayomi.tachidesk.server.util.withOperation
@@ -67,35 +65,6 @@ object UpdateController {
      * since OpenApi cannot handle runtime generics.
      */
     private class PagedMangaChapterListDataClass : PaginatedList<MangaChapterDataClass>(emptyList(), false)
-
-    val categoryUpdate = handler(
-        formParam<Int?>("categoryId"),
-        documentWith = {
-            withOperation {
-                summary("Updater start")
-                description("Starts the updater")
-            }
-        },
-        behaviorOf = { ctx, categoryId ->
-            logger.info { "categoryUpdate categoryId:$categoryId" }
-            if (categoryId == null) {
-                logger.info { "Adding Library to Update Queue" }
-                addCategoriesToUpdateQueue(emptyList(), true)
-            } else {
-                val category = Category.getCategoryById(categoryId)
-                if (category != null) {
-                    addCategoriesToUpdateQueue(listOf(category.id), true)
-                } else {
-                    logger.info { "No Category found" }
-                    ctx.status(HttpCode.BAD_REQUEST)
-                }
-            }
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-            httpCode(HttpCode.BAD_REQUEST)
-        }
-    )
 
     val categoryUpdate2 = handler(
         behaviorOf = { ctx ->

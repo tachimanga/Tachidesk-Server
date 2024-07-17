@@ -8,7 +8,9 @@ package suwayomi.tachidesk.manga.impl
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import eu.kanade.tachiyomi.source.SourceMeta
+import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.sourceSupportDirect
 import org.jetbrains.exposed.sql.and
@@ -98,6 +100,9 @@ object MangaList {
                         // tachiyomi: networkToLocalManga.await(it.toDomainManga(sourceId))
                         it[initialized] = manga.initialized
                     }.value
+                    if (sourceId == LocalSource.ID) {
+                        setupDemoMangaExt(manga, mangaId)
+                    }
                     MangaDataClass(
                         id = mangaId,
                         sourceId = sourceId.toString(),
@@ -175,5 +180,15 @@ object MangaList {
             mangaList,
             mangasPage.hasNextPage
         )
+    }
+
+    private fun setupDemoMangaExt(manga: SManga, mangaId: Int) {
+        var mode = "webtoon"
+        if (manga.title == "Left to right") {
+            mode = "singleHorizontalLTR"
+        } else if (manga.title == "Right to left") {
+            mode = "singleHorizontalRTL"
+        }
+        Manga.modifyMangaMeta(mangaId, "flutter_readerMode", mode)
     }
 }

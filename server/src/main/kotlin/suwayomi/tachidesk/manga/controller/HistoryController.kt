@@ -43,4 +43,14 @@ object HistoryController {
             httpCode(HttpCode.OK)
         }
     )
+
+    val clear = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<History.ClearInput>(ctx.body())
+            History.clearHistory(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
 }

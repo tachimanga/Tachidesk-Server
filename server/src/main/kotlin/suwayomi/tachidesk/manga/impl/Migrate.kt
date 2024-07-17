@@ -14,6 +14,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.toTrack
+import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
 import suwayomi.tachidesk.manga.model.dataclass.migrate.MigrateInfoDataClass
 import suwayomi.tachidesk.manga.model.dataclass.migrate.MigrateMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.migrate.MigrateSourceDataClass
@@ -51,11 +52,24 @@ object Migrate {
         val sourceDataMap = Source.getFullSourceList(sourceIdList)
             .associateBy { it.id }
         val result = list.mapNotNull {
-            val source = sourceDataMap[it.first.toString()] ?: return@mapNotNull null
+            val source = sourceDataMap[it.first.toString()] ?: buildObsoleteSource(it.first.toString())
             MigrateSourceDataClass(source = source, count = it.second)
         }
         return MigrateSourceListDataClass(list = result)
     }
+
+    private fun buildObsoleteSource(sourceId: String) = SourceDataClass(
+        sourceId,
+        sourceId,
+        "",
+        "",
+        null,
+        "",
+        supportsLatest = false,
+        isConfigurable = false,
+        isNsfw = false,
+        displayName = sourceId
+    )
 
     fun mangaList(sourceId: String): MigrateMangaListDataClass {
         val mangaList = transaction {

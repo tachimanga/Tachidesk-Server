@@ -17,6 +17,7 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import org.tachiyomi.Profiler
+import suwayomi.tachidesk.manga.impl.*
 import suwayomi.tachidesk.manga.impl.CategoryManga
 import suwayomi.tachidesk.manga.impl.Chapter
 import suwayomi.tachidesk.manga.impl.Library
@@ -76,7 +77,7 @@ object MangaController {
             ctx.future(
                 future {
                     Profiler.start()
-                    val r = Manga.getMangaFull(mangaId, onlineFetch)
+                    val r = Manga.getManga(mangaId, onlineFetch)
                     Profiler.all()
                     r
                 }
@@ -353,23 +354,32 @@ object MangaController {
         }
     )
 
+    val chapterBatchQuery = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<Chapter.ChapterBatchQueryInput>(ctx.body())
+            logger.info { "chapterBatchQuery $input" }
+            ctx.json(Chapter.chapterBatchQuery(input))
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
     /** used to display a chapter, get a chapter in order to show its pages */
     val chapterRetrieve = handler(
         pathParam<Int>("mangaId"),
         pathParam<Int>("chapterIndex"),
-        queryParam("incognito", false),
         documentWith = {
             withOperation {
                 summary("Get a chapter")
                 description("Get the chapter from the manga id and chapter index. It will also retrieve the pages for this chapter.")
             }
         },
-        behaviorOf = { ctx, mangaId, chapterIndex, incognito ->
+        behaviorOf = { ctx, mangaId, chapterIndex ->
             ctx.future(
                 future {
                     Profiler.start()
-                    logger.info { "incognito $incognito" }
-                    val r = getChapterReadReady(chapterIndex, mangaId, incognito)
+                    val r = getChapterReadReady(chapterIndex, mangaId)
                     Profiler.all()
                     r
                 }
@@ -412,6 +422,17 @@ object MangaController {
             Chapter.modifyChapter(mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead)
 
             ctx.status(200)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        }
+    )
+
+    val chapterModify2 = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<Chapter.ChapterModifyInput>(ctx.body())
+            logger.info { "chapterModify2 $input" }
+            Chapter.modifyChapter2(input)
         },
         withResults = {
             httpCode(HttpCode.OK)

@@ -16,7 +16,6 @@ import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
-import suwayomi.tachidesk.manga.impl.History
 import suwayomi.tachidesk.server.ApplicationDirs
 import suwayomi.tachidesk.server.ServerConfig
 
@@ -55,11 +54,4 @@ fun databaseUp(db: Database = DBManager.db) {
     val migrations = loadMigrationsFrom("suwayomi.tachidesk.server.database.migration", ServerConfig::class.java)
     // val migrations = arrayListOf<Migration>(M0001_Initial())
     runMigrations(migrations)
-
-    // migrate history
-    try {
-        History.migrateHistoryIfNeeded()
-    } catch (e: Throwable) {
-        logger.error(e) { "migrateHistoryIfNeeded error" }
-    }
 }

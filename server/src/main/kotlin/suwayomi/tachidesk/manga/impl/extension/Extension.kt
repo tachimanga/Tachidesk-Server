@@ -243,6 +243,7 @@ object Extension {
                 }
 
                 sources.forEach { httpSource ->
+                    SourceTable.deleteWhere { SourceTable.id eq httpSource.id }
                     SourceTable.insert {
                         it[id] = httpSource.id
                         it[name] = httpSource.name

@@ -18,7 +18,6 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import suwayomi.tachidesk.manga.impl.History
 import suwayomi.tachidesk.manga.impl.Page.getPageName
 import suwayomi.tachidesk.manga.impl.util.getChapterCbzPath
 import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath
@@ -30,13 +29,10 @@ import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.buildImgDataClass
 import suwayomi.tachidesk.manga.model.table.*
 import java.io.File
-import java.time.Instant
 
-suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int, incognito: Boolean): ChapterDataClass {
+suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int): ChapterDataClass {
     val chapter = ChapterForRead(chapterIndex, mangaId)
-    val data = chapter.asReadReady()
-    chapter.updateLastReadAt(incognito)
-    return data
+    return chapter.asReadReady()
 }
 
 private class ChapterForRead(
@@ -113,22 +109,6 @@ private class ChapterForRead(
         transaction {
             ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[isDownloaded] = false
-            }
-        }
-    }
-
-    public fun updateLastReadAt(incognito: Boolean) {
-        val chapterId = chapterEntry[ChapterTable.id].value
-        // chapter may be downloaded but if we are here, then images might be deleted and database data be false
-        transaction {
-            ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
-                it[lastReadAt] = Instant.now().epochSecond
-                if (chapterEntry[pageCount] == 1) {
-                    it[isRead] = true
-                }
-            }
-            if (!incognito) {
-                History.upsertHistory(mangaId, chapterId)
             }
         }
     }
