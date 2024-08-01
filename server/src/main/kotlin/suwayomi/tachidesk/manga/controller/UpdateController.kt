@@ -158,8 +158,6 @@ object UpdateController {
             ctx.future(
                 future {
                     updater.reset()
-                }.thenApply {
-                    ctx.status(HttpCode.OK)
                 }
             )
         },

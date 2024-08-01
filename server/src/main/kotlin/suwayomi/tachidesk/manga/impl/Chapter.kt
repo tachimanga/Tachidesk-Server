@@ -157,16 +157,19 @@ object Chapter {
 
                         val sameNameChapterList = toDeleteChapterNameMap[fetchedChapter.name]
                         val sameNumChapterList = toDeleteChapterNumMap[fetchedChapter.chapter_number]
-
+                        /*
                         val toDeleteChapter = if (sameNameChapterList?.size == 1) {
                             sameNameChapterList[0]
                         } else if (sameNumChapterList?.size == 1) {
                             sameNumChapterList[0]
                         } else {
                             null
-                        }
+                        }*/
+                        val toDeleteChapter = findSameChapter(sameNameChapterList) ?: findSameChapter(sameNumChapterList)
+
                         if (toDeleteChapter != null) {
                             my[ChapterTable.isDownloaded] = toDeleteChapter[ChapterTable.isDownloaded]
+                            my[ChapterTable.pageCount] = toDeleteChapter[ChapterTable.pageCount]
                             my[ChapterTable.isBookmarked] = toDeleteChapter[ChapterTable.isBookmarked]
                             my[ChapterTable.isRead] = toDeleteChapter[ChapterTable.isRead]
                             my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
@@ -274,6 +277,19 @@ object Chapter {
         }
         fixUploadDate(chapterDataList)
         return chapterDataList
+    }
+
+    private fun findSameChapter(chapterList: List<ResultRow>?): ResultRow? {
+        if (chapterList.isNullOrEmpty()) {
+            return null
+        }
+        if (chapterList.size == 1) {
+            return chapterList[0]
+        }
+        val chapter = chapterList.firstOrNull {
+            it[ChapterTable.isDownloaded] || it[ChapterTable.isBookmarked] || it[ChapterTable.isRead]
+        }
+        return chapter ?: chapterList[0]
     }
 
     private fun fixUploadDate(list: List<ChapterDataClass>) {

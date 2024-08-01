@@ -101,11 +101,20 @@ public class Handler {
     }
 
     public final boolean postDelayed(@NonNull Runnable r, long delayMillis) {
-        throw new RuntimeException("Stub!");
+        return postDelayed(r, null, delayMillis);
     }
 
     public final boolean postDelayed(@NonNull Runnable r, @Nullable Object token, long delayMillis) {
-        throw new RuntimeException("Stub!");
+        this.looper.executor.execute(() -> {
+            try {
+                Thread.sleep(delayMillis);
+                r.run();
+            } catch (Exception e) {
+                System.out.println("looper postDelayed run err:" + e);
+                e.printStackTrace();
+            }
+        });
+        return true;
     }
 
     public final boolean postAtFrontOfQueue(@NonNull Runnable r) {

@@ -40,26 +40,23 @@ public class WebViewClient {
     /** @deprecated */
     @Deprecated
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
-        throw new RuntimeException("Stub!");
     }
 
     public void onPageFinished(WebView view, String url) {
     }
 
     public void onLoadResource(WebView view, String url) {
-        throw new RuntimeException("Stub!");
     }
 
     public void onPageCommitVisible(WebView view, String url) {
-        throw new RuntimeException("Stub!");
     }
 
     /** @deprecated */

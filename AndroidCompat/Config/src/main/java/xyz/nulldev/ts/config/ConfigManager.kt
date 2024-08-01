@@ -12,7 +12,6 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigRenderOptions
 import mu.KotlinLogging
-import java.io.File
 
 /**
  * Manages app config.
@@ -52,15 +51,8 @@ open class ConfigManager {
                 )
             )
 
-        // Load user config
-        val userConfig =
-            File(ApplicationRootDir, "server.conf").let {
-                ConfigFactory.parseFile(it)
-            }
-
         val config = ConfigFactory.empty()
             .withFallback(baseConfig)
-            .withFallback(userConfig)
             .withFallback(compatConfig)
             .withFallback(serverConfig)
             .resolve()

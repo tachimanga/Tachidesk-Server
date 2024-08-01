@@ -55,3 +55,6 @@ fun databaseUp(db: Database = DBManager.db) {
     // val migrations = arrayListOf<Migration>(M0001_Initial())
     runMigrations(migrations)
 }
+
+fun databaseUpFast(db: Database = DBManager.db) {
+}

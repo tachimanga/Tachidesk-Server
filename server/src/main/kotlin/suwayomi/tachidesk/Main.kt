@@ -14,12 +14,16 @@ import suwayomi.tachidesk.server.JavalinSetup.javalinStop
 import suwayomi.tachidesk.server.JavalinSetup.javalinStopSocket
 import suwayomi.tachidesk.server.JavalinSetup.javalinWaitRequestDone
 import suwayomi.tachidesk.server.applicationSetup
+import suwayomi.tachidesk.server.applicationSetupExtra
 import suwayomi.tachidesk.server.envSetup
 
 fun main() {
+    val t = System.currentTimeMillis()
     envSetup()
     applicationSetup()
     javalinSetup()
+    applicationSetupExtra()
+    println("[BOOT]Main.kt cost:${System.currentTimeMillis() - t}ms")
 }
 
 fun startServer() {

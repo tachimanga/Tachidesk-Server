@@ -39,35 +39,125 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.textclassifier.TextClassifier;
 import android.widget.AbsoluteLayout;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class WebView  {
     public static final Map<Long, WebView> OBJ_MAP = new ConcurrentHashMap<>();
 
-    public static void onNativeLoadProgress(String[] inputs) {
-        System.out.println("[NativeWeb]onNativeLoadProgress id:" + inputs[0] + ", progress" + inputs[1]);
-        long id = Long.parseLong(inputs[0]);
-        int progress = Integer.parseInt(inputs[1]);
-        WebView webView = OBJ_MAP.get(id);
-        if (webView != null) {
-            System.out.println("[NativeWeb] webview:"+ webView
-                    + ", webViewClient: "+ webView.webViewClient
-                    + ", webChromeClient: "+ webView.webChromeClient
-                    + ", progress: " + progress);
+    public static final Map<String, Object> CALLBACK_MAP = new ConcurrentHashMap<>();
 
-            if (webView.webViewClient != null && progress == 100) {
-                webView.webViewClient.onPageFinished(null, null);
+    public static final AtomicLong CALLBACK_ID = new AtomicLong(0);
+
+    private final Map<String, Object> jsinterfaceMap = new ConcurrentHashMap<>();
+
+    public static void onNativeCall(String[] inputs) {
+        System.out.println("[NativeWeb]onNativeCall id=" + inputs[0] + ", method=" + inputs[1] + ", param=" + inputs[2]);
+        long id = Long.parseLong(inputs[0]);
+        String method = inputs[1];
+        String param = inputs[2];
+
+        WebView webView = OBJ_MAP.get(id);
+        if (webView == null) {
+            System.out.println("[NativeWeb]onNativeCall webview is null");
+            return;
+        }
+        if (method == null) {
+            System.out.println("[NativeWeb]onNativeCall method is null");
+            return;
+        }
+        JSONObject jsonParam = new JSONObject();
+        if (param != null && param.length() > 0) {
+            jsonParam = new JSONObject(param);
+        }
+        switch (method) {
+            case "onNativeLoadProgress":
+                webView.onNativeLoadProgress(jsonParam);
+                break;
+            case "onEvaluateJavascriptResult":
+                webView.onEvaluateJavascriptResult(jsonParam);
+                break;
+            case "didReceiveScriptMessage":
+                webView.didReceiveScriptMessage(jsonParam);
+                break;
+            default:
+                System.out.println("[NativeWeb]onNativeCall unhandled method=" + method);
+                break;
+        }
+    }
+
+    private void onNativeLoadProgress(JSONObject param) {
+        int progress = param.getInt("progress");
+        System.out.println("[NativeWeb] onNativeLoadProgress progress="+progress);
+        if (webViewClient != null && progress == 100) {
+            // Notify the host application that the WebView will load the resource specified by the given url.
+            webViewClient.onLoadResource(this, "");
+            // Notify the host application that a page has finished loading.
+            webViewClient.onPageFinished(this, "");
+        }
+        if (webViewClient != null && progress == 0) {
+            // Notify the host application that a page has started loading.
+            webViewClient.onPageStarted(this, "", new Bitmap());
+        }
+        if (webChromeClient != null) {
+            webChromeClient.onProgressChanged(this, progress);
+        }
+    }
+
+    private void onEvaluateJavascriptResult(JSONObject param) {
+        String callbackId = param.getString("callbackId");
+        Object object = CALLBACK_MAP.get(callbackId);
+        if (object != null) {
+            CALLBACK_MAP.remove(callbackId);
+            ValueCallback<String> callback = (ValueCallback<String>)object;
+            callback.onReceiveValue(param.isNull("result") ? null : param.getString("result"));
+        }
+    }
+
+    private void didReceiveScriptMessage(JSONObject param) {
+        String name = param.getString("name");
+        Object jsInterface = this.jsinterfaceMap.get(name);
+        if (jsInterface == null) {
+            System.out.println("[NativeWeb] didReceiveScriptMessage jsInterface is null");
+            return;
+        }
+        jsinterfaceMap.remove(name);
+        JSONObject body = param.getJSONObject("body");
+        String method = body.getString("method");
+        Method javaMethod = null;
+        for (Method m : jsInterface.getClass().getDeclaredMethods()){
+            if (m.getName().equals(method)) {
+                m.setAccessible(true);
+                javaMethod = m;
+                break;
             }
-            if (webView.webChromeClient != null) {
-                webView.webChromeClient.onProgressChanged(null, progress);
-            }
+        }
+        if (javaMethod == null) {
+            System.out.println("[NativeWeb] didReceiveScriptMessage javaMethod is null");
+            return;
+        }
+        //System.out.println("[NativeWeb] didReceiveScriptMessage invoke...");
+        JSONArray jsonArray = body.getJSONArray("args");
+        Object[] args = new Object[jsonArray.length()];
+        for (int i = 0; i < jsonArray.length(); i++) {
+            args[i] = jsonArray.get(i);
+        }
+        try {
+            javaMethod.invoke(jsInterface, args);
+            System.out.println("[NativeWeb] didReceiveScriptMessage invoke done");
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("[NativeWeb] didReceiveScriptMessage invoke fail");
         }
     }
 
@@ -170,6 +260,8 @@ public class WebView  {
             if (addr != 0) {
                 this.releaseNativeWebView(addr);
             }
+            OBJ_MAP.remove(addr);
+            this.nativeRef = null;
         }
     }
 
@@ -194,19 +286,14 @@ public class WebView  {
 
     public void loadUrl(@NonNull String url, @NonNull Map<String, String> additionalHttpHeaders) {
         System.out.println("[NativeWeb]loadUrl url: " + url + ", headers: " + additionalHttpHeaders);
-        if (this.nativeRef == null) {
-            System.out.println("[NativeWeb] nativeRef is null");
-            return;
-        }
+
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("url", url);
         if (additionalHttpHeaders != null) {
             jsonObject.put("headers", new JSONObject(additionalHttpHeaders));
         }
 
-        String jsonString = jsonObject.toString();
-        byte[] bytes = jsonString.getBytes(StandardCharsets.UTF_8);
-        this.nativeLoadUrl(this.nativeRef.address(), bytes);
+        this.invokeNativeMethod("loadUrl", jsonObject);
     }
 
     public void loadUrl(@NonNull String url) {
@@ -222,11 +309,23 @@ public class WebView  {
     }
 
     public void loadDataWithBaseURL(@Nullable String baseUrl, @NonNull String data, @Nullable String mimeType, @Nullable String encoding, @Nullable String historyUrl) {
-        throw new RuntimeException("Stub!");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("baseUrl", baseUrl);
+        jsonObject.put("data", data);
+        jsonObject.put("mimeType", mimeType);
+        jsonObject.put("encoding", encoding);
+        jsonObject.put("historyUrl", historyUrl);
+        this.invokeNativeMethod("loadDataWithBaseURL", jsonObject);
     }
 
     public void evaluateJavascript(@NonNull String script, @Nullable ValueCallback<String> resultCallback) {
-        throw new RuntimeException("Stub!");
+        long id = CALLBACK_ID.incrementAndGet();
+        CALLBACK_MAP.put(id + "", resultCallback);
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("script", script);
+        jsonObject.put("callbackId", id);
+        this.invokeNativeMethod("evaluateJavascript", jsonObject);
     }
 
     public void saveWebArchive(@NonNull String filename) {
@@ -238,7 +337,7 @@ public class WebView  {
     }
 
     public void stopLoading() {
-        throw new RuntimeException("Stub!");
+
     }
 
     public void reload() {
@@ -528,11 +627,14 @@ public class WebView  {
     }
 
     public void addJavascriptInterface(@NonNull Object object, @NonNull String name) {
-        throw new RuntimeException("Stub!");
+        jsinterfaceMap.put(name, object);
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("name", name);
+        this.invokeNativeMethod("addJavascriptInterface", jsonObject);
     }
 
     public void removeJavascriptInterface(@NonNull String name) {
-        throw new RuntimeException("Stub!");
+        jsinterfaceMap.remove(name);
     }
 
     @NonNull
@@ -913,7 +1015,24 @@ public class WebView  {
 
     private native long createNativeWebview();
 
-    private native void nativeLoadUrl(long ref, byte[] reqJsonUtf8);
+    private void invokeNativeMethod(String method, JSONObject param) {
+        if (this.nativeRef == null) {
+            System.out.println("[NativeWeb] nativeRef is null");
+            return;
+        }
+        //System.out.println("[NativeWeb] invokeNative method:" + method + ", param=" + param);
+        System.out.println("[NativeWeb] invokeNative method:" + method);
+        long ref = this.nativeRef.address();
+
+        byte[] methodBytes = method.getBytes(StandardCharsets.UTF_8);
+
+        String jsonString = param.toString();
+        byte[] bytes = jsonString.getBytes(StandardCharsets.UTF_8);
+
+        this.invokeNative(ref, methodBytes, bytes);
+    }
+
+    private native void invokeNative(long ref, byte[] method, byte[] reqJsonUtf8);
 
     private native void releaseNativeWebView(long ref);
 }

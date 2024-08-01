@@ -16,6 +16,10 @@ object ChapterDownloadHelper {
         return provider(mangaId, chapterId).getImage(index)
     }
 
+    fun tryGetImage(mangaId: Int, chapterId: Int, index: Int): Pair<InputStream, String> {
+        return provider(mangaId, chapterId).getImage(index)
+    }
+
     fun delete(mangaId: Int, chapterId: Int): Boolean {
         return provider(mangaId, chapterId).delete()
     }

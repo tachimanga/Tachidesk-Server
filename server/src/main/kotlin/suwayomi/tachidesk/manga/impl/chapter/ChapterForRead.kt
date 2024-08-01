@@ -158,6 +158,7 @@ private class ChapterForRead(
     }
 
     private fun isNotCompletelyDownloaded(): Boolean {
+        println("[DOWNLOAD]isDownloaded ${chapterEntry[ChapterTable.isDownloaded]}, pageCount:${chapterEntry[ChapterTable.pageCount]}")
         return !(
             chapterEntry[ChapterTable.isDownloaded] &&
                 chapterEntry[ChapterTable.pageCount] > 0 &&
@@ -169,9 +170,7 @@ private class ChapterForRead(
         val chapterId = chapterEntry[ChapterTable.id].value
 
         val chapterDir = getChapterDownloadPath(mangaId, chapterId)
-
-        println(chapterDir)
-        println(getPageName(0))
+        println("[DOWNLOAD] firstPageExists chapterDir $chapterDir")
 
         return ImageResponse.findFileNameStartingWith(
             chapterDir,

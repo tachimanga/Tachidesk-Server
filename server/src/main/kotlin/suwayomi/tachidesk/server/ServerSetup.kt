@@ -21,6 +21,8 @@ import org.kodein.di.singleton
 import suwayomi.tachidesk.manga.impl.update.IUpdater
 import suwayomi.tachidesk.manga.impl.update.Updater
 import suwayomi.tachidesk.server.database.databaseUp
+import suwayomi.tachidesk.server.database.databaseUpFast
+import tachiyomi.core.util.lang.launchIO
 import xyz.nulldev.androidcompat.AndroidCompat
 import xyz.nulldev.androidcompat.AndroidCompatInitializer
 import xyz.nulldev.ts.config.ApplicationRootDir
@@ -58,7 +60,8 @@ fun envSetup() {
 }
 
 fun applicationSetup() {
-    logger.info("Running Tachidesk ${BuildConfig.VERSION} revision ${BuildConfig.REVISION}")
+    val skipInit = System.getProperty("app.tachimanga.skipInit") == "1"
+    logger.info("Running Tachidesk ${BuildConfig.VERSION} revision ${BuildConfig.REVISION} skipInit $skipInit")
 
     // register Tachidesk's config which is dubbed "ServerConfig"
     GlobalConfigManager.registerModule(
@@ -104,20 +107,6 @@ fun applicationSetup() {
     // start app
     androidCompat.startApp(App())
 
-    // create conf file if doesn't exist
-    try {
-        val dataConfFile = File("${applicationDirs.dataRoot}/server.conf")
-        if (!dataConfFile.exists()) {
-            JavalinSetup::class.java.getResourceAsStream("/server-reference.conf").use { input ->
-                dataConfFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-        }
-    } catch (e: Exception) {
-        logger.error("Exception while creating initial server.conf", e)
-    }
-
     // copy local source icon
     try {
         val localSourceIconFile = File("${applicationDirs.extensionsRoot}/icon/localSource.png")
@@ -139,9 +128,13 @@ fun applicationSetup() {
     // fixes #119 , ref: https://github.com/Suwayomi/Tachidesk-Server/issues/119#issuecomment-894681292 , source Id calculation depends on String.lowercase()
     Locale.setDefault(Locale.ENGLISH)
 
-    databaseUp()
-
-    LocalSource.register()
+    if (skipInit) {
+        databaseUpFast()
+        LocalSource.registerFast()
+    } else {
+        databaseUp()
+        LocalSource.register()
+    }
 
     // Disable jetty's logging
     System.setProperty("org.eclipse.jetty.util.log.announce", "false")
@@ -155,8 +148,15 @@ fun applicationSetup() {
         logger.info("Socks Proxy is enabled to ${serverConfig.socksProxyHost}:${serverConfig.socksProxyPort}")
     }
 
-    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
-    Security.addProvider(BouncyCastleProvider())
+//    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
+//    Security.addProvider(BouncyCastleProvider())
+}
+
+fun applicationSetupExtra() {
+    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga.
+    launchIO {
+        Security.addProvider(BouncyCastleProvider())
+    }
 }
 
 fun copyDemoManga(applicationDirs: ApplicationDirs) {

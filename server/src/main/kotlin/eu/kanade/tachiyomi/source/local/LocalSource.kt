@@ -119,7 +119,10 @@ class LocalSource : CatalogueSource {
                     }
                 }
             }
+            registerCatalogueSource(ID to LocalSource())
+        }
 
+        fun registerFast() {
             registerCatalogueSource(ID to LocalSource())
         }
 

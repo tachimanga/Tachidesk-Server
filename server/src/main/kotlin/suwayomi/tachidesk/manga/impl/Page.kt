@@ -16,6 +16,7 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import suwayomi.tachidesk.manga.impl.download.FolderProvider
 import suwayomi.tachidesk.manga.impl.util.getChapterCachePath
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
@@ -48,6 +49,13 @@ object Page {
             }.first()
         }
         val chapterId = chapterEntry[ChapterTable.id].value
+
+        if (chapterEntry[ChapterTable.isDownloaded] && chapterEntry[ChapterTable.pageCount] > 0) {
+            val pair = FolderProvider(mangaId, chapterId).tryGetImage(index)
+            if (pair != null) {
+                return pair
+            }
+        }
         // TODO: why not select by index?
         val pageEntry =
             transaction {
