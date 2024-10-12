@@ -185,7 +185,7 @@ object GetCatalogueSource {
         for (i in 0 until headers.size) {
             map[headers.name(i)] = headers.value(i)
         }
-        if (getSourceRandomUa(source.id) || isAndroidMobileUa(headers)) {
+        if ((!isDesktopUa(headers) && getSourceRandomUa(source.id)) || isAndroidMobileUa(headers)) {
             map["User-Agent"] = HttpSource.DEFAULT_USER_AGENT
         }
         meta.headers = map
@@ -209,8 +209,11 @@ object GetCatalogueSource {
         metaCache.remove(sourceId)
     }
 
-    fun getSourceRandomUaByClient(client: OkHttpClient?): Boolean {
+    fun getSourceRandomUaByClient(client: OkHttpClient?, headers: Headers?): Boolean {
         if (client == null) {
+            return false
+        }
+        if (isDesktopUa(headers)) {
             return false
         }
         val sourceId = clientToSourceMap[client] ?: return false
@@ -273,5 +276,9 @@ object GetCatalogueSource {
             return true
         }
         return false
+    }
+
+    private fun isDesktopUa(headers: Headers?): Boolean {
+        return headers?.get("User-Agent") == "Mozilla/5.0 (Windows NT 6.3; WOW64)"
     }
 }

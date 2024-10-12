@@ -132,7 +132,7 @@ object ExtensionController {
             }
         },
         behaviorOf = { ctx, extensionId ->
-            Extension.uninstallExtensionById(extensionId)
+            Extension.uninstallExtensionById(extensionId, removePref = true)
             ctx.status(200)
         },
         withResults = {

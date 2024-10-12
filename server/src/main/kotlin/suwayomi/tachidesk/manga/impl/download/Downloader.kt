@@ -11,7 +11,6 @@ import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import suwayomi.tachidesk.manga.impl.ChapterDownloadHelper
 import suwayomi.tachidesk.manga.impl.chapter.getChapterDownloadReady
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Downloading
@@ -146,7 +145,9 @@ class Downloader(
                 download.chapter = getChapterDownloadReady(download.chapterIndex, download.mangaId)
                 step(download, false)
 
-                ChapterDownloadHelper.download(download.mangaId, download.chapter.id, download, scope, this::step)
+                FolderProvider2(download.mangaId, download.chapter.id, download.chapter.originalChapterId)
+                    .download(download, scope, this::step)
+
                 download.state = Finished
                 transaction {
                     ChapterTable.update({ (ChapterTable.id eq download.chapter.id) }) {

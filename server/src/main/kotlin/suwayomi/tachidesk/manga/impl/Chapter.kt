@@ -18,6 +18,7 @@ import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tachiyomi.Profiler
+import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
@@ -175,6 +176,7 @@ object Chapter {
                             my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
                             my[ChapterTable.lastPageRead] = toDeleteChapter[ChapterTable.lastPageRead]
                             my[ChapterTable.lastReadAt] = toDeleteChapter[ChapterTable.lastReadAt]
+                            my[ChapterTable.originalChapterId] = toDeleteChapter[ChapterTable.originalChapterId] ?: toDeleteChapter[ChapterTable.id].value
                         }
                     }
 
@@ -531,11 +533,12 @@ object Chapter {
 
     fun deleteChapter(mangaId: Int, chapterIndex: Int) {
         transaction {
-            val chapterId =
+            val chapter =
                 ChapterTable.select { (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }
-                    .first()[ChapterTable.id].value
-
-            ChapterDownloadHelper.delete(mangaId, chapterId)
+                    .first()
+            val chapterId = chapter[ChapterTable.id].value
+            val originalChapterId = chapter[ChapterTable.originalChapterId]
+            FolderProvider2(mangaId, chapterId, originalChapterId).delete()
 
             ChapterTable.update({ (ChapterTable.id eq chapterId) }) {
                 it[isDownloaded] = false
@@ -548,12 +551,13 @@ object Chapter {
             val chapterIds = input.chapterIds
 
             transaction {
-                ChapterTable.slice(ChapterTable.manga, ChapterTable.id)
+                ChapterTable.slice(ChapterTable.manga, ChapterTable.id, ChapterTable.originalChapterId)
                     .select { ChapterTable.id inList chapterIds }
                     .forEach { row ->
                         val chapterMangaId = row[ChapterTable.manga].value
                         val chapterId = row[ChapterTable.id].value
-                        ChapterDownloadHelper.delete(chapterMangaId, chapterId)
+                        val originalChapterId = row[ChapterTable.originalChapterId]
+                        FolderProvider2(chapterMangaId, chapterId, originalChapterId).delete()
                     }
 
                 ChapterTable.update({ ChapterTable.id inList chapterIds }) {
@@ -562,12 +566,12 @@ object Chapter {
             }
         } else if (input.chapterIndexes?.isNotEmpty() == true && mangaId != null) {
             transaction {
-                val chapterIds = ChapterTable.slice(ChapterTable.manga, ChapterTable.id)
+                val chapterIds = ChapterTable.slice(ChapterTable.manga, ChapterTable.id, ChapterTable.originalChapterId)
                     .select { (ChapterTable.sourceOrder inList input.chapterIndexes) and (ChapterTable.manga eq mangaId) }
                     .map { row ->
                         val chapterId = row[ChapterTable.id].value
-                        ChapterDownloadHelper.delete(mangaId, chapterId)
-
+                        val originalChapterId = row[ChapterTable.originalChapterId]
+                        FolderProvider2(mangaId, chapterId, originalChapterId).delete()
                         chapterId
                     }
 

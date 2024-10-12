@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withPermit
 import mu.KotlinLogging
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Chapter
+import suwayomi.tachidesk.manga.impl.Manga
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import java.util.concurrent.ConcurrentHashMap
 
@@ -69,6 +70,9 @@ class Updater : IUpdater {
         tracker[job.manga.id] = try {
             logger.info { "Updating \"${job.manga.title}\" (source: ${job.manga.sourceId})" }
             Profiler.start()
+            if (!job.manga.initialized) {
+                Manga.getManga(job.manga.id)
+            }
             Chapter.getChapterList(job.manga.id, true)
             Profiler.all()
             job.copy(status = JobStatus.COMPLETE)

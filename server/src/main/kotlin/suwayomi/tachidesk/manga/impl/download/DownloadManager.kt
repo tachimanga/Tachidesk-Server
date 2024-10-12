@@ -122,7 +122,8 @@ object DownloadManager {
             } else {
                 "Started"
             },
-            downloadQueue.toList()
+            downloadQueue.toList(),
+            finishCount
         )
     }
 

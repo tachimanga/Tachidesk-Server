@@ -36,6 +36,8 @@ object ChapterTable : IntIdTable() {
     val pageCount = integer("page_count").default(-1)
 
     val manga = reference("manga", MangaTable)
+
+    val originalChapterId = integer("original_chapter_id").nullable()
 }
 
 fun ChapterTable.toDataClass(chapterEntry: ResultRow) =
@@ -55,7 +57,8 @@ fun ChapterTable.toDataClass(chapterEntry: ResultRow) =
         fetchedAt = chapterEntry[fetchedAt],
         realUrl = chapterEntry[realUrl],
         downloaded = chapterEntry[isDownloaded],
-        pageCount = chapterEntry[pageCount]
+        pageCount = chapterEntry[pageCount],
+        originalChapterId = chapterEntry[originalChapterId]
     )
 
 // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())

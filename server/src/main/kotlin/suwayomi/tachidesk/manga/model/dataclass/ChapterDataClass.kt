@@ -15,6 +15,7 @@ data class ChapterDataClass(
     val chapterNumber: Float,
     val scanlator: String?,
     val mangaId: Int,
+    val originalChapterId: Int? = null,
 
     /** chapter is read */
     val read: Boolean,

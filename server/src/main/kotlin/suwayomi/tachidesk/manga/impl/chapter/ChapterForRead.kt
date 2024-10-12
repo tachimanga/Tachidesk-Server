@@ -12,23 +12,19 @@ import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.sourceSupportDirect
+import mu.KotlinLogging
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import suwayomi.tachidesk.manga.impl.Page.getPageName
-import suwayomi.tachidesk.manga.impl.util.getChapterCbzPath
-import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
-import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.buildImgDataClass
 import suwayomi.tachidesk.manga.model.table.*
-import java.io.File
 
 suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int): ChapterDataClass {
     val chapter = ChapterForRead(chapterIndex, mangaId)
@@ -39,8 +35,10 @@ private class ChapterForRead(
     private val chapterIndex: Int,
     private val mangaId: Int
 ) {
+    private val logger = KotlinLogging.logger {}
+
     suspend fun asReadReady(): ChapterDataClass {
-        val downloaded = !isNotCompletelyDownloaded()
+        val downloaded = ChapterUtil.isCompletelyDownloaded(mangaId, chapterEntry)
         if (downloaded) {
             return asDataClass()
         }
@@ -52,7 +50,7 @@ private class ChapterForRead(
         // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
         val sChapter = ChapterTable.toSChapter(chapterEntry)
         val pageListSrc = source.fetchPageList(sChapter).awaitSingle()
-        val pageList = preprocessPageList(pageListSrc)
+        val pageList = ChapterUtil.preprocessPageList(pageListSrc)
 
         val meta = GetCatalogueSource.getCatalogueSourceMeta(source)
         val support = supportDirect(source, meta, pageList)
@@ -79,17 +77,17 @@ private class ChapterForRead(
         }
 
         if (!sourceSupportDirect(meta)) {
-            println(source.name + " not supportDirect")
+            logger.info { "${source.name} not supportDirect" }
             return false
         }
 
         val emptyUrl = pageList.any { it.imageUrl == null }
         if (emptyUrl) {
-            println(source.name + " emptyUrl")
+            logger.info { "${source.name} emptyUrl" }
             return false
         }
 
-        println(source.name + " support direct")
+        logger.info { "${source.name} support direct" }
         return true
     }
 
@@ -155,26 +153,5 @@ private class ChapterForRead(
                 it[ChapterTable.pageCount] = pageCount
             }
         }
-    }
-
-    private fun isNotCompletelyDownloaded(): Boolean {
-        println("[DOWNLOAD]isDownloaded ${chapterEntry[ChapterTable.isDownloaded]}, pageCount:${chapterEntry[ChapterTable.pageCount]}")
-        return !(
-            chapterEntry[ChapterTable.isDownloaded] &&
-                chapterEntry[ChapterTable.pageCount] > 0 &&
-                (firstPageExists() || File(getChapterCbzPath(mangaId, chapterEntry[ChapterTable.id].value)).exists())
-            )
-    }
-
-    private fun firstPageExists(): Boolean {
-        val chapterId = chapterEntry[ChapterTable.id].value
-
-        val chapterDir = getChapterDownloadPath(mangaId, chapterId)
-        println("[DOWNLOAD] firstPageExists chapterDir $chapterDir")
-
-        return ImageResponse.findFileNameStartingWith(
-            chapterDir,
-            getPageName(0)
-        ) != null
     }
 }

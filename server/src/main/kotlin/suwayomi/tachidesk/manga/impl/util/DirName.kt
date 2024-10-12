@@ -18,7 +18,6 @@ import suwayomi.tachidesk.manga.impl.util.storage.SafePath
 import suwayomi.tachidesk.manga.model.table.ChapterTable
 import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.server.ApplicationDirs
-import java.io.File
 
 private val applicationDirs by DI.global.instance<ApplicationDirs>()
 
@@ -50,33 +49,6 @@ fun getChapterDownloadPath(mangaId: Int, chapterId: Int): String {
 
 fun getChapterCbzPath(mangaId: Int, chapterId: Int): String {
     return getChapterDownloadPath(mangaId, chapterId) + ".cbz"
-}
-
-fun getChapterCachePath(mangaId: Int, chapterId: Int): String {
-    return applicationDirs.tempMangaCacheRoot + "/" + getChapterDir(mangaId, chapterId)
-}
-
-/** return value says if rename/move was successful */
-fun updateMangaDownloadDir(mangaId: Int, newTitle: String): Boolean {
-    val mangaEntry = getMangaEntry(mangaId)
-    val source = GetCatalogueSource.getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
-
-    val sourceDir = source.toString()
-    val mangaDir = SafePath.buildValidFilename(mangaEntry[MangaTable.title])
-
-    val newMangaDir = SafePath.buildValidFilename(newTitle)
-
-    val oldDir = "${applicationDirs.mangaDownloadsRoot}/$sourceDir/$mangaDir"
-    val newDir = "${applicationDirs.mangaDownloadsRoot}/$sourceDir/$newMangaDir"
-
-    val oldDirFile = File(oldDir)
-    val newDirFile = File(newDir)
-
-    return if (oldDirFile.exists()) {
-        oldDirFile.renameTo(newDirFile)
-    } else {
-        true
-    }
 }
 
 private fun getMangaEntry(mangaId: Int): ResultRow {

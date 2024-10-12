@@ -40,7 +40,10 @@ class ApplicationDirs(
 ) {
     val extensionsRoot = "$dataRoot/extensions"
     val thumbnailsRoot = "$dataRoot/thumbnails"
+    val coversRoot = "$dataRoot/covers"
+    val customCoversRoot = "$dataRoot/custom_covers"
     val mangaDownloadsRoot = serverConfig.downloadsPath.ifBlank { "$dataRoot/downloads" }
+    val mangaDownloadsRoot2 = "$dataRoot/downloads2"
     val localMangaRoot = "${System.getProperty("user.home")}/Documents/local"
     val prefsRoot = "${System.getProperty("user.home")}/Library/Preferences"
     val webUIRoot = "$dataRoot/webUI"
@@ -91,7 +94,10 @@ fun applicationSetup() {
         applicationDirs.extensionsRoot,
         applicationDirs.extensionsRoot + "/icon",
         applicationDirs.thumbnailsRoot,
+        applicationDirs.customCoversRoot,
+        applicationDirs.coversRoot,
         applicationDirs.mangaDownloadsRoot,
+        applicationDirs.mangaDownloadsRoot2,
         applicationDirs.localMangaRoot
     ).forEach {
         File(it).mkdirs()

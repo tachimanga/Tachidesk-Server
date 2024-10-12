@@ -7,6 +7,7 @@ package eu.kanade.tachiyomi.network.interceptor
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import mu.KotlinLogging
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -20,6 +21,7 @@ fun <T : Any> T.getPrivateProperty(variableName: String): Any? {
 }
 
 class EnableNativeNetInterceptor : Interceptor {
+    private val logger = KotlinLogging.logger {}
 
     private val OKHTTP_LIST = listOf(
         "RetryAndFollowUpInterceptor",
@@ -39,10 +41,19 @@ class EnableNativeNetInterceptor : Interceptor {
             interceptors.removeIf {
                 OKHTTP_LIST.contains(it.javaClass.simpleName)
             }
+            addFollowUpInterceptorIfNeeded(chain, interceptors)
             interceptors.add(CallNativeNetInterceptor())
             // println("Profiler: interceptors2 $interceptors")
         }
         return chain.proceed(chain.request())
+    }
+
+    private fun addFollowUpInterceptorIfNeeded(chain: Interceptor.Chain, interceptors: MutableList<Interceptor>) {
+        val client = (chain.call() as? RealCall)?.client ?: return
+        if (client.authenticator != Authenticator.NONE) {
+            println("Profiler: add FollowUpInterceptor")
+            interceptors.add(FollowUpInterceptor(client))
+        }
     }
 
     private fun supportNativeNet(chain: Interceptor.Chain): Boolean {
@@ -51,15 +62,15 @@ class EnableNativeNetInterceptor : Interceptor {
             return false
         }
 
-        val originalRequest = chain.request()
+//        val originalRequest = chain.request()
 
         val call = chain.call()
         val client = (call as? RealCall)?.client ?: return false
 
-        if (client.authenticator != Authenticator.NONE) {
-            println("authenticator not none")
-            return false
-        }
+//        if (client.authenticator != Authenticator.NONE) {
+//            println("authenticator not none")
+//            return false
+//        }
         if (client.proxyAuthenticator != Authenticator.NONE) {
             println("proxyAuthenticator not none")
             return false

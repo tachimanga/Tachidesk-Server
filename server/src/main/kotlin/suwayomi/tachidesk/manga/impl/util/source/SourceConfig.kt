@@ -6,14 +6,9 @@ import suwayomi.tachidesk.manga.impl.Setting
 object SourceConfig {
     private val logger = KotlinLogging.logger {}
 
-    private var FORCE_UA_MAP = mapOf(
-        6551136894818591762L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0",
-        5234610795363016972L to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0"
-    )
+    private var FORCE_UA_MAP = mapOf<Long, String>()
 
-    private var FORCE_EXT_UA = setOf(
-        8061953015808280611L
-    )
+    private var FORCE_EXT_UA = setOf<Long>()
 
     fun getForceUaBySourceId(sourceId: Long): String? {
         return FORCE_UA_MAP[sourceId]

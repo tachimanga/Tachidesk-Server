@@ -48,6 +48,13 @@ object SourceController {
         }
     )
 
+    val listForSearch = handler(
+        behaviorOf = { ctx ->
+            ctx.json(Source.getListForSearch())
+        },
+        withResults = { httpCode(HttpCode.OK) }
+    )
+
     /** fetch source with id `sourceId` */
     val retrieve = handler(
         pathParam<Long>("sourceId"),

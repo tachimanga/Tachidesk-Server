@@ -17,11 +17,9 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.sourceSupportDirect
 import io.javalin.plugin.json.JsonMapper
 import mu.KotlinLogging
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -34,7 +32,10 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogue
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.unregisterCatalogueSource
 import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
+import suwayomi.tachidesk.manga.model.dataclass.search.SourceSearchDataClass
+import suwayomi.tachidesk.manga.model.dataclass.search.SourceSearchListDataClass
 import suwayomi.tachidesk.manga.model.table.ExtensionTable
+import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.SourceTable
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -67,6 +68,23 @@ object Source {
                 catalogueSource.toString()
             )
         }
+    }
+
+    fun getListForSearch(): SourceSearchListDataClass {
+        val mangaCount = MangaTable.id.count().alias("manga_count")
+        val list = transaction {
+            MangaTable
+                .slice(MangaTable.sourceReference, mangaCount)
+                .select { MangaTable.inLibrary eq true }
+                .groupBy(MangaTable.sourceReference)
+                .map {
+                    it[MangaTable.sourceReference] to it[mangaCount]
+                }
+        }
+        val result = list.map {
+            SourceSearchDataClass(sourceId = it.first.toString(), count = it.second)
+        }
+        return SourceSearchListDataClass(list = result)
     }
 
     fun getSource(sourceId: Long): SourceDataClass? { // all the data extracted fresh form the source instance

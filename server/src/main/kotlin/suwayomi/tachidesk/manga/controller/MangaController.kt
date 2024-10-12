@@ -247,14 +247,20 @@ object MangaController {
         pathParam<Int>("mangaId"),
         formParam<String>("key"),
         formParam<String>("value"),
+        formParam<String>("remove"),
         documentWith = {
             withOperation {
                 summary("Add data to manga")
                 description("A simple Key-Value storage in the manga object, you can set values for whatever you want inside it.")
             }
         },
-        behaviorOf = { ctx, mangaId, key, value ->
-            Manga.modifyMangaMeta(mangaId, key, value)
+        behaviorOf = { ctx, mangaId, key, value, remove ->
+            logger.info { "patch manga meta mangaId=$mangaId key=$key value=$value remove=$remove" }
+            if (remove == "true") {
+                Manga.removeMangaMeta(mangaId, key)
+            } else {
+                Manga.modifyMangaMeta(mangaId, key, value)
+            }
             ctx.status(200)
         },
         withResults = {

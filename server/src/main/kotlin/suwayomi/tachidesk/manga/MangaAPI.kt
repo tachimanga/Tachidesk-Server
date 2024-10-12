@@ -31,6 +31,7 @@ object MangaAPI {
 
         path("source") {
             get("list", SourceController.list)
+            get("listForSearch", SourceController.listForSearch)
             get("{sourceId}", SourceController.retrieve)
 
             get("{sourceId}/popular/{pageNum}", SourceController.popular)

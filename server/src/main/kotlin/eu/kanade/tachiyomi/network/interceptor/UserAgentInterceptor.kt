@@ -13,7 +13,7 @@ class UserAgentInterceptor : Interceptor {
         val call = chain.call()
         val client = (call as? RealCall)?.client
 
-        val randomUa = GetCatalogueSource.getSourceRandomUaByClient(client)
+        val randomUa = GetCatalogueSource.getSourceRandomUaByClient(client, originalRequest.headers)
         val forceUa = GetCatalogueSource.getForceUaByClient(client)
         val androidMobileUa = GetCatalogueSource.isAndroidMobileUa(originalRequest.headers)
         println("Profiler: forceRandomUa:$randomUa, forceUa:$forceUa")

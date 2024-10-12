@@ -14,15 +14,12 @@ import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
+import mu.KotlinLogging
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
@@ -36,21 +33,22 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.source.StubSource
+import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.buildImageResponse
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.clearFastCachedImage
-import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getFastCachedImageResponse
-import suwayomi.tachidesk.manga.impl.util.storage.ImageUtil
-import suwayomi.tachidesk.manga.impl.util.updateMangaDownloadDir
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
 import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.io.File
-import java.io.IOException
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Instant
 
 object Manga {
+    private val logger = KotlinLogging.logger {}
+
     private fun truncate(text: String?, maxLength: Int): String? {
         return if (text?.length ?: 0 > maxLength) {
             text?.take(maxLength - 3) + "..."
@@ -73,20 +71,32 @@ object Manga {
             if (source == null) {
                 return getMangaDataClass(mangaId, mangaEntry, meta)
             }
-            // tachiyomi: val chapters = state.source.getChapterList(state.manga.toSManga())
+            // Tachiyomi: val networkManga = state.source.getMangaDetails(state.manga.toSManga())
             val sManga = MangaTable.toSManga(mangaEntry)
             val networkManga = source.fetchMangaDetails(sManga).awaitSingle()
             sManga.copyFrom(networkManga)
 
+            val realUrl = runCatching {
+                (source as? HttpSource)?.getMangaUrl(sManga)
+            }.getOrNull()
+
+            // Tachiyomi: awaitUpdateFromSource
+            val remoteTitle = try {
+                networkManga.title
+            } catch (_: UninitializedPropertyAccessException) {
+                ""
+            }
+
+            var needClearCoverCache = false
+
             transaction {
                 MangaTable.update({ MangaTable.id eq mangaId }) {
-                    val title = sManga.title.take(512)
-                    if (title != mangaEntry[MangaTable.title]) {
-                        val canUpdateTitle = updateMangaDownloadDir(mangaId, title)
-                        if (canUpdateTitle) {
-                            it[MangaTable.title] = title
-                        }
+                    // if the manga isn't a favorite, set its title from source and update in db
+                    val title = remoteTitle.take(512)
+                    if (title.isNotEmpty() && !mangaEntry[MangaTable.inLibrary] && title != mangaEntry[MangaTable.title]) {
+                        it[MangaTable.title] = title
                     }
+
                     it[MangaTable.initialized] = true
 
                     it[MangaTable.artist] = sManga.artist?.take(512)
@@ -97,17 +107,19 @@ object Manga {
                     if (!sManga.thumbnail_url.isNullOrEmpty() && sManga.thumbnail_url != mangaEntry[MangaTable.thumbnail_url]) {
                         it[MangaTable.thumbnail_url] = sManga.thumbnail_url
                         it[MangaTable.thumbnailUrlLastFetched] = Instant.now().epochSecond
-                        clearMangaThumbnailCache(mangaId)
+                        needClearCoverCache = true
                     }
 
-                    it[MangaTable.realUrl] = runCatching {
-                        (source as? HttpSource)?.getMangaUrl(sManga)
-                    }.getOrNull()
+                    it[MangaTable.realUrl] = realUrl
 
                     it[MangaTable.lastFetchedAt] = Instant.now().epochSecond
 
                     it[MangaTable.updateStrategy] = sManga.update_strategy.name
                 }
+            }
+
+            if (needClearCoverCache) {
+                clearMangaCoverCache(mangaId)
             }
 
             mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
@@ -263,17 +275,20 @@ object Manga {
         }
     }
 
+    fun removeMangaMeta(mangaId: Int, key: String) {
+        transaction {
+            MangaMetaTable.deleteWhere { (MangaMetaTable.ref eq mangaId) and (MangaMetaTable.key eq key) }
+        }
+    }
+
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
     private val network: NetworkHelper by injectLazy()
     suspend fun getMangaThumbnail(mangaId: Int): Pair<InputStream, String> {
-        val cacheSaveDir = applicationDirs.thumbnailsRoot
-        val fileName = mangaId.toString()
-
         val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
         val sourceId = mangaEntry[MangaTable.sourceReference]
 
         return when (val source = getCatalogueSourceOrStub(sourceId)) {
-            is HttpSource -> getFastCachedImageResponse(cacheSaveDir, fileName) {
+            is HttpSource -> buildImageResponse {
                 val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
                     ?: if (!mangaEntry[MangaTable.initialized]) {
                         // initialize then try again
@@ -285,27 +300,16 @@ object Manga {
                         // source provides no thumbnail url for this manga
                         throw NullPointerException("No thumbnail found")
                     }
-
                 source.client.newCall(
                     GET(thumbnailUrl, source.headers)
                 ).asObservableSuccess().awaitSingle()
             }
 
             is LocalSource -> {
-                val imageFile = mangaEntry[MangaTable.thumbnail_url]?.let {
-                    val file = File(it)
-                    if (file.exists()) {
-                        file
-                    } else {
-                        null
-                    }
-                } ?: throw IOException("Thumbnail does not exist")
-                val contentType = ImageUtil.findImageType { imageFile.inputStream() }?.mime
-                    ?: "image/jpeg"
-                imageFile.inputStream() to contentType
+                LocalSource.getCoverImage(mangaEntry[MangaTable.url], mangaEntry[MangaTable.thumbnail_url])
             }
 
-            is StubSource -> getFastCachedImageResponse(cacheSaveDir, fileName) {
+            is StubSource -> buildImageResponse {
                 val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
                     ?: throw NullPointerException("No thumbnail found")
                 network.client.newCall(
@@ -317,10 +321,55 @@ object Manga {
         }
     }
 
-    private fun clearMangaThumbnailCache(mangaId: Int) {
-        val saveDir = applicationDirs.thumbnailsRoot
+    private fun clearMangaCoverCache(mangaId: Int) {
+        val saveDir = applicationDirs.coversRoot
         val fileName = mangaId.toString()
 
         clearFastCachedImage(saveDir, fileName)
+    }
+
+    fun migrateMangaCoverCacheIfNeeded() {
+        val flag = transaction {
+            SettingTable.select { SettingTable.key eq SettingKey.HistoryMangaCover.name }.count()
+        }
+        logger.info { "migrateMangaCoverCacheIfNeeded flag=$flag" }
+        if (flag > 0) {
+            return
+        }
+        try {
+            doMigrateMangaCoverCache()
+        } catch (e: Throwable) {
+            logger.error(e) { "doMigrateMangaCoverCache error" }
+        }
+        transaction {
+            val now = System.currentTimeMillis()
+            SettingTable.insert {
+                it[SettingTable.key] = SettingKey.HistoryMangaCover.name
+                it[SettingTable.value] = "1"
+                it[SettingTable.createAt] = now
+                it[SettingTable.updateAt] = now
+            }
+        }
+    }
+
+    private fun doMigrateMangaCoverCache() {
+        logger.info { "doMigrateMangaCoverCache..." }
+        val mangaList = transaction {
+            MangaTable
+                .select { (MangaTable.inLibrary eq true) }
+                .toList()
+        }
+        val thumbnailsDir = applicationDirs.thumbnailsRoot
+        val coversDir = applicationDirs.coversRoot
+
+        mangaList.forEach {
+            val fileName = it[MangaTable.id].value.toString()
+            val srcFile = File(thumbnailsDir, fileName)
+            val destFile = File(coversDir, fileName)
+            if (srcFile.exists() && srcFile.isFile) {
+                Files.copy(srcFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+        logger.info { "doMigrateMangaCoverCache done" }
     }
 }

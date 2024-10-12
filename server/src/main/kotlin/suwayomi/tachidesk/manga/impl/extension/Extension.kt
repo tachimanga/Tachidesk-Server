@@ -38,7 +38,7 @@ import suwayomi.tachidesk.manga.impl.util.PackageTools.getPackageInfo
 import suwayomi.tachidesk.manga.impl.util.PackageTools.loadExtensionSources
 import suwayomi.tachidesk.manga.impl.util.network.await
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
-import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.getCachedImageResponse
+import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse
 import suwayomi.tachidesk.manga.model.table.ExtensionTable
 import suwayomi.tachidesk.manga.model.table.RepoTable
 import suwayomi.tachidesk.manga.model.table.SourceTable
@@ -336,7 +336,7 @@ object Extension {
         }
     }
 
-    fun uninstallExtensionById(extensionId: Int) {
+    fun uninstallExtensionById(extensionId: Int, removePref: Boolean = false) {
         logger.debug("Uninstalling $extensionId")
 
         val extensionRecord = transaction { ExtensionTable.select { ExtensionTable.id eq extensionId }.first() }
@@ -367,7 +367,9 @@ object Extension {
             sources.forEach {
                 GetCatalogueSource.unregisterCatalogueSource(it)
                 GetCatalogueSource.unregisterCatalogueSourceExt(it)
-                suwayomi.tachidesk.manga.impl.Source.removeSourcePref(it)
+                if (removePref) {
+                    suwayomi.tachidesk.manga.impl.Source.removeSourcePref(it)
+                }
             }
 
             File(jarPath).delete()
@@ -399,9 +401,16 @@ object Extension {
             transaction { ExtensionTable.select { ExtensionTable.apkName eq apkName }.first() }[ExtensionTable.iconUrl]
         }
 
+        // for local source icon
         val cacheSaveDir = "${applicationDirs.extensionsRoot}/icon"
-
-        return getCachedImageResponse(cacheSaveDir, apkName) {
+        val cachedFile = ImageResponse.findFileNameStartingWith(cacheSaveDir, apkName)
+        if (cachedFile != null) {
+            return Pair(
+                ImageResponse.pathToInputStream(cachedFile),
+                "image/jpeg"
+            )
+        }
+        return ImageResponse.buildImageResponse {
             network.client.newCall(
                 GET(iconUrl)
             ).await()

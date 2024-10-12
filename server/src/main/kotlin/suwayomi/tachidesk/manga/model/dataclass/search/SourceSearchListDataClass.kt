@@ -1,4 +1,4 @@
-package suwayomi.tachidesk.manga.impl.download.model
+package suwayomi.tachidesk.manga.model.dataclass.search
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
@@ -7,8 +7,11 @@ package suwayomi.tachidesk.manga.impl.download.model
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-data class DownloadStatus(
-    val status: String,
-    val queue: List<DownloadChapter>,
-    val finishCount: Int
+data class SourceSearchListDataClass(
+    val list: List<SourceSearchDataClass>
+)
+
+data class SourceSearchDataClass(
+    val sourceId: String,
+    val count: Long
 )

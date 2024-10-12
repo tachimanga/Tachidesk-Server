@@ -45,6 +45,7 @@ import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.io.InputStream
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -71,7 +72,7 @@ class LocalSource : CatalogueSource {
         val pageCache: MutableMap<String, List<() -> InputStream>> = mutableMapOf()
 
         fun updateCover(manga: SManga, input: InputStream): File? {
-            val cover = getCoverFile(File("${applicationDirs.localMangaRoot}/${manga.url}"))
+            val cover = findCoverFile(File("${applicationDirs.localMangaRoot}/${manga.url}"))
                 ?: File("${applicationDirs.localMangaRoot}/${manga.url}/cover.jpg")
 
             cover.parentFile?.mkdirs()
@@ -87,7 +88,7 @@ class LocalSource : CatalogueSource {
         /**
          * Returns valid cover file inside [parent] directory.
          */
-        private fun getCoverFile(parent: File): File? {
+        private fun findCoverFile(parent: File): File? {
             return parent.listFiles()?.find { it.nameWithoutExtension == "cover" }?.takeIf {
                 it.isFile && ImageUtil.isImage(it.name) { it.inputStream() }
             }
@@ -155,6 +156,34 @@ class LocalSource : CatalogueSource {
                 println("Directory '$dir' does not exist in the specified directory.")
             }
         }
+
+        fun getCoverImage(mangaDirName: String, coverFileName: String?): Pair<InputStream, String> {
+            val imageFile = coverFileName?.let {
+                val last = it.substringAfterLast("/")
+                val path = "${applicationDirs.localMangaRoot}/$mangaDirName/$last"
+                val file = File(path)
+                if (file.exists()) {
+                    file
+                } else {
+                    null
+                }
+            } ?: throw IOException("Thumbnail does not exist")
+            return imageFile.inputStream() to "image/jpeg"
+        }
+
+        fun getPageImage(chapterDirName: String, pageFileName: String?, index: Int): Pair<InputStream, String> {
+            // is of archive format
+            if (pageCache.containsKey(chapterDirName)) {
+                val pageStream = pageCache[chapterDirName]!![index]
+                return pageStream() to "image/jpeg"
+            }
+
+            // is of directory format
+            val last = pageFileName!!.substringAfterLast("/")
+            val path = "${applicationDirs.localMangaRoot}/$chapterDirName/$last"
+            val imageFile = File(path)
+            return imageFile.inputStream() to "image/jpeg"
+        }
     }
 
     override val id = ID
@@ -200,30 +229,12 @@ class LocalSource : CatalogueSource {
                 title = mangaDir.name
                 url = mangaDir.name
 
-                // Try to find the cover
-                val cover = getCoverFile(File("${applicationDirs.localMangaRoot}/$url"))
+                val cover = findCoverFile(File("${applicationDirs.localMangaRoot}/$url"))
                 if (cover != null && cover.exists()) {
-                    thumbnail_url = cover.absolutePath
-                }
-
-                val chapters = fetchChapterList(this).toBlocking().first()
-                if (chapters.isNotEmpty()) {
-                    val chapter = chapters.last()
-                    val format = getFormat(chapter)
-                    if (format is Format.Epub) {
-                        EpubFile(format.file).use { epub ->
-                            epub.fillMangaMetadata(this)
-                        }
-                    }
-
-                    // Copy the cover from the first chapter found.
-                    if (thumbnail_url == null) {
-                        try {
-                            thumbnail_url = updateCover(chapter, this)?.absolutePath
-                        } catch (e: Exception) {
-                            logger.error { e }
-                        }
-                    }
+                    thumbnail_url = cover.name
+                } else {
+                    logger.info { "[LocalSource] thumbnail_url is empty, try to find one" }
+                    updateMangaCover(this)
                 }
             }
         }
@@ -231,9 +242,55 @@ class LocalSource : CatalogueSource {
         return Observable.just(MangasPage(mangas.toList(), false))
     }
 
+    private fun updateMangaCover(manga: SManga) {
+        val chapters = fetchChapterList(manga).toBlocking().first()
+        if (chapters.isNotEmpty()) {
+            val chapter = chapters.last()
+            try {
+                manga.thumbnail_url = updateCover(chapter, manga)?.name
+                logger.info { "[LocalSource] updateMangaCover succ. file=${manga.thumbnail_url}" }
+            } catch (e: Exception) {
+                logger.error { "[LocalSource] updateMangaCover err:$e" }
+            }
+        }
+    }
+
     override fun fetchLatestUpdates(page: Int) = fetchSearchManga(page, "", LATEST_FILTERS)
 
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
+        checkAndUpdateMangaCover(manga)
+        updateEpubMeta(manga)
+        updateJsonMeta(manga)
+        return Observable.just(manga)
+    }
+
+    private fun checkAndUpdateMangaCover(manga: SManga) {
+        if (manga.thumbnail_url == null) {
+            updateMangaCover(manga)
+            return
+        }
+        val last = manga.thumbnail_url!!.substringAfterLast("/")
+        val path = "${applicationDirs.localMangaRoot}/${manga.url}/$last"
+        val file = File(path)
+        if (!file.exists()) {
+            updateMangaCover(manga)
+        }
+    }
+
+    private fun updateEpubMeta(manga: SManga) {
+        val chapters = fetchChapterList(manga).toBlocking().first()
+        if (chapters.isNotEmpty()) {
+            val chapter = chapters.last()
+            val format = getFormat(chapter)
+            if (format is Format.Epub) {
+                EpubFile(format.file).use { epub ->
+                    epub.fillMangaMetadata(manga)
+                }
+            }
+        }
+    }
+
+    private fun updateJsonMeta(manga: SManga) {
         File(applicationDirs.localMangaRoot, manga.url).listFiles().orEmpty().toList()
             .firstOrNull { it.extension == "json" }
             ?.apply {
@@ -247,8 +304,6 @@ class LocalSource : CatalogueSource {
                     ?: manga.genre
                 manga.status = obj["status"]?.jsonPrimitive?.intOrNull ?: manga.status
             }
-
-        return Observable.just(manga)
     }
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
@@ -335,7 +390,7 @@ class LocalSource : CatalogueSource {
                         .mapIndexed { index, page ->
                             Page(
                                 index,
-                                imageUrl = applicationDirs.localMangaRoot + "/" + chapter.url + "/" + page.name
+                                imageUrl = page.name
                             )
                         }
                 )
@@ -361,7 +416,7 @@ class LocalSource : CatalogueSource {
         }
     }
 
-    fun getFormat(chapter: SChapter): Format {
+    private fun getFormat(chapter: SChapter): Format {
         val chapFile = File(applicationDirs.localMangaRoot, chapter.url)
         if (chapFile.exists()) {
             return getFormat(chapFile)

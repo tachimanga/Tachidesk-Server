@@ -29,15 +29,6 @@ class FolderProvider(mangaId: Int, chapterId: Int) : DownloadedFilesProvider(man
         return Pair(FileInputStream(file).buffered(), "image/$fileType")
     }
 
-    fun tryGetImage(index: Int): Pair<InputStream, String>? {
-        val chapterDir = getChapterDownloadPath(mangaId, chapterId)
-        val folder = File(chapterDir)
-        folder.mkdirs()
-        val file = folder.listFiles()?.sortedBy { it.name }?.getOrNull(index) ?: return null
-        val fileType = file!!.name.substringAfterLast(".")
-        return Pair(FileInputStream(file).buffered(), "image/$fileType")
-    }
-
     @OptIn(FlowPreview::class)
     override suspend fun download(
         download: DownloadChapter,
