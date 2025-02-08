@@ -8,10 +8,10 @@ package suwayomi.tachidesk.manga.model.dataclass.search
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 data class SourceSearchListDataClass(
-    val list: List<SourceSearchDataClass>
+    val list: List<SourceSearchDataClass>,
 )
 
 data class SourceSearchDataClass(
     val sourceId: String,
-    val count: Long
+    val count: Long,
 )

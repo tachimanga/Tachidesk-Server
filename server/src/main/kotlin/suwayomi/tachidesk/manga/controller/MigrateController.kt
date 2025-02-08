@@ -27,14 +27,14 @@ object MigrateController {
         behaviorOf = { ctx ->
             ctx.json(Migrate.info())
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     val sourceList = handler(
         behaviorOf = { ctx ->
             ctx.json(Migrate.sourceList())
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     val mangaList = handler(
@@ -44,7 +44,7 @@ object MigrateController {
         behaviorOf = { ctx, sourceId ->
             ctx.json(Migrate.mangaList(sourceId))
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     val migrate = handler(
@@ -55,6 +55,6 @@ object MigrateController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

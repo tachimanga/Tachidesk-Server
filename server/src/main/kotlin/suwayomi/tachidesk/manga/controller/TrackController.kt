@@ -31,7 +31,7 @@ object TrackController {
         },
         withResults = {
             json<Array<TrackerDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     val login = handler(
@@ -42,7 +42,7 @@ object TrackController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val logout = handler(
@@ -53,7 +53,7 @@ object TrackController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val search = handler(
@@ -64,7 +64,7 @@ object TrackController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val bind = handler(
@@ -75,7 +75,7 @@ object TrackController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val update = handler(
@@ -86,6 +86,6 @@ object TrackController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

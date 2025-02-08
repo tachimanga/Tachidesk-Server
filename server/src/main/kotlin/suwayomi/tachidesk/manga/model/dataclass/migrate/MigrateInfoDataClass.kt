@@ -8,5 +8,5 @@ package suwayomi.tachidesk.manga.model.dataclass.migrate
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 data class MigrateInfoDataClass(
-    val existInLibraryManga: Boolean
+    val existInLibraryManga: Boolean,
 )

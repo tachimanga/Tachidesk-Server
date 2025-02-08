@@ -12,5 +12,5 @@ data class RepoDataClass(
     val type: Int,
     val name: String,
     val metaUrl: String,
-    val baseUrl: String
+    val baseUrl: String,
 )

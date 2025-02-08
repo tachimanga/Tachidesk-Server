@@ -14,5 +14,5 @@ fun buildImgDataClass(url: String, headers: Map<String, String>?): ImgDataClass 
 data class ImgDataClass(
     val url: String,
     val method: String? = "GET",
-    val headers: Map<String, String>?
+    val headers: Map<String, String>?,
 )

@@ -15,7 +15,6 @@ import eu.kanade.tachiyomi.source.sourceSupportDirect
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -33,7 +32,7 @@ suspend fun getChapterReadReady(chapterIndex: Int, mangaId: Int): ChapterDataCla
 
 private class ChapterForRead(
     private val chapterIndex: Int,
-    private val mangaId: Int
+    private val mangaId: Int,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -114,28 +113,10 @@ private class ChapterForRead(
     private fun updateDatabasePages(pageList: List<Page>) {
         val chapterId = chapterEntry[ChapterTable.id].value
 
-        transaction {
-            pageList.forEach { page ->
-                val pageEntry = transaction {
-                    PageTable.select { (PageTable.chapter eq chapterId) and (PageTable.index eq page.index) }
-                        .firstOrNull()
-                }
-                if (pageEntry == null) {
-                    PageTable.insert {
-                        it[index] = page.index
-                        it[url] = page.url
-                        it[imageUrl] = page.imageUrl
-                        it[chapter] = chapterId
-                    }
-                } else {
-                    PageTable.update({ (PageTable.chapter eq chapterId) and (PageTable.index eq page.index) }) {
-                        it[url] = page.url
-                        it[imageUrl] = page.imageUrl
-                    }
-                }
-            }
-        }
+        // save to db
+        ChapterUtil.updateDatabasePages(chapterId, pageList)
 
+        // updatePageCount
         updatePageCount(pageList, chapterId)
 
         // chapter was updated
@@ -144,7 +125,7 @@ private class ChapterForRead(
 
     private fun updatePageCount(
         pageList: List<Page>,
-        chapterId: Int
+        chapterId: Int,
     ) {
         val pageCount = pageList.count()
 

@@ -12,5 +12,5 @@ data class CategoryDataClass(
     val order: Int,
     val name: String,
     val default: Boolean,
-    val meta: Map<String, String> = emptyMap()
+    var meta: Map<String, String> = emptyMap(),
 )

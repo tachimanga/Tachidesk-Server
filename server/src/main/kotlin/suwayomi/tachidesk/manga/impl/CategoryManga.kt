@@ -11,17 +11,15 @@ import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tachiyomi.Profiler
+import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.Category.DEFAULT_CATEGORY_ID
 import suwayomi.tachidesk.manga.impl.util.lang.isEmpty
 import suwayomi.tachidesk.manga.model.dataclass.CategoryDataClass
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
-import suwayomi.tachidesk.manga.model.table.CategoryMangaTable
-import suwayomi.tachidesk.manga.model.table.CategoryTable
-import suwayomi.tachidesk.manga.model.table.ChapterTable
-import suwayomi.tachidesk.manga.model.table.MangaTable
-import suwayomi.tachidesk.manga.model.table.toDataClass
+import suwayomi.tachidesk.manga.model.table.*
 import java.time.Instant
 
 object CategoryManga {
@@ -31,6 +29,7 @@ object CategoryManga {
         fun notAlreadyInCategory() = CategoryMangaTable.select { (CategoryMangaTable.category eq categoryId) and (CategoryMangaTable.manga eq mangaId) }.isEmpty()
 
         transaction {
+            val now = System.currentTimeMillis()
             if (notAlreadyInCategory()) {
                 CategoryMangaTable.insert {
                     it[CategoryMangaTable.category] = categoryId
@@ -44,22 +43,28 @@ object CategoryManga {
                     it[MangaTable.inLibrary] = true
                     it[MangaTable.inLibraryAt] = Instant.now().epochSecond
                 }
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
             }
         }
+        Sync.setNeedsSync()
     }
 
     fun removeMangaFromCategory(mangaId: Int, categoryId: Int) {
+        val now = System.currentTimeMillis()
         transaction {
             CategoryMangaTable.deleteWhere { (CategoryMangaTable.category eq categoryId) and (CategoryMangaTable.manga eq mangaId) }
-            if (CategoryMangaTable.select { CategoryMangaTable.manga eq mangaId }.count() == 0L) {
-                MangaTable.update({ MangaTable.id eq mangaId }) {
-                    it[MangaTable.defaultCategory] = true
-                }
+            MangaTable.update({ MangaTable.id eq mangaId }) {
+                it[MangaTable.defaultCategory] = CategoryMangaTable.select { CategoryMangaTable.manga eq mangaId }.count() == 0L
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
             }
         }
+        Sync.setNeedsSync()
     }
 
     fun updateCategory(mangaId: Int, categoryIdList: List<Int>) {
+        val now = System.currentTimeMillis()
         transaction {
             CategoryMangaTable.deleteWhere { (CategoryMangaTable.manga eq mangaId) }
             categoryIdList.forEach { categoryId ->
@@ -75,8 +80,11 @@ object CategoryManga {
                     it[MangaTable.inLibrary] = true
                     it[MangaTable.inLibraryAt] = Instant.now().epochSecond
                 }
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
             }
         }
+        Sync.setNeedsSync()
     }
 
     /**
@@ -85,10 +93,10 @@ object CategoryManga {
     fun getCategoryMangaList(categoryId: Int): List<MangaDataClass> {
         // Select the required columns from the MangaTable and add the aggregate functions to compute unread, download, and chapter counts
         val unreadCount = wrapAsExpression<Int>(
-            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isRead eq false) and (ChapterTable.manga eq MangaTable.id))
+            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isRead eq false) and (ChapterTable.manga eq MangaTable.id)),
         )
         val downloadedCount = wrapAsExpression<Int>(
-            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isDownloaded eq true) and (ChapterTable.manga eq MangaTable.id))
+            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isDownloaded eq true) and (ChapterTable.manga eq MangaTable.id)),
         )
 
         val chapterCount = ChapterTable.id.count().alias("chapter_count")
@@ -159,6 +167,7 @@ object CategoryManga {
 
     private fun fillChapterInfo(mangaList: List<MangaDataClass>) {
         val mangaIds = mangaList.map { it.id }
+        val unreadCountMap = unreadCountMapWithScanlator(mangaIds)
 
         val unreadCount = Expression.build {
             val caseExpr = case()
@@ -186,15 +195,16 @@ object CategoryManga {
                 chapterCount,
                 lastReadAt,
                 latestChapterFetchAt,
-                latestChapterUploadAt
+                latestChapterUploadAt,
             )
                 .select { ChapterTable.manga inList mangaIds }
                 .groupBy(ChapterTable.manga)
                 .forEach {
-                    val dataClass = mangaMap[it[ChapterTable.manga].value]
+                    val mangaId = it[ChapterTable.manga].value
+                    val dataClass = mangaMap[mangaId]
                     if (dataClass != null) {
                         dataClass.lastReadAt = it[lastReadAt]
-                        dataClass.unreadCount = it[unreadCount]?.toLong()
+                        dataClass.unreadCount = unreadCountMap?.get(mangaId) ?: it[unreadCount]?.toLong()
                         dataClass.downloadCount = it[downloadedCount]?.toLong()
                         dataClass.chapterCount = it[chapterCount]
                         dataClass.latestChapterFetchAt = it[latestChapterFetchAt]
@@ -202,6 +212,24 @@ object CategoryManga {
                     }
                 }
         }
+    }
+
+    private fun unreadCountMapWithScanlator(mangaIds: List<Int>): Map<Int, Long>? {
+        val list = MangaMeta.batchQueryMangaScanlator(mangaIds)
+        if (list.isEmpty()) {
+            return null
+        }
+        val map = mutableMapOf<Int, Long>()
+        transaction {
+            for (pair in list) {
+                val mangaId = pair.first
+                val unreadCount = ChapterTable
+                    .select { (ChapterTable.manga eq mangaId) and (ChapterTable.scanlator inList pair.second) and (ChapterTable.isRead eq false) }
+                    .count()
+                map[mangaId] = unreadCount
+            }
+        }
+        return map
     }
 
     /**
@@ -222,6 +250,6 @@ object CategoryManga {
 
     @Serializable
     data class MangaCategoryUpdateInput(
-        val categoryIdList: List<Int>? = null
+        val categoryIdList: List<Int>? = null,
     )
 }

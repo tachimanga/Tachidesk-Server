@@ -53,7 +53,7 @@ object GetCatalogueSource {
         "CloudflareInterceptor",
         "RateLimitInterceptor",
         "SpecificHostRateLimitInterceptor",
-        "EnableNativeNetInterceptor"
+        "EnableNativeNetInterceptor",
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -131,7 +131,7 @@ object GetCatalogueSource {
             meta.simpleClient = true
             println(
                 "SourceMeta:" + source.name +
-                    ", simpleClient:" + meta.simpleClient
+                    ", simpleClient:" + meta.simpleClient,
             )
         } else {
             val sCookie = client.cookieJar == network.cookieManager
@@ -155,7 +155,7 @@ object GetCatalogueSource {
                     ", sCookie:" + sCookie +
                     ", sRedirects:" + sRedirects +
                     ", sInterceptors:" + sInterceptors +
-                    ", sAuth:" + sAuth
+                    ", sAuth:" + sAuth,
             )
         }
 
@@ -171,7 +171,7 @@ object GetCatalogueSource {
         }
         println(
             "SourceMeta:" + source.name +
-                ", simpleRequest:" + meta.simpleRequest
+                ", simpleRequest:" + meta.simpleRequest,
         )
 
         if (!meta.simpleRequest) {
@@ -192,7 +192,7 @@ object GetCatalogueSource {
 
         println(
             "SourceMeta:" + source.name +
-                ", headers:" + meta.headers
+                ", headers:" + meta.headers,
         )
     }
 

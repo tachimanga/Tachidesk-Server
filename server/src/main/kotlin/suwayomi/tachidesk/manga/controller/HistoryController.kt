@@ -31,7 +31,7 @@ object HistoryController {
         },
         withResults = {
             json<Array<MangaDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     val batchDelete = handler(
@@ -41,7 +41,7 @@ object HistoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val clear = handler(
@@ -51,6 +51,6 @@ object HistoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

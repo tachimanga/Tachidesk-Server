@@ -59,7 +59,7 @@ object BytecodeEditor {
                     bytes[0],
                     bytes[1],
                     bytes[2],
-                    bytes[3]
+                    bytes[3],
                 )
                 if (cafebabe.lowercase() != "cafebabe") {
                     // Corrupted class
@@ -85,7 +85,7 @@ object BytecodeEditor {
      * List of classes that will be replaced
      */
     private val classesToReplace = listOf(
-        "java/text/SimpleDateFormat"
+        "java/text/SimpleDateFormat",
     )
 
     /**
@@ -141,7 +141,7 @@ object BytecodeEditor {
                     name: String?,
                     desc: String?,
                     signature: String?,
-                    cst: Any?
+                    cst: Any?,
                 ): FieldVisitor? {
                     logger.trace { "CLass Field" to "${desc.replaceIndirectly()}: ${cst?.let { it::class.java.simpleName }}: $cst" }
                     return super.visitField(access, name, desc.replaceIndirectly(), signature, cst)
@@ -153,7 +153,7 @@ object BytecodeEditor {
                     name: String?,
                     signature: String?,
                     superName: String?,
-                    interfaces: Array<out String>?
+                    interfaces: Array<out String>?,
                 ) {
                     logger.trace { "Visiting $name: $signature: $superName" }
                     super.visit(version, access, name, signature, superName, interfaces)
@@ -170,7 +170,7 @@ object BytecodeEditor {
                     name: String,
                     desc: String,
                     signature: String?,
-                    exceptions: Array<String?>?
+                    exceptions: Array<String?>?,
                 ): MethodVisitor {
                     logger.trace { "Processing method $name: ${desc.replaceIndirectly()}: $signature" }
                     val mv: MethodVisitor? = super.visitMethod(
@@ -178,7 +178,7 @@ object BytecodeEditor {
                         name,
                         desc.replaceIndirectly(),
                         signature,
-                        exceptions
+                        exceptions,
                     )
                     return object : MethodVisitor(Opcodes.ASM5, mv) {
                         override fun visitLdcInsn(cst: Any?) {
@@ -197,7 +197,7 @@ object BytecodeEditor {
                             }
                             super.visitTypeInsn(
                                 opcode,
-                                type.replaceDirectly()
+                                type.replaceDirectly(),
                             )
                         }
 
@@ -210,7 +210,7 @@ object BytecodeEditor {
                             owner: String?,
                             name: String?,
                             desc: String?,
-                            itf: Boolean
+                            itf: Boolean,
                         ) {
                             logger.trace {
                                 "Method" to "$opcode: ${owner.replaceDirectly()}: $name: ${desc.replaceIndirectly()}"
@@ -220,7 +220,7 @@ object BytecodeEditor {
                                 owner.replaceDirectly(),
                                 name,
                                 desc.replaceIndirectly(),
-                                itf
+                                itf,
                             )
                         }
 
@@ -233,7 +233,7 @@ object BytecodeEditor {
                             opcode: Int,
                             owner: String?,
                             name: String?,
-                            desc: String?
+                            desc: String?,
                         ) {
                             logger.trace { "Field" to "$opcode: $owner: $name: ${desc.replaceIndirectly()}" }
                             super.visitFieldInsn(opcode, owner, name, desc.replaceIndirectly())
@@ -243,7 +243,7 @@ object BytecodeEditor {
                             name: String?,
                             desc: String?,
                             bsm: Handle?,
-                            vararg bsmArgs: Any?
+                            vararg bsmArgs: Any?,
                         ) {
                             logger.trace { "InvokeDynamic" to "$name: $desc" }
                             super.visitInvokeDynamicInsn(name, desc, bsm, *bsmArgs)
@@ -251,7 +251,7 @@ object BytecodeEditor {
                     }
                 }
             },
-            0
+            0,
         )
         return pair.first to cw.toByteArray()
     }

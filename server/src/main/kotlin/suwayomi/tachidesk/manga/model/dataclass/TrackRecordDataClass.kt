@@ -21,5 +21,5 @@ data class TrackRecordDataClass(
     var scoreString: String? = null,
     val remoteUrl: String,
     val startDate: Long,
-    val finishDate: Long
+    val finishDate: Long,
 )

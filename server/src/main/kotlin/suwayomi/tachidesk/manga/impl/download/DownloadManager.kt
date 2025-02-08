@@ -67,7 +67,7 @@ object DownloadManager {
     fun notifyClient(ctx: WsContext) {
         logger.info { "DownloadManager notifyClient " }
         ctx.send(
-            getStatus()
+            getStatus(),
         )
     }
 
@@ -82,7 +82,7 @@ object DownloadManager {
                         |    - STATUS
                         |       sends the current download status
                         |
-                """.trimMargin()
+                """.trimMargin(),
             )
         }
     }
@@ -92,7 +92,11 @@ object DownloadManager {
     init {
         scope.launch {
             notifyFlow.sample(1.seconds).collect {
-                sendStatusToAllClients()
+                try {
+                    sendStatusToAllClients()
+                } catch (e: Exception) {
+                    logger.error(e) { "sendStatusToAllClients error" }
+                }
             }
         }
     }
@@ -123,7 +127,7 @@ object DownloadManager {
                 "Started"
             },
             downloadQueue.toList(),
-            finishCount
+            finishCount,
         )
     }
 
@@ -131,24 +135,32 @@ object DownloadManager {
     init {
         scope.launch {
             downloaderWatch.sample(1.seconds).collect {
-                val runningDownloaders = downloaders.values.filter { it.isActive }
-                logger.info { "Running: ${runningDownloaders.size}" }
-                if (runningDownloaders.size < MAX_SOURCES_IN_PARALLEL) {
-                    downloadQueue.asSequence()
-                        .filter { it.state == DownloadState.Queued || (it.state == DownloadState.Error && it.tries < 3) }
-                        .map { it.manga.sourceId.toLong() }
-                        .distinct()
-                        .minus(
-                            runningDownloaders.map { it.sourceId }.toSet()
-                        )
-                        .take(MAX_SOURCES_IN_PARALLEL - runningDownloaders.size)
-                        .map { getDownloader(it) }
-                        .forEach {
-                            it.start(taskInParallel)
-                        }
-                    notifyAllClients()
+                try {
+                    addDownloaderIfNeeded()
+                } catch (e: Exception) {
+                    logger.error(e) { "addDownloaderIfNeeded error" }
                 }
             }
+        }
+    }
+
+    private fun addDownloaderIfNeeded() {
+        val runningDownloaders = downloaders.values.filter { it.isActive }
+        logger.info { "Running: ${runningDownloaders.size}" }
+        if (runningDownloaders.size < MAX_SOURCES_IN_PARALLEL) {
+            downloadQueue.asSequence()
+                .filter { it.state == DownloadState.Queued || (it.state == DownloadState.Error && it.tries < 3) }
+                .map { it.manga.sourceId.toLong() }
+                .distinct()
+                .minus(
+                    runningDownloaders.map { it.sourceId }.toSet(),
+                )
+                .take(MAX_SOURCES_IN_PARALLEL - runningDownloaders.size)
+                .map { getDownloader(it) }
+                .forEach {
+                    it.start(taskInParallel)
+                }
+            notifyAllClients()
         }
     }
 
@@ -180,7 +192,7 @@ object DownloadManager {
             downloadQueue = downloadQueue,
             notifier = ::notifyAllClients,
             onComplete = ::refreshDownloaders,
-            onDownloadFinish = ::onDownloadFinish
+            onDownloadFinish = ::onDownloadFinish,
         )
     }
 
@@ -202,7 +214,7 @@ object DownloadManager {
     // Input might have additional formats in the future, such as "All for mangaID" or "Unread for categoryID"
     // Having this input format is just future-proofing
     data class EnqueueInput(
-        val chapterIds: List<Int>?
+        val chapterIds: List<Int>?,
     )
 
     fun enqueue(input: EnqueueInput) {
@@ -225,7 +237,7 @@ object DownloadManager {
                 Pair(
                     // this should be safe because mangas is created above from chapters
                     mangas[it[ChapterTable.manga].value]!!,
-                    ChapterTable.toDataClass(it)
+                    ChapterTable.toDataClass(it),
                 )
             }
         }
@@ -263,7 +275,7 @@ object DownloadManager {
                 chapter.index,
                 manga.id,
                 chapter,
-                manga
+                manga,
             )
             downloadQueue.add(downloadChapter)
             logger.debug { "Added chapter ${chapter.id} to download queue (${manga.title} | ${chapter.name})" }
@@ -313,7 +325,7 @@ object DownloadManager {
     fun getQueueStatus(): Pair<Int, Int> {
         return Pair(
             downloadQueue.count { i -> i.state == Finished || i.state == DownloadState.Error } + finishCount,
-            downloadQueue.size + finishCount
+            downloadQueue.size + finishCount,
         )
     }
 }
@@ -321,5 +333,5 @@ object DownloadManager {
 enum class DownloaderState(val state: Int) {
     Stopped(0),
     Running(1),
-    Paused(2)
+    Paused(2),
 }

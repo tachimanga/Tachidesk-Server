@@ -11,7 +11,7 @@ data class OnlineExtensionSource(
     val name: String,
     val lang: String,
     val id: Long,
-    val baseUrl: String
+    val baseUrl: String,
 )
 
 data class OnlineExtension(
@@ -27,5 +27,5 @@ data class OnlineExtension(
     val sources: List<OnlineExtensionSource>,
     val iconUrl: String,
     val repoId: Int?,
-    val repoName: String?
+    val repoName: String?,
 )

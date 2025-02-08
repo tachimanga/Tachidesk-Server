@@ -14,5 +14,5 @@ data class MangaTrackerDataClass(
     val statusList: List<Int>,
     val statusTextMap: Map<Int, String>,
     val scoreList: List<String>,
-    val record: TrackRecordDataClass?
+    val record: TrackRecordDataClass?,
 )

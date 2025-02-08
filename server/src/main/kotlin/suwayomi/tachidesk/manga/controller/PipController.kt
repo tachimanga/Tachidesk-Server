@@ -16,6 +16,6 @@ object PipController {
         behaviorOf = { ctx ->
             ctx.json(PipStatus.getPipStatus())
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 }

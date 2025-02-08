@@ -36,13 +36,12 @@ object ExtensionsList {
     val updateMap = ConcurrentHashMap<Int, OnlineExtension>()
     var cachedOnlineExtensionList: List<OnlineExtension> = listOf()
 
-    suspend fun getExtensionList(initBaseUrl: String): List<ExtensionDataClass> {
+    suspend fun getExtensionList(): List<ExtensionDataClass> {
         // update if 60 seconds has passed or requested offline and database is empty
         if (lastUpdateCheck + 60.seconds.inWholeMilliseconds < System.currentTimeMillis()) {
             logger.debug("Getting extensions list from the internet")
             lastUpdateCheck = System.currentTimeMillis()
 
-            migrateExistRepoUrl(initBaseUrl)
             fetchAndUpdateAllExtensions()
         } else {
             logger.debug("used cached extension list")
@@ -85,7 +84,7 @@ object ExtensionsList {
         }
     }
 
-    private suspend fun fetchAndUpdateAllExtensions(): List<OnlineExtension> {
+    suspend fun fetchAndUpdateAllExtensions(): List<OnlineExtension> {
         val repoList = transaction {
             RepoTable.select { RepoTable.deleted eq false }.map {
                 RepoTable.toDataClass(it)
@@ -150,7 +149,7 @@ object ExtensionsList {
                     it[ExtensionTable.isObsolete],
                     it[ExtensionTable.id].value,
                     repo?.id ?: 0,
-                    repo?.name ?: ""
+                    repo?.name ?: "",
                 )
             }
     }

@@ -8,6 +8,13 @@ package suwayomi.tachidesk.manga.controller
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import io.javalin.http.HttpCode
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import mu.KotlinLogging
+import org.kodein.di.DI
+import org.kodein.di.conf.global
+import org.kodein.di.instance
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Category
 import suwayomi.tachidesk.manga.impl.CategoryManga
@@ -19,6 +26,9 @@ import suwayomi.tachidesk.server.util.pathParam
 import suwayomi.tachidesk.server.util.withOperation
 
 object CategoryController {
+    private val json by DI.global.instance<Json>()
+    private val logger = KotlinLogging.logger {}
+
     /** category list */
     val categoryList = handler(
         documentWith = {
@@ -32,7 +42,7 @@ object CategoryController {
         },
         withResults = {
             json<Array<CategoryDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     /** category create */
@@ -50,7 +60,7 @@ object CategoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** category modification */
@@ -70,7 +80,7 @@ object CategoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** category delete */
@@ -88,7 +98,7 @@ object CategoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** returns the manga list associated with a category */
@@ -107,7 +117,7 @@ object CategoryController {
         },
         withResults = {
             json<Array<MangaDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     /** category re-ordering */
@@ -126,27 +136,29 @@ object CategoryController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** used to modify a category's meta parameters */
     val meta = handler(
         pathParam<Int>("categoryId"),
-        formParam<String>("key"),
-        formParam<String>("value"),
         documentWith = {
-            withOperation {
-                summary("Add meta data to category")
-                description("A simple Key-Value storage in the manga object, you can set values for whatever you want inside it.")
-            }
         },
-        behaviorOf = { ctx, categoryId, key, value ->
-            Category.modifyMeta(categoryId, key, value)
+        behaviorOf = { ctx, categoryId ->
+            val input = json.decodeFromString<CategoryMetaUpdate>(ctx.body())
+            logger.info { "update category meta: id=$categoryId input:$input" }
+            Category.modifyMeta(categoryId, input.key, input.value)
             ctx.status(200)
         },
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
+    )
+
+    @Serializable
+    data class CategoryMetaUpdate(
+        val key: String,
+        val value: String? = null,
     )
 }

@@ -16,7 +16,6 @@ import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
-import suwayomi.tachidesk.manga.impl.Manga
 import suwayomi.tachidesk.server.ApplicationDirs
 import suwayomi.tachidesk.server.ServerConfig
 
@@ -39,7 +38,7 @@ object DBManager {
                 useNestedTransactions = false
                 sqlLogger = StdOutSqlLogger
                 // warnLongQueriesDuration = 1 //<logger name="Exposed" level="INFO"/>
-            }
+            },
         )
     }
 }
@@ -55,13 +54,6 @@ fun databaseUp(db: Database = DBManager.db) {
     val migrations = loadMigrationsFrom("suwayomi.tachidesk.server.database.migration", ServerConfig::class.java)
     // val migrations = arrayListOf<Migration>(M0001_Initial())
     runMigrations(migrations)
-
-    // migrate manga cover
-    try {
-        Manga.migrateMangaCoverCacheIfNeeded()
-    } catch (e: Throwable) {
-        logger.error(e) { "migrateMangaCoverCacheIfNeeded error" }
-    }
 }
 
 fun databaseUpFast(db: Database = DBManager.db) {

@@ -25,6 +25,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.extension.github.ExtensionGithubApi
 import suwayomi.tachidesk.manga.impl.util.PackageTools
 import suwayomi.tachidesk.manga.impl.util.PackageTools.EXTENSION_FEATURE
@@ -56,7 +57,7 @@ object Extension {
     private val logger = KotlinLogging.logger {}
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
 
-    suspend fun installExtension(extensionId: Int): Int {
+    suspend fun installExtension(extensionId: Int, markDirty: Boolean = true): Int {
         logger.debug("Installing $extensionId")
         val extensionRecord = transaction {
             ExtensionTable.select { ExtensionTable.id eq extensionId }.first()
@@ -70,7 +71,7 @@ object Extension {
         }
         val repoRecord = transaction { RepoTable.select { RepoTable.id eq extensionRecord[ExtensionTable.repoId] }.first() }
         val repo = RepoTable.toDataClass(repoRecord)
-        return installAPK(extensionId) {
+        return installAPK(extensionId, markDirty = markDirty) {
             val apkURL = ExtensionGithubApi.getApkUrl(repo, extApkName)
             val apkName = Uri.parse(apkURL).lastPathSegment!!
             val apkSavePath = "${applicationDirs.extensionsRoot}/$apkName"
@@ -97,7 +98,7 @@ object Extension {
         }
     }
 
-    suspend fun preCopyExtension(apkName: String): String {
+    private fun preCopyExtension(apkName: String): String {
         val apkSavePath = "${applicationDirs.extensionsRoot}/$apkName"
         try {
             val apkFile = File(apkSavePath)
@@ -111,8 +112,10 @@ object Extension {
         } catch (e: Exception) {
             logger.error("Exception while copying apk", e)
         }
+        return apkSavePath
+    }
 
-        // copy icon
+    fun preCopyExtensionIcon(apkName: String) {
         try {
             val iconFile = File("${applicationDirs.extensionsRoot}/icon/$apkName.png")
             if (!iconFile.exists()) {
@@ -125,20 +128,19 @@ object Extension {
         } catch (e: Exception) {
             logger.error("Exception while copying icon", e)
         }
-        return apkSavePath
     }
 
     // apkName tachiyomi-all.komga-v1.4.47.apk
     // pkgName eu.kanade.tachiyomi.extension.all.komga
-    suspend fun preInstallExtension(apkName: String): Int {
+    private suspend fun preInstallExtension(apkName: String): Int {
         logger.debug("preInstallExtension $apkName")
-        return installAPK(null) {
+        return installAPK(null, markDirty = false) {
             // copy apk
             preCopyExtension(apkName)
         }
     }
 
-    suspend fun installAPK(extensionId: Int?, fetcher: suspend () -> String): Int {
+    suspend fun installAPK(extensionId: Int?, markDirty: Boolean = true, fetcher: suspend () -> String): Int {
         val apkFilePath = fetcher()
         val apkName = File(apkFilePath).name
 
@@ -163,7 +165,7 @@ object Extension {
             if (libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
                 throw Exception(
                     "Lib version is $libVersion, while only versions " +
-                        "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed"
+                        "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed",
                 )
             }
 
@@ -213,6 +215,8 @@ object Extension {
 
             val extensionName = packageInfo.applicationInfo.nonLocalizedLabel.toString().substringAfter("Tachiyomi: ")
 
+            val now = System.currentTimeMillis()
+            var setNeedSync = false
             // update extension info
             transaction {
                 val dbExtensionId = if (extensionId != null) {
@@ -222,6 +226,7 @@ object Extension {
                     if (record != null) {
                         record[ExtensionTable.id].value
                     } else {
+                        // local extension
                         ExtensionTable.insertAndGetId {
                             it[this.apkName] = apkName
                             it[name] = extensionName
@@ -240,6 +245,11 @@ object Extension {
                     it[this.isInstalled] = true
                     it[this.classFQName] = className
                     it[this.pkgFactory] = pkgFactory
+                    it[ExtensionTable.updateAt] = now
+                    if (markDirty) {
+                        it[ExtensionTable.dirty] = true
+                        setNeedSync = true
+                    }
                 }
 
                 sources.forEach { httpSource ->
@@ -254,6 +264,9 @@ object Extension {
                     }
                     logger.debug { "Installed source ${httpSource.name} (${httpSource.lang}) with id:${httpSource.id}" }
                 }
+            }
+            if (setNeedSync) {
+                Sync.setNeedsSync()
             }
             return 201 // we installed successfully
         } else {
@@ -336,8 +349,10 @@ object Extension {
         }
     }
 
-    fun uninstallExtensionById(extensionId: Int, removePref: Boolean = false) {
+    fun uninstallExtensionById(extensionId: Int, removePref: Boolean = false, markDirty: Boolean = true) {
         logger.debug("Uninstalling $extensionId")
+
+        var setNeedSync = false
 
         val extensionRecord = transaction { ExtensionTable.select { ExtensionTable.id eq extensionId }.first() }
         logger.debug("Uninstalling ${extensionRecord[ExtensionTable.pkgName]}")
@@ -353,6 +368,11 @@ object Extension {
             } else {
                 ExtensionTable.update({ ExtensionTable.id eq extensionId }) {
                     it[isInstalled] = false
+                    it[ExtensionTable.updateAt] = System.currentTimeMillis()
+                    if (markDirty) {
+                        it[ExtensionTable.dirty] = true
+                        setNeedSync = true
+                    }
                 }
             }
 
@@ -373,6 +393,10 @@ object Extension {
             }
 
             File(jarPath).delete()
+        }
+
+        if (setNeedSync) {
+            Sync.setNeedsSync()
         }
     }
 
@@ -407,12 +431,12 @@ object Extension {
         if (cachedFile != null) {
             return Pair(
                 ImageResponse.pathToInputStream(cachedFile),
-                "image/jpeg"
+                "image/jpeg",
             )
         }
         return ImageResponse.buildImageResponse {
             network.client.newCall(
-                GET(iconUrl)
+                GET(iconUrl),
             ).await()
         }
     }

@@ -19,7 +19,7 @@ fun sourceSupportDirect(meta: SourceMeta?): Boolean {
 data class SourceMeta(
     var simpleClient: Boolean = false,
     var simpleRequest: Boolean = false,
-    var headers: Map<String, String> = Collections.emptyMap()
+    var headers: Map<String, String> = Collections.emptyMap(),
 )
 
 class SourceSetting {

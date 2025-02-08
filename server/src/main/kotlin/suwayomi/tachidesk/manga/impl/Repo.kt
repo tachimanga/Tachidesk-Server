@@ -12,6 +12,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.extension.ExtensionsList
 import suwayomi.tachidesk.manga.impl.extension.github.ExtensionGithubApi
 import suwayomi.tachidesk.manga.impl.extension.github.OnlineExtension
@@ -45,6 +46,7 @@ object Repo {
                     it[RepoTable.baseUrl] = repo.baseUrl
                     it[RepoTable.createAt] = ts
                     it[RepoTable.updateAt] = ts
+                    it[RepoTable.dirty] = true
                 }
                 repo.id = repoId.value
             } else {
@@ -54,10 +56,12 @@ object Repo {
                     it[RepoTable.baseUrl] = repo.baseUrl
                     it[RepoTable.deleted] = false
                     it[RepoTable.updateAt] = ts
+                    it[RepoTable.dirty] = true
                 }
             }
         }
         ExtensionsList.resetLastUpdateCheck()
+        Sync.setNeedsSync()
         return repo
     }
 
@@ -76,10 +80,12 @@ object Repo {
                     it[RepoTable.metaUrl] = update.metaUrl
                     it[RepoTable.baseUrl] = update.baseUrl
                     it[RepoTable.updateAt] = ts
+                    it[RepoTable.dirty] = true
                 }
             }
         }
         ExtensionsList.resetLastUpdateCheck()
+        Sync.setNeedsSync()
     }
 
     fun removeRepo(repoId: Int) {
@@ -88,6 +94,7 @@ object Repo {
             RepoTable.update({ RepoTable.id eq repoId }) {
                 it[RepoTable.deleted] = true
                 it[RepoTable.updateAt] = ts
+                it[RepoTable.dirty] = true
             }
             ExtensionTable.deleteWhere { (ExtensionTable.repoId eq repoId) and (ExtensionTable.isInstalled eq false) }
             ExtensionTable.update({ (ExtensionTable.repoId eq repoId) and (ExtensionTable.isInstalled eq true) }) {
@@ -95,6 +102,7 @@ object Repo {
             }
         }
         ExtensionsList.resetLastUpdateCheck()
+        Sync.setNeedsSync()
     }
 
     private fun buildRepoDataClass(repoName: String?, metaUrl: String?): RepoDataClass {
@@ -115,19 +123,19 @@ object Repo {
             0,
             name,
             meta,
-            baseUrl
+            baseUrl,
         )
     }
 
     @Serializable
     data class RepoCreate(
         val repoName: String? = null,
-        val metaUrl: String? = null
+        val metaUrl: String? = null,
     )
 
     @Serializable
     data class RepoUpdateByMetaUrl(
         val metaUrl: String? = null,
-        val targetMetaUrl: String? = null
+        val targetMetaUrl: String? = null,
     )
 }

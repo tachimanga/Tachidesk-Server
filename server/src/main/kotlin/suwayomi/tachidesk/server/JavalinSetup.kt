@@ -23,6 +23,7 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import suwayomi.tachidesk.cloud.CloudAPI
 import suwayomi.tachidesk.global.GlobalAPI
 import suwayomi.tachidesk.manga.MangaAPI
 import suwayomi.tachidesk.server.util.Browser
@@ -101,7 +102,7 @@ object JavalinSetup {
         Runtime.getRuntime().addShutdownHook(
             thread(start = false) {
                 app.stop()
-            }
+            },
         )
 
         app.exception(NullPointerException::class.java) { e, ctx ->
@@ -144,6 +145,7 @@ object JavalinSetup {
             path("api/v1/") {
                 GlobalAPI.defineEndpoints()
                 MangaAPI.defineEndpoints()
+                CloudAPI.defineEndpoints()
             }
         }
 
@@ -158,7 +160,7 @@ object JavalinSetup {
             val t = it.attribute<Long>("ATTR_INVOKE_RT") ?: 0
             println(
                 "Profiler: <-- out ${it.req.requestURI}, cost ${(System.currentTimeMillis() - t)}ms, " +
-                    "code:${it.res.status}, type:${it.res.getHeader("Content-Type")}, res:${it.res}"
+                    "code:${it.res.status}, type:${it.res.getHeader("Content-Type")}, res:${it.res}",
             )
         }
     }

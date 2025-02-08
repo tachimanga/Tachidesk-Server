@@ -39,7 +39,7 @@ object SettingsController {
         },
         withResults = {
             json<AboutDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /** check for app updates */
@@ -52,12 +52,12 @@ object SettingsController {
         },
         behaviorOf = { ctx ->
             ctx.future(
-                future { AppUpdate.checkUpdate() }
+                future { AppUpdate.checkUpdate() },
             )
         },
         withResults = {
             json<Array<UpdateDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     private val json by DI.global.instance<Json>()
@@ -72,7 +72,7 @@ object SettingsController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val clearCookies = handler(
@@ -81,7 +81,7 @@ object SettingsController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val uploadUserAgent = handler(
@@ -95,7 +95,7 @@ object SettingsController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val systemInfo = handler(
@@ -109,6 +109,6 @@ object SettingsController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

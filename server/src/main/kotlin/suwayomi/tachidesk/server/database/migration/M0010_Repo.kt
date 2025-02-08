@@ -33,7 +33,7 @@ class M0010_Repo : AddTableMigration() {
         get() {
             val repoTable = RepoTable()
             return arrayOf(
-                repoTable
+                repoTable,
             )
         }
 }

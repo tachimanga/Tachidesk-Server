@@ -30,7 +30,7 @@ class EnableNativeNetInterceptor : Interceptor {
         "ConnectInterceptor",
         "CallServerInterceptor",
         "RateLimitInterceptor",
-        "SpecificHostRateLimitInterceptor"
+        "SpecificHostRateLimitInterceptor",
     )
     override fun intercept(chain: Interceptor.Chain): Response {
         val enable = supportNativeNet(chain)
@@ -87,6 +87,6 @@ class EnableNativeNetInterceptor : Interceptor {
     }
 
     companion object {
-        var ENABLE_NATIVE_NET: Boolean? = null
+        var ENABLE_NATIVE_NET: Boolean? = true
     }
 }

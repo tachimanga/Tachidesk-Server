@@ -45,14 +45,14 @@ object SourceController {
         },
         withResults = {
             json<Array<SourceDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     val listForSearch = handler(
         behaviorOf = { ctx ->
             ctx.json(Source.getListForSearch())
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     /** fetch source with id `sourceId` */
@@ -70,7 +70,7 @@ object SourceController {
         withResults = {
             json<SourceDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** popular mangas from source with id `sourceId` */
@@ -90,12 +90,12 @@ object SourceController {
                     val r = MangaList.getMangaList(sourceId, pageNum, popular = true)
                     Profiler.all()
                     r
-                }
+                },
             )
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /** latest mangas from source with id `sourceId` */
@@ -112,12 +112,12 @@ object SourceController {
             ctx.future(
                 future {
                     MangaList.getMangaList(sourceId, pageNum, popular = false)
-                }
+                },
             )
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /** fetch preferences of source with id `sourceId` */
@@ -134,7 +134,7 @@ object SourceController {
         },
         withResults = {
             json<Array<Source.PreferenceObject>>(HttpCode.OK)
-        }
+        },
     )
 
     /** set one preference of source with id `sourceId` */
@@ -153,7 +153,7 @@ object SourceController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** fetch filters of source with id `sourceId` */
@@ -171,7 +171,7 @@ object SourceController {
         },
         withResults = {
             json<Array<Search.FilterObject>>(HttpCode.OK)
-        }
+        },
     )
 
     private val json by DI.global.instance<Json>()
@@ -198,7 +198,7 @@ object SourceController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** single source search */
@@ -217,7 +217,7 @@ object SourceController {
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /** quick search single source filter */
@@ -239,7 +239,7 @@ object SourceController {
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /** all source search */
@@ -251,11 +251,12 @@ object SourceController {
                 description("All source search")
             }
         },
-        behaviorOf = { ctx, searchTerm -> // TODO
+        behaviorOf = { ctx, searchTerm ->
+            // TODO
             ctx.json(Search.sourceGlobalSearch(searchTerm))
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

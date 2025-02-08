@@ -46,5 +46,5 @@ data class ChapterDataClass(
     var pageCount: Int = -1,
 
     /** pageData **/
-    var pageData: Map<Int, ImgDataClass>? = null
+    var pageData: Map<Int, ImgDataClass>? = null,
 )

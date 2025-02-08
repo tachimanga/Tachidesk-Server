@@ -3,6 +3,7 @@
 .idea
 gradle.properties
 .fleet
+.kotlin
 # But we need these
 !.idea/runConfigurations
 

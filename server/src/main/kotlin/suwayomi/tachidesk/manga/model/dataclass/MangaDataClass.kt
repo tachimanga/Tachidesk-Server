@@ -47,19 +47,21 @@ data class MangaDataClass(
     var chapterCount: Long? = null,
     var lastReadAt: Long? = null,
     var lastChapterRead: ChapterDataClass? = null,
+    var lastChapterReadName: String? = null,
     // MAX(ChapterTable.fetchedAt)
     var latestChapterFetchAt: Long? = null,
     var latestChapterUploadAt: Long? = null,
+    var readDuration: Int? = null,
 
     val trackers: List<MangaTrackerDataClass>? = null,
 
     val age: Long? = if (lastFetchedAt == null) 0 else Instant.now().epochSecond.minus(lastFetchedAt),
-    val chaptersAge: Long? = if (chaptersLastFetchedAt == null) null else Instant.now().epochSecond.minus(chaptersLastFetchedAt)
+    val chaptersAge: Long? = if (chaptersLastFetchedAt == null) null else Instant.now().epochSecond.minus(chaptersLastFetchedAt),
 )
 
 data class PagedMangaListDataClass(
     val mangaList: List<MangaDataClass>,
-    val hasNextPage: Boolean
+    val hasNextPage: Boolean,
 )
 
 internal fun String?.toGenreList() = this?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()

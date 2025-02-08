@@ -65,7 +65,7 @@ object Source {
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
                 it[SourceTable.isNsfw],
-                catalogueSource.toString()
+                catalogueSource.toString(),
             )
         }
     }
@@ -105,7 +105,7 @@ object Source {
                 catalogueSource is ConfigurableSource,
                 source[SourceTable.isNsfw],
                 catalogueSource.toString(),
-                direct = direct
+                direct = direct,
             )
         }
     }
@@ -128,7 +128,7 @@ object Source {
             buildSourceDataClass(
                 it,
                 extensionMap[it[SourceTable.extension].value],
-                catalogueSourceMap[it[SourceTable.id].value]
+                catalogueSourceMap[it[SourceTable.id].value],
             )
         }
     }
@@ -150,7 +150,7 @@ object Source {
             catalogueSource.supportsLatest,
             catalogueSource is ConfigurableSource,
             source[SourceTable.isNsfw],
-            catalogueSource.toString()
+            catalogueSource.toString(),
         )
     }
 
@@ -182,7 +182,7 @@ object Source {
                 isConfigurable = true,
                 isNsfw = false,
                 displayName = onlineSource.name,
-                installed = false
+                installed = false,
             )
         }
     }
@@ -210,7 +210,7 @@ object Source {
      */
     data class PreferenceObject(
         val type: String,
-        val props: Any
+        val props: Any,
     )
 
     private val preferenceScreenMap: MutableMap<Long, PreferenceScreen> = mutableMapOf()
@@ -241,7 +241,7 @@ object Source {
 
     data class SourcePreferenceChange(
         val position: Int,
-        val value: String
+        val value: String,
     )
 
     private val jsonMapper by DI.global.instance<JsonMapper>()

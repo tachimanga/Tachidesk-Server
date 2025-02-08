@@ -11,11 +11,44 @@ import eu.kanade.tachiyomi.source.model.Page
 import mu.KotlinLogging
 import okhttp3.internal.trimSubstring
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
+import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.model.table.ChapterTable
+import suwayomi.tachidesk.manga.model.table.PageTable
+import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 
 object ChapterUtil {
     private val logger = KotlinLogging.logger {}
+
+    fun updateDatabasePages(chapterId: Int, pageList: List<Page>) {
+        if (pageList.isEmpty()) {
+            logger.warn { "updateDatabasePages pageList is empty" }
+            return
+        }
+        transaction {
+            PageTable.deleteWhere { PageTable.chapter eq chapterId }
+
+            val myBatchInsertStatement = MyBatchInsertStatement(PageTable)
+            pageList.forEach { page ->
+                val my = myBatchInsertStatement
+                my.addBatch()
+
+                my[PageTable.index] = page.index
+                my[PageTable.url] = page.url
+                my[PageTable.imageUrl] = page.imageUrl
+                my[PageTable.chapter] = chapterId
+            }
+
+            val sql = myBatchInsertStatement.prepareSQL(this)
+            val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
+            val statement = conn.createStatement()
+            statement.execute(sql)
+        }
+    }
 
     fun preprocessPageList(pageList: List<Page>): List<Page> {
         val list = pageList.filter {

@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
  * slightly between releases. If you need a stable logging format, use your own event listener.
  */
 class McLoggingEventListener private constructor(
-    private val logger: HttpLoggingInterceptor.Logger
+    private val logger: HttpLoggingInterceptor.Logger,
 ) : EventListener() {
     private var startNs: Long = 0
     private var threadName: String = ""
@@ -68,7 +68,7 @@ class McLoggingEventListener private constructor(
         call: Call,
         inetSocketAddress: InetSocketAddress,
         proxy: Proxy,
-        protocol: Protocol?
+        protocol: Protocol?,
     ) {
         logWithTime("connectEnd: $protocol")
     }
@@ -78,7 +78,7 @@ class McLoggingEventListener private constructor(
         inetSocketAddress: InetSocketAddress,
         proxy: Proxy,
         protocol: Protocol?,
-        ioe: IOException
+        ioe: IOException,
     ) {
         logWithTime("connectFailed: $protocol $ioe")
     }
@@ -167,7 +167,7 @@ class McLoggingEventListener private constructor(
     }
 
     open class Factory @JvmOverloads constructor(
-        private val logger: HttpLoggingInterceptor.Logger = HttpLoggingInterceptor.Logger.DEFAULT
+        private val logger: HttpLoggingInterceptor.Logger = HttpLoggingInterceptor.Logger.DEFAULT,
     ) : EventListener.Factory {
         override fun create(call: Call): EventListener = McLoggingEventListener(logger)
     }

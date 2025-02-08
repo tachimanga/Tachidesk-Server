@@ -10,7 +10,6 @@ package suwayomi.tachidesk.manga.impl
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.toTrack
@@ -68,7 +67,7 @@ object Migrate {
         supportsLatest = false,
         isConfigurable = false,
         isNsfw = false,
-        displayName = sourceId
+        displayName = sourceId,
     )
 
     fun mangaList(sourceId: String): MigrateMangaListDataClass {
@@ -126,13 +125,19 @@ object Migrate {
             Library.addMangaToLibrary(destMangaId)
         }
 
+        logger.info { "migrateHistory..." }
+        migrateHistory(srcMangaId, destMangaId)
+
         logger.info { "(8/8)replace if needed..." }
         if (request.replaceFlag == true) {
+            val now = System.currentTimeMillis()
             transaction {
                 val srcManga = transaction { MangaTable.select { MangaTable.id eq srcMangaId }.first() }
                 if (srcManga[MangaTable.inLibrary]) {
                     MangaTable.update({ MangaTable.id eq srcMangaId }) {
                         it[MangaTable.inLibrary] = false
+                        it[MangaTable.updateAt] = now
+                        it[MangaTable.dirty] = true
                     }
                 }
                 MangaTable.update({ MangaTable.id eq destMangaId }) {
@@ -171,6 +176,7 @@ object Migrate {
             .maxOfOrNull { it[ChapterTable.chapter_number] }
         logger.info { "maxChapterRead $maxChapterRead" }
 
+        val now = System.currentTimeMillis()
         transaction {
             for (destChapter in destChapterList) {
                 val destChapterNumber = destChapter[ChapterTable.chapter_number]
@@ -192,13 +198,22 @@ object Migrate {
 
                 if (srcChapter != null || isRead) {
                     ChapterTable.update({ ChapterTable.id eq destChapter[ChapterTable.id].value }) {
+                        var dirty = false
                         if (srcChapter != null) {
                             it[ChapterTable.isRead] = srcChapter[ChapterTable.isRead]
                             it[ChapterTable.isBookmarked] = srcChapter[ChapterTable.isBookmarked]
-                            it[ChapterTable.fetchedAt] = srcChapter[ChapterTable.fetchedAt]
+                            it[ChapterTable.lastReadAt] = srcChapter[ChapterTable.lastReadAt]
+                            if (srcChapter[ChapterTable.isRead] || srcChapter[ChapterTable.isBookmarked] || srcChapter[ChapterTable.lastReadAt] > 0) {
+                                dirty = true
+                            }
                         }
                         if (isRead) {
                             it[ChapterTable.isRead] = true
+                            dirty = true
+                        }
+                        if (dirty) {
+                            it[ChapterTable.updateAt] = now
+                            it[ChapterTable.dirty] = true
                         }
                     }
                 }
@@ -224,7 +239,7 @@ object Migrate {
 
     private fun migrateTracking(srcMangaId: Int, destMangaId: Int) {
         val srcTrackList = transaction {
-            TrackRecordTable.select { TrackRecordTable.mangaId eq srcMangaId }
+            TrackRecordTable.select { (TrackRecordTable.mangaId eq srcMangaId) and (TrackRecordTable.isDelete eq false) }
                 .toList()
         }
         // logger.info { "srcTrackList $srcTrackList" }
@@ -252,6 +267,32 @@ object Migrate {
         }
     }
 
+    private fun migrateHistory(srcMangaId: Int, destMangaId: Int) {
+        val srcHistory = transaction {
+            HistoryTable.select { HistoryTable.mangaId eq srcMangaId }
+                .firstOrNull()
+        }
+        if (srcHistory == null) {
+            logger.info { "srcHistory is empty, skip" }
+            return
+        }
+        val srcChapterId = srcHistory[HistoryTable.lastChapterId]
+        val srcChapterEntry = transaction { ChapterTable.select { ChapterTable.id eq srcChapterId }.firstOrNull() }
+        if (srcChapterEntry == null) {
+            logger.info { "srcChapterEntry is empty, skip" }
+            return
+        }
+
+        History.upsertHistory(
+            destMangaId,
+            0,
+            srcHistory[HistoryTable.readDuration],
+            lastReadAt = srcHistory[HistoryTable.lastReadAt],
+            lastChapterName = srcChapterEntry[ChapterTable.name],
+        )
+        History.batchDeleteV2(History.BatchInput(mangaIds = listOf(srcMangaId)))
+    }
+
     @Serializable
     data class MigrateRequest(
         val srcMangaId: Int? = null,
@@ -259,6 +300,6 @@ object Migrate {
         val migrateChapterFlag: Boolean? = null,
         val migrateCategoryFlag: Boolean? = null,
         val migrateTrackFlag: Boolean? = null,
-        val replaceFlag: Boolean? = null
+        val replaceFlag: Boolean? = null,
     )
 }

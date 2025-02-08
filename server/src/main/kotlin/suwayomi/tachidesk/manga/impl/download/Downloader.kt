@@ -29,7 +29,7 @@ class Downloader(
     private val downloadQueue: CopyOnWriteArrayList<DownloadChapter>,
     private val notifier: (immediate: Boolean) -> Unit,
     private val onComplete: () -> Unit,
-    private val onDownloadFinish: () -> Unit
+    private val onDownloadFinish: () -> Unit,
 ) {
     private val jobs = mutableListOf<Job>()
     private val lock = ReentrantLock()

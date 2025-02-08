@@ -27,6 +27,7 @@ dependencies {
     // Exposed ORM
     implementation(libs.bundles.exposed)
     implementation(files("../libs/sqlite-jdbc-ios-3.41.0.0.jar"))
+    implementation(files("../libs/cloud-api-1.0.0.jar"))
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
     // Exposed Migrations

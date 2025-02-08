@@ -9,7 +9,7 @@ data class OAuth(
     val access_token: String,
     val token_type: String,
     val created_at: Long = System.currentTimeMillis(),
-    val expires_in: Long
+    val expires_in: Long,
 )
 
 fun OAuth.isExpired() = System.currentTimeMillis() > created_at + (expires_in * 1000)

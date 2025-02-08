@@ -13,7 +13,7 @@ abstract class DownloadedFilesProvider(val mangaId: Int, val chapterId: Int) {
     abstract suspend fun download(
         download: DownloadChapter,
         scope: CoroutineScope,
-        step: suspend (DownloadChapter?, Boolean) -> Unit
+        step: suspend (DownloadChapter?, Boolean) -> Unit,
     ): Boolean
 
     abstract fun delete(): Boolean

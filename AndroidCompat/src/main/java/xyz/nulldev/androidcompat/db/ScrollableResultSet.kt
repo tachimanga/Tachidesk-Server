@@ -44,8 +44,9 @@ class ScrollableResultSet(val parent: ResultSet) : ResultSet by parent {
         // Fill cache
         while (parent.next()) {
             cachedContent += ResultSetEntry().apply {
-                for (i in 1..columnCount)
+                for (i in 1..columnCount) {
                     data += parent.getObject(i)
+                }
             }
             resultSetLength++
         }
@@ -280,8 +281,9 @@ class ScrollableResultSet(val parent: ResultSet) : ResultSet by parent {
             internalMove(row)
         } else {
             last()
-            for (i in 1..row)
+            for (i in 1..row) {
                 previous()
+            }
         }
         return cursorValid()
     }

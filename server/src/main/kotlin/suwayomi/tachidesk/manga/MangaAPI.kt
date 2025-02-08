@@ -12,7 +12,6 @@ import io.javalin.apibuilder.ApiBuilder.get
 import io.javalin.apibuilder.ApiBuilder.patch
 import io.javalin.apibuilder.ApiBuilder.path
 import io.javalin.apibuilder.ApiBuilder.post
-import io.javalin.apibuilder.ApiBuilder.put
 import io.javalin.apibuilder.ApiBuilder.ws
 import suwayomi.tachidesk.manga.controller.*
 
@@ -54,8 +53,6 @@ object MangaAPI {
             get("{mangaId}/realUrl", MangaController.mangaRealUrl)
 
             get("{mangaId}/category", MangaController.categoryList)
-            get("{mangaId}/category/{categoryId}", MangaController.addToCategory)
-            delete("{mangaId}/category/{categoryId}", MangaController.removeFromCategory)
             post("{mangaId}/updateCategory", MangaController.updateCategory)
             get("{mangaId}/library", MangaController.addToLibrary)
             delete("{mangaId}/library", MangaController.removeFromLibrary)
@@ -66,8 +63,6 @@ object MangaAPI {
             get("{mangaId}/delchapters", MangaController.delchapterList)
             post("{mangaId}/chapter/batch", MangaController.chapterBatch)
             get("{mangaId}/chapter/{chapterIndex}", MangaController.chapterRetrieve)
-            patch("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
-            put("{mangaId}/chapter/{chapterIndex}", MangaController.chapterModify)
             post("chapter/modify", MangaController.chapterModify2)
 
             delete("{mangaId}/chapter/{chapterIndex}", MangaController.chapterDelete)
@@ -103,18 +98,7 @@ object MangaAPI {
             patch("{categoryId}", CategoryController.categoryModify)
             delete("{categoryId}", CategoryController.categoryDelete)
 
-            patch("{categoryId}/meta", CategoryController.meta)
-        }
-
-        path("backup") {
-            post("import", BackupController.protobufImport)
-            post("import/file", BackupController.protobufImportFile)
-
-            post("validate", BackupController.protobufValidate)
-            post("validate/file", BackupController.protobufValidateFile)
-
-            get("export", BackupController.protobufExport)
-            get("export/file", BackupController.protobufExportFile)
+            post("{categoryId}/meta", CategoryController.meta)
         }
 
         path("downloads") {
@@ -156,9 +140,10 @@ object MangaAPI {
             post("update", TrackController.update)
         }
 
-        path("import") {
-            post("file", ImportController.protobufImportFile)
-            ws("", ImportController::importerWS)
+        path("proto") {
+            post("import", ProtoBackupController.protobufImportFile)
+            ws("importWs", ProtoBackupController::importerWS)
+            post("export", ProtoBackupController.protobufExport)
         }
 
         path("repo") {
@@ -178,6 +163,10 @@ object MangaAPI {
 
         path("pip") {
             get("ping", PipController.ping)
+        }
+
+        path("stats") {
+            get("readTime", StatsController.readTime)
         }
     }
 }

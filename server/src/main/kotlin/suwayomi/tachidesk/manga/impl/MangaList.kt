@@ -67,7 +67,7 @@ object MangaList {
         if (mangasPage.mangas.isEmpty()) {
             return PagedMangaListDataClass(
                 emptyList(),
-                mangasPage.hasNextPage
+                mangasPage.hasNextPage,
             )
         }
         val source = getCatalogueSourceOrStub(sourceId)
@@ -127,7 +127,7 @@ object MangaList {
                         lastFetchedAt = 0,
                         chaptersLastFetchedAt = 0,
                         updateStrategy = manga.update_strategy,
-                        freshData = true
+                        freshData = true,
                     )
                 } else {
                     val mangaId = mangaEntry[MangaTable.id].value
@@ -165,7 +165,7 @@ object MangaList {
                         lastFetchedAt = mangaEntry[MangaTable.lastFetchedAt],
                         chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
                         updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
-                        freshData = false
+                        freshData = false,
                     )
                 }
             }
@@ -178,7 +178,7 @@ object MangaList {
         Profiler.split("after metaMap")
         return PagedMangaListDataClass(
             mangaList,
-            mangasPage.hasNextPage
+            mangasPage.hasNextPage,
         )
     }
 

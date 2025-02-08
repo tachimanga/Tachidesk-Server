@@ -105,7 +105,7 @@ class Updater : IUpdater {
         val jobs = tracker.values
         return Pair(
             jobs.count { i -> i.status == JobStatus.COMPLETE || i.status == JobStatus.FAILED },
-            jobs.size
+            jobs.size,
         )
     }
 }

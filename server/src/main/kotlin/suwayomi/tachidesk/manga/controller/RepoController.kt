@@ -30,7 +30,7 @@ object RepoController {
         },
         withResults = {
             json<Array<CategoryDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     val checkRepo = handler(
@@ -41,7 +41,7 @@ object RepoController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val createRepo = handler(
@@ -52,7 +52,7 @@ object RepoController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val updateByMetaUrl = handler(
@@ -63,7 +63,7 @@ object RepoController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val removeRepo = handler(
@@ -77,6 +77,6 @@ object RepoController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

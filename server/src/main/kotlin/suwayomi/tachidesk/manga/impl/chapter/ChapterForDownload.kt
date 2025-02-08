@@ -10,7 +10,6 @@ package suwayomi.tachidesk.manga.impl.chapter
 import eu.kanade.tachiyomi.source.model.Page
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -28,7 +27,7 @@ suspend fun getChapterDownloadReady(chapterIndex: Int, mangaId: Int): ChapterDat
 
 private class ChapterForDownload(
     private val chapterIndex: Int,
-    private val mangaId: Int
+    private val mangaId: Int,
 ) {
     suspend fun asDownloadReady(): ChapterDataClass {
         val downloaded = ChapterUtil.isCompletelyDownloaded(mangaId, chapterEntry)
@@ -78,28 +77,10 @@ private class ChapterForDownload(
     private fun updateDatabasePages(pageList: List<Page>) {
         val chapterId = chapterEntry[ChapterTable.id].value
 
-        transaction {
-            pageList.forEach { page ->
-                val pageEntry = transaction {
-                    PageTable.select { (PageTable.chapter eq chapterId) and (PageTable.index eq page.index) }
-                        .firstOrNull()
-                }
-                if (pageEntry == null) {
-                    PageTable.insert {
-                        it[index] = page.index
-                        it[url] = page.url
-                        it[imageUrl] = page.imageUrl
-                        it[chapter] = chapterId
-                    }
-                } else {
-                    PageTable.update({ (PageTable.chapter eq chapterId) and (PageTable.index eq page.index) }) {
-                        it[url] = page.url
-                        it[imageUrl] = page.imageUrl
-                    }
-                }
-            }
-        }
+        // save to db
+        ChapterUtil.updateDatabasePages(chapterId, pageList)
 
+        // updatePageCount
         updatePageCount(pageList, chapterId)
 
         // chapter was updated
@@ -108,7 +89,7 @@ private class ChapterForDownload(
 
     private fun updatePageCount(
         pageList: List<Page>,
-        chapterId: Int
+        chapterId: Int,
     ) {
         val pageCount = pageList.count()
 

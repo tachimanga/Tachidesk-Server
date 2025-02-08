@@ -27,5 +27,5 @@ data class ExtensionDataClass(
 
     val extensionId: Int,
     val repoId: Int?,
-    val repoName: String?
+    val repoName: String?,
 )

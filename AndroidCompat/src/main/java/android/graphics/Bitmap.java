@@ -29,6 +29,10 @@ public final class Bitmap {
         return bitmap;
     }
 
+    public Bitmap copy(Config config, boolean isMutable) {
+        throw new RuntimeException("Tachimanga does not support this extension.");
+    }
+
     public int getHeight() {
         return height;
     }

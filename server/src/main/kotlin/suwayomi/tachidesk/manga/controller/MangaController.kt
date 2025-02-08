@@ -53,13 +53,13 @@ object MangaController {
             ctx.future(
                 future {
                     Manga.getManga(mangaId, onlineFetch)
-                }
+                },
             )
         },
         withResults = {
             json<MangaDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     // used in sorayomi
@@ -80,13 +80,13 @@ object MangaController {
                     val r = Manga.getManga(mangaId, onlineFetch)
                     Profiler.all()
                     r
-                }
+                },
             )
         },
         withResults = {
             json<MangaDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** manga thumbnail */
@@ -113,13 +113,13 @@ object MangaController {
                         val httpCacheSeconds = 1.days.inWholeSeconds
                         ctx.header("cache-control", "max-age=$httpCacheSeconds")
                         it.first
-                    }
+                    },
             )
         },
         withResults = {
             image(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     val mangaRealUrl = handler(
@@ -127,10 +127,10 @@ object MangaController {
         documentWith = {},
         behaviorOf = { ctx, mangaId ->
             ctx.future(
-                future { Manga.getMangaRealUrl(mangaId) }
+                future { Manga.getMangaRealUrl(mangaId) },
             )
         },
-        withResults = { httpCode(HttpCode.OK) }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     /** adds the manga to library */
@@ -144,13 +144,13 @@ object MangaController {
         },
         behaviorOf = { ctx, mangaId ->
             ctx.future(
-                future { Library.addMangaToLibrary(mangaId) }
+                future { Library.addMangaToLibrary(mangaId) },
             )
         },
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** removes the manga from the library */
@@ -164,13 +164,13 @@ object MangaController {
         },
         behaviorOf = { ctx, mangaId ->
             ctx.future(
-                future { Library.removeMangaFromLibrary(mangaId) }
+                future { Library.removeMangaFromLibrary(mangaId) },
             )
         },
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** list manga's categories */
@@ -187,45 +187,7 @@ object MangaController {
         },
         withResults = {
             json<Array<CategoryDataClass>>(HttpCode.OK)
-        }
-    )
-
-    /** adds the manga to category */
-    val addToCategory = handler(
-        pathParam<Int>("mangaId"),
-        pathParam<Int>("categoryId"),
-        documentWith = {
-            withOperation {
-                summary("Add manga to category")
-                description("Add a manga to a category using their ids.")
-            }
         },
-        behaviorOf = { ctx, mangaId, categoryId ->
-            CategoryManga.addMangaToCategory(mangaId, categoryId)
-            ctx.status(200)
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-        }
-    )
-
-    /** removes the manga from the category */
-    val removeFromCategory = handler(
-        pathParam<Int>("mangaId"),
-        pathParam<Int>("categoryId"),
-        documentWith = {
-            withOperation {
-                summary("Remove manga from category")
-                description("Remove a manga from a category using their ids.")
-            }
-        },
-        behaviorOf = { ctx, mangaId, categoryId ->
-            CategoryManga.removeMangaFromCategory(mangaId, categoryId)
-            ctx.status(200)
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-        }
     )
 
     val updateCategory = handler(
@@ -239,7 +201,7 @@ object MangaController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** used to modify a manga's meta parameters */
@@ -266,7 +228,7 @@ object MangaController {
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** get chapter list when showing a manga */
@@ -286,13 +248,13 @@ object MangaController {
                     val r = Chapter.getChapterList(mangaId, onlineFetch)
                     Profiler.all()
                     r
-                }
+                },
             )
         },
         withResults = {
             json<Array<ChapterDataClass>>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     val delchapterList = handler(
@@ -308,13 +270,13 @@ object MangaController {
             ctx.future(
                 future {
                     Chapter.delgetChapterList(mangaId, onlineFetch)
-                }
+                },
             )
         },
         withResults = {
             json<Array<ChapterDataClass>>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** batch edit chapters of single manga */
@@ -333,7 +295,7 @@ object MangaController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** batch edit chapters from multiple manga */
@@ -351,13 +313,13 @@ object MangaController {
                 Chapter.MangaChapterBatchEditInput(
                     input.chapterIds,
                     null,
-                    input.change
-                )
+                    input.change,
+                ),
             )
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     val chapterBatchQuery = handler(
@@ -368,7 +330,7 @@ object MangaController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** used to display a chapter, get a chapter in order to show its pages */
@@ -388,13 +350,13 @@ object MangaController {
                     val r = getChapterReadReady(chapterIndex, mangaId)
                     Profiler.all()
                     r
-                }
+                },
             )
         },
         withResults = {
             json<ChapterDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     val chapterRealUrl = handler(
@@ -403,35 +365,10 @@ object MangaController {
         documentWith = {},
         behaviorOf = { ctx, mangaId, chapterIndex ->
             ctx.future(
-                future { Chapter.getChapterRealUrl(mangaId, chapterIndex) }
+                future { Chapter.getChapterRealUrl(mangaId, chapterIndex) },
             )
         },
-        withResults = { httpCode(HttpCode.OK) }
-    )
-
-    /** used to modify a chapter's parameters */
-    val chapterModify = handler(
-        pathParam<Int>("mangaId"),
-        pathParam<Int>("chapterIndex"),
-        formParam<Boolean?>("read"),
-        formParam<Boolean?>("bookmarked"),
-        formParam<Boolean?>("markPrevRead"),
-        formParam<Int?>("lastPageRead"),
-        documentWith = {
-            withOperation {
-                summary("Modify a chapter")
-                description("Update user info for a given chapter, such as read status, bookmarked, and more.")
-            }
-        },
-        behaviorOf = { ctx, mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead ->
-            println("mangaId $mangaId, chapterIndex $chapterIndex, read $read, markPrevRead $markPrevRead bookmarked $bookmarked lastPageRead:$lastPageRead")
-            Chapter.modifyChapter(mangaId, chapterIndex, read, bookmarked, markPrevRead, lastPageRead)
-
-            ctx.status(200)
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-        }
+        withResults = { httpCode(HttpCode.OK) },
     )
 
     val chapterModify2 = handler(
@@ -442,7 +379,7 @@ object MangaController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     /** delete a downloaded chapter */
@@ -463,7 +400,7 @@ object MangaController {
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     /** used to modify a chapter's meta parameters */
@@ -486,7 +423,7 @@ object MangaController {
         withResults = {
             httpCode(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     val pageRetrieve = handler(
@@ -517,13 +454,13 @@ object MangaController {
                         val httpCacheSeconds = 1.days.inWholeSeconds
                         ctx.header("cache-control", "max-age=$httpCacheSeconds")
                         it.first
-                    }
+                    },
             )
         },
         withResults = {
             image(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 
     val installFile = handler(
@@ -540,14 +477,14 @@ object MangaController {
             ctx.future(
                 future {
                     LocalSource.install(uploadedFile.content, uploadedFile.filename)
-                }
+                },
             )
         },
         withResults = {
             httpCode(HttpCode.CREATED)
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
-        }
+        },
     )
 
     val removeLocalManga = handler(
@@ -565,11 +502,11 @@ object MangaController {
                             Library.removeMangaFromLibrary(mangaId)
                         }
                     }
-                }
+                },
             )
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 }

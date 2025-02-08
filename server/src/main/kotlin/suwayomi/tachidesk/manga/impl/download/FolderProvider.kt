@@ -33,7 +33,7 @@ class FolderProvider(mangaId: Int, chapterId: Int) : DownloadedFilesProvider(man
     override suspend fun download(
         download: DownloadChapter,
         scope: CoroutineScope,
-        step: suspend (DownloadChapter?, Boolean) -> Unit
+        step: suspend (DownloadChapter?, Boolean) -> Unit,
     ): Boolean {
         val pageCount = download.chapter.pageCount
         val chapterDir = getChapterDownloadPath(mangaId, chapterId)
@@ -49,7 +49,7 @@ class FolderProvider(mangaId: Int, chapterId: Int) : DownloadedFilesProvider(man
                 Page.getPageImage(
                     mangaId = download.mangaId,
                     chapterIndex = download.chapterIndex,
-                    index = pageNum
+                    index = pageNum,
                 ) { flow ->
                     pageProgressJob = flow
                         .sample(100)

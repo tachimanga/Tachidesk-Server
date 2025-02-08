@@ -182,7 +182,7 @@ class M0001_Initial : AddTableMigration() {
                 categoryMangaTable,
                 categoryMetaTable,
                 chapterMetaTable,
-                mangaMetaTable
+                mangaMetaTable,
             )
         }
 }

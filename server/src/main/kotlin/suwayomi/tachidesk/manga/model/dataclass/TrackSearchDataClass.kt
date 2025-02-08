@@ -28,5 +28,5 @@ data class TrackSearchDataClass(
     val summary: String,
     val publishingStatus: String,
     val publishingType: String,
-    val startDate: String
+    val startDate: String,
 )

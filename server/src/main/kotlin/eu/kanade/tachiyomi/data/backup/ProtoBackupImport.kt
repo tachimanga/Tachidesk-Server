@@ -28,24 +28,30 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.manga.impl.Category
 import suwayomi.tachidesk.manga.impl.CategoryManga
+import suwayomi.tachidesk.manga.impl.History
+import suwayomi.tachidesk.manga.impl.Repo
 import suwayomi.tachidesk.manga.impl.extension.Extension
 import suwayomi.tachidesk.manga.impl.extension.ExtensionsList
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.toTrack
+import suwayomi.tachidesk.manga.impl.util.lang.isEmpty
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
+import suwayomi.tachidesk.manga.model.table.CategoryMangaTable
 import suwayomi.tachidesk.manga.model.table.ChapterTable
 import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 import java.io.InputStream
+import java.time.Instant
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.max
 
 data class ImportContext(
     val backup: Backup,
     val defaultRepoUrl: String,
     // backupCategory#order -> dbCategory#id
     val categoryMap: MutableMap<Long, Int> = mutableMapOf(),
-    var codes: List<String> = emptyList()
+    var codes: List<String> = emptyList(),
 )
 
 object ProtoBackupImport {
@@ -57,7 +63,7 @@ object ProtoBackupImport {
     val status = _status.asStateFlow()
 
     data class ImportResult(
-        val dummy: String
+        val dummy: String,
     )
 
     private fun updateStatus(state: ImportState, message: String, codes: List<String> = emptyList()) {
@@ -96,7 +102,7 @@ object ProtoBackupImport {
                 doRestore(context)
                 updateStatus(ImportState.SUCCESS, "Import successful.", context.codes)
             } catch (e: Exception) {
-                logger.error { "[Import]doRestore error:$e" }
+                logger.error(e) { "[Import]doRestore error" }
                 updateStatus(ImportState.FAIL, if (e.message != null) "Import failed: ${e.message}" else "Import failed")
             }
         }
@@ -115,6 +121,29 @@ object ProtoBackupImport {
         restoreManga(context)
     }
 
+    private suspend fun restoreRepos(context: ImportContext) {
+        val repos = context.backup.backupExtensionRepo
+        updateStatus(ImportState.RUNNING, "Fetching extensions...")
+        logger.info { "[Import]backupExtensionRepo size=${repos.size}" }
+        val repoMap = Repo.repoList().associateBy { it.baseUrl }
+        for (repo in repos) {
+            logger.info { "[Import]backupExtensionRepo url=${repo.baseUrl}" }
+            val dbRepo = repoMap[repo.baseUrl] ?: repoMap[repo.baseUrl + "/"]
+            if (dbRepo == null) {
+                try {
+                    val metaUrl = "${repo.baseUrl}/index.min.json"
+                    val list = Repo.checkRepo(null, metaUrl)
+                    if (list.isNotEmpty()) {
+                        Repo.createRepo(null, metaUrl)
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "[Import]repo not valid $repo" }
+                }
+            }
+        }
+        logger.info { "[Import]import repo done" }
+    }
+
     private suspend fun restoreSources(context: ImportContext) {
         val sources = context.backup.backupSources.associate { it.sourceId to it.name }
         logger.info { "[Import]backupSources $sources" }
@@ -122,18 +151,23 @@ object ProtoBackupImport {
         updateStatus(ImportState.RUNNING, "Fetching extensions...")
         val pair = ExtensionsList.getExtensionListForImport(context.defaultRepoUrl)
         val foundExtensions = pair.second
-        val dbExtensions = pair.first.associateBy { "${it.repoId}#${it.pkgName}}" }
-
+        val dbExtensions = pair.first.groupBy { it.pkgName }
         val todoList = foundExtensions
             .filter { it.sources.any { s -> sources.containsKey(s.id) } }
-            .filter { dbExtensions["${it.repoId}#${it.pkgName}}"]?.installed == false }
+            .filter { dbExtensions[it.pkgName]?.all { e -> !e.installed } == true }
             .toList()
         logger.info { "[Import]to install extensions ${todoList.map { it.pkgName }}" }
 
         todoList.forEach {
             updateStatus(ImportState.RUNNING, "Installing ${it.name}...")
-            val extension = dbExtensions["${it.repoId}#${it.pkgName}}"]
-            Extension.installExtension(extension!!.extensionId)
+            val extensions = dbExtensions[it.pkgName]
+            if (extensions?.isNotEmpty() == true) {
+                try {
+                    Extension.installExtension(extensions[0].extensionId)
+                } catch (e: Exception) {
+                    logger.error(e) { "[Import]installExtension fail, ext=${it.pkgName}" }
+                }
+            }
         }
 
         context.codes = todoList.map { it.lang }.toList()
@@ -162,8 +196,9 @@ object ProtoBackupImport {
     }
 
     private fun restoreManga(context: ImportContext) {
-        val total = context.backup.backupManga.size
-        context.backup.backupManga.forEachIndexed { index, manga ->
+        val mangas = context.backup.backupManga.filter { it.favorite }.toList()
+        val total = mangas.size
+        mangas.forEachIndexed { index, manga ->
             updateStatus(ImportState.RUNNING, "Importing(${index + 1}/$total) ${manga.title}...")
             try {
                 restoreMangaData(manga, context.categoryMap)
@@ -175,9 +210,10 @@ object ProtoBackupImport {
 
     private fun restoreMangaData(
         manga: BackupManga,
-        categoryMapping: Map<Long, Int>
+        categoryMapping: Map<Long, Int>,
     ) {
         logger.info { "[Import]import manga..., title: ${manga.title}" }
+        val now = System.currentTimeMillis()
         val source = getCatalogueSourceOrNull(manga.source)
         transaction {
             val dbManga =
@@ -193,20 +229,32 @@ object ProtoBackupImport {
                             MangaTable.update({ MangaTable.id eq id }) {
                                 it[inLibrary] = manga.favorite
                                 it[inLibraryAt] = TimeUnit.MILLISECONDS.toSeconds(manga.dateAdded)
+                                it[MangaTable.updateAt] = now
+                                it[MangaTable.dirty] = true
                             }
                         }
                     }
 
-                    val chapters = manga.chapters.filter { it.read || it.bookmark }
+                    val chapters = manga.chapters.filter { it.read || it.bookmark || it.lastPageRead > 0 }
                     if (chapters.isNotEmpty()) {
-                        val dbChapters = ChapterTable.select { ChapterTable.manga eq id }
+                        val dbChapters = ChapterTable
+                            .slice(ChapterTable.id, ChapterTable.isRead, ChapterTable.isBookmarked, ChapterTable.lastPageRead)
+                            .select { ChapterTable.manga eq id }
                             .associateBy { it[ChapterTable.url] }
                         chapters.forEach { chapter ->
                             val dbChapter = dbChapters[chapter.url]
                             if (dbChapter != null) {
-                                ChapterTable.update({ (ChapterTable.id eq dbChapter[ChapterTable.id]) }) {
-                                    it[isRead] = chapter.read || dbChapter[isRead]
-                                    it[isBookmarked] = chapter.bookmark || dbChapter[isBookmarked]
+                                if (dbChapter[ChapterTable.isRead] != chapter.read ||
+                                    dbChapter[ChapterTable.isBookmarked] != chapter.bookmark ||
+                                    dbChapter[ChapterTable.lastPageRead] != chapter.lastPageRead.toInt()
+                                ) {
+                                    ChapterTable.update({ (ChapterTable.id eq dbChapter[ChapterTable.id]) }) {
+                                        it[isRead] = chapter.read || dbChapter[isRead]
+                                        it[isBookmarked] = chapter.bookmark || dbChapter[isBookmarked]
+                                        it[ChapterTable.lastPageRead] = max(chapter.lastPageRead.toInt(), dbChapter[ChapterTable.lastPageRead])
+                                        it[ChapterTable.updateAt] = now
+                                        it[ChapterTable.dirty] = true
+                                    }
                                 }
                             }
                         }
@@ -240,8 +288,13 @@ object ProtoBackupImport {
                             url = manga.url
                         }
                         it[realUrl] = runCatching {
-                            (source as? HttpSource)?.getMangaUrl(sManga)
+                            val clone = SManga.create()
+                            clone.cloneFrom(sManga)
+                            (source as? HttpSource)?.getMangaUrl(clone)
                         }.getOrNull()
+
+                        it[MangaTable.updateAt] = now
+                        it[MangaTable.dirty] = true
                     }.value
 
                     // insert chapter data
@@ -272,6 +325,11 @@ object ProtoBackupImport {
                             if (history != null) {
                                 my[ChapterTable.lastReadAt] = TimeUnit.MILLISECONDS.toSeconds(history.lastRead)
                             }
+
+                            if (chapter.read || chapter.bookmark || chapter.lastPageRead > 0 || history != null) {
+                                my[ChapterTable.updateAt] = now
+                                my[ChapterTable.dirty] = true
+                            }
                         }
                         val sql = myBatchInsertStatement.prepareSQL(this)
                         val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
@@ -282,17 +340,71 @@ object ProtoBackupImport {
                     id
                 }
 
-            manga.categories.forEach {
-                val categoryId = categoryMapping[it]
-                if (categoryId != null) {
-                    CategoryManga.addMangaToCategory(mangaId, categoryId)
+            if (dbManga != null) {
+                fastAddMangaToCategories(dbManga, manga.categories, categoryMapping)
+            } else {
+                manga.categories.forEach {
+                    val categoryId = categoryMapping[it]
+                    if (categoryId != null) {
+                        CategoryManga.addMangaToCategory(mangaId, categoryId)
+                    }
                 }
             }
 
             manga.tracking.forEach {
                 Track.upsertTrackRecord(it.toTrack(mangaId.toLong()))
             }
+
+            restoreHistory(manga, mangaId)
         }
         logger.info { "[Import]import manga done, title: ${manga.title}" }
+    }
+
+    private fun fastAddMangaToCategories(dbManga: ResultRow, categories: List<Long>, categoryMapping: Map<Long, Int>) {
+        if (categories.isEmpty()) {
+            return
+        }
+        val mangaId = dbManga[MangaTable.id].value
+        val now = System.currentTimeMillis()
+        transaction {
+            val categoryIds = categories.mapNotNull { categoryMapping[it] }
+            val existCategoryIdSet = CategoryMangaTable.slice(CategoryMangaTable.category)
+                .select { (CategoryMangaTable.manga eq mangaId) and (CategoryMangaTable.category inList categoryIds) }
+                .map { it[CategoryMangaTable.category].value }
+                .toSet()
+            val notExistCategoryIds = categoryIds.filter { !existCategoryIdSet.contains(it) }
+
+            for (categoryId in notExistCategoryIds) {
+                CategoryMangaTable.insert {
+                    it[CategoryMangaTable.category] = categoryId
+                    it[CategoryMangaTable.manga] = mangaId
+                }
+            }
+
+            if (notExistCategoryIds.isNotEmpty() || !dbManga[MangaTable.inLibrary] || dbManga[MangaTable.defaultCategory]) {
+                MangaTable.update({ MangaTable.id eq mangaId }) {
+                    if (!dbManga[MangaTable.inLibrary]) {
+                        it[MangaTable.inLibrary] = true
+                        it[MangaTable.inLibraryAt] = Instant.now().epochSecond
+                    }
+                    it[MangaTable.defaultCategory] = false
+                    it[MangaTable.updateAt] = now
+                    it[MangaTable.dirty] = true
+                }
+            }
+        }
+    }
+
+    private fun restoreHistory(manga: BackupManga, mangaId: Int) {
+        val history = manga.history
+        if (history.isEmpty()) {
+            return
+        }
+        val totalDuration = history.sumOf { it.readDuration } / 1000
+        val latestHistory = history.maxBy { it.lastRead }
+        val latestChapter = ChapterTable.slice(ChapterTable.id)
+            .select { (ChapterTable.manga eq mangaId) and (ChapterTable.url eq latestHistory.url) }
+            .firstOrNull() ?: return
+        History.upsertHistory(mangaId, latestChapter[ChapterTable.id].value, totalDuration.toInt(), latestHistory.lastRead / 1000)
     }
 }

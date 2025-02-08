@@ -16,7 +16,6 @@ import suwayomi.tachidesk.manga.model.dataclass.ExtensionDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
-import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
 
 object ExtensionController {
@@ -24,26 +23,25 @@ object ExtensionController {
 
     /** list all extensions */
     val list = handler(
-        queryParam<String>("repoUrl", ""),
         documentWith = {
             withOperation {
                 summary("Extension list")
                 description("List all extensions")
             }
         },
-        behaviorOf = { ctx, repoUrl ->
+        behaviorOf = { ctx ->
             ctx.future(
                 future {
                     Profiler.start()
-                    val r = ExtensionsList.getExtensionList(repoUrl)
+                    val r = ExtensionsList.getExtensionList()
                     Profiler.all()
                     r
-                }
+                },
             )
         },
         withResults = {
             json<Array<ExtensionDataClass>>(HttpCode.OK)
-        }
+        },
     )
 
     /** install extension identified with "pkgName" */
@@ -59,14 +57,14 @@ object ExtensionController {
             ctx.future(
                 future {
                     Extension.installExtension(extensionId)
-                }
+                },
             )
         },
         withResults = {
             httpCode(HttpCode.CREATED)
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
-        }
+        },
     )
 
     /** install the uploaded apk file */
@@ -88,14 +86,14 @@ object ExtensionController {
             ctx.future(
                 future {
                     Extension.installExternalExtension(uploadedFile.content, uploadedFile.filename)
-                }
+                },
             )
         },
         withResults = {
             httpCode(HttpCode.CREATED)
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
-        }
+        },
     )
 
     /** update extension identified with "pkgName" */
@@ -111,7 +109,7 @@ object ExtensionController {
             ctx.future(
                 future {
                     Extension.updateExtension(extensionId)
-                }
+                },
             )
         },
         withResults = {
@@ -119,7 +117,7 @@ object ExtensionController {
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.NOT_FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
-        }
+        },
     )
 
     /** uninstall extension identified with "pkgName" */
@@ -140,7 +138,7 @@ object ExtensionController {
             httpCode(HttpCode.FOUND)
             httpCode(HttpCode.NOT_FOUND)
             httpCode(HttpCode.INTERNAL_SERVER_ERROR)
-        }
+        },
     )
 
     /** icon for extension named `apkName` */
@@ -158,12 +156,12 @@ object ExtensionController {
                     .thenApply {
                         ctx.header("content-type", it.second)
                         it.first
-                    }
+                    },
             )
         },
         withResults = {
             image(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
-        }
+        },
     )
 }

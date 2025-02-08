@@ -8,6 +8,8 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import suwayomi.tachidesk.cloud.impl.Sync
+import suwayomi.tachidesk.manga.impl.Manga
 import suwayomi.tachidesk.manga.impl.track.tracker.TrackerManager
 import suwayomi.tachidesk.manga.impl.track.tracker.model.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.toTrack
@@ -32,7 +34,7 @@ object Track {
                 name = it.name,
                 icon = it.getLogo(),
                 isLogin = isLogin,
-                authUrl = authUrl
+                authUrl = authUrl,
             )
         }
     }
@@ -58,7 +60,7 @@ object Track {
             return emptyList()
         }
         val recordMap = transaction {
-            TrackRecordTable.select { TrackRecordTable.mangaId eq mangaId }
+            TrackRecordTable.select { (TrackRecordTable.mangaId eq mangaId) and (TrackRecordTable.isDelete eq false) }
                 .map { it.toTrackRecordDataClass() }
         }.associateBy { it.syncId.toLong() }
 
@@ -80,7 +82,7 @@ object Track {
                     statusList = it.getStatusList(),
                     statusTextMap = it.getStatusList().associateWith { k -> it.getStatus(k) ?: "" },
                     scoreList = it.getScoreList(),
-                    record = record
+                    record = record,
                 )
             }
     }
@@ -110,7 +112,7 @@ object Track {
                 summary = it.summary,
                 publishingStatus = it.publishing_status,
                 publishingType = it.publishing_type,
-                startDate = it.start_date
+                startDate = it.start_date,
             )
         } ?: emptyList()
     }
@@ -126,6 +128,7 @@ object Track {
 
         tracker?.bind(track, hasReadChapters)
         val recordId = upsertTrackRecord(track)
+        Manga.markDirtyIfCommitIdZero(input.mangaId.toInt())
 
         var lastChapterRead: Double? = null
         var startDate: Long? = null
@@ -147,7 +150,7 @@ object Track {
             val trackUpdate = UpdateInput(
                 recordId = recordId,
                 lastChapterRead = lastChapterRead,
-                startDate = startDate
+                startDate = startDate,
             )
             update(trackUpdate)
         }
@@ -155,9 +158,15 @@ object Track {
 
     suspend fun update(input: UpdateInput) {
         if (input.unbind == true) {
+            val now = System.currentTimeMillis()
             transaction {
-                TrackRecordTable.deleteWhere { TrackRecordTable.id eq input.recordId!! }
+                TrackRecordTable.update({ TrackRecordTable.id eq input.recordId!! }) {
+                    it[TrackRecordTable.isDelete] = true
+                    it[TrackRecordTable.dirty] = true
+                    it[TrackRecordTable.updateAt] = now
+                }
             }
+            Sync.setNeedsSync()
             return
         }
         val recordDb = transaction {
@@ -237,7 +246,7 @@ object Track {
         }
 
         val records = transaction {
-            TrackRecordTable.select { TrackRecordTable.mangaId eq mangaId }
+            TrackRecordTable.select { (TrackRecordTable.mangaId eq mangaId) and (TrackRecordTable.isDelete eq false) }
                 .toList()
         }
 
@@ -256,7 +265,8 @@ object Track {
     }
 
     fun upsertTrackRecord(track: Track): Int {
-        return transaction {
+        val now = System.currentTimeMillis()
+        val recordId = transaction {
             TrackRecordTable.insertAndGetId {
                 it[mangaId] = track.manga_id.toInt()
                 it[syncId] = track.sync_id
@@ -270,8 +280,13 @@ object Track {
                 it[remoteUrl] = track.tracking_url
                 it[startDate] = track.started_reading_date
                 it[finishDate] = track.finished_reading_date
+                it[isDelete] = false
+                it[dirty] = true
+                it[updateAt] = now
             }.value
         }
+        Sync.setNeedsSync()
+        return recordId
     }
 
     @Serializable
@@ -279,18 +294,18 @@ object Track {
         val trackerId: Long? = null,
         val callbackUrl: String? = null,
         val username: String? = null,
-        val password: String? = null
+        val password: String? = null,
     )
 
     @Serializable
     data class LogoutInput(
-        val trackerId: Long? = null
+        val trackerId: Long? = null,
     )
 
     @Serializable
     data class SearchInput(
         val trackerId: Long? = null,
-        val title: String? = null
+        val title: String? = null,
     )
 
     @Serializable
@@ -301,6 +316,6 @@ object Track {
         val scoreString: String? = null,
         val startDate: Long? = null,
         val finishDate: Long? = null,
-        val unbind: Boolean? = null
+        val unbind: Boolean? = null,
     )
 }

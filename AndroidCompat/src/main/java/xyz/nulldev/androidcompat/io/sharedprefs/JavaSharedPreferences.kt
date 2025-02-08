@@ -24,12 +24,17 @@ const val PREF_MAX_KEY_LENGTH = 8 * 1024
 
 const val PREF_MAX_VALUE_LENGTH = 1024 * 1024
 
+const val MAX_NAME_LENGTH = 80
+
 fun shortKey(longKey: String) =
     if (longKey.length > PREF_MAX_KEY_LENGTH) longKey.substring(0, PREF_MAX_KEY_LENGTH) else longKey
 
+fun shortNode(longKey: String) =
+    if (longKey.length > MAX_NAME_LENGTH) longKey.substring(0, MAX_NAME_LENGTH) else longKey
+
 @OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
 class JavaSharedPreferences(key: String) : SharedPreferences {
-    private val javaPreferences = Preferences.userRoot().node("suwayomi/tachidesk/$key")
+    private val javaPreferences = Preferences.userRoot().node("suwayomi/tachidesk/${shortNode(key)}")
     private val preferences = PreferencesSettings(javaPreferences)
     private val listeners = mutableMapOf<SharedPreferences.OnSharedPreferenceChangeListener, PreferenceChangeListener>()
 
@@ -113,7 +118,7 @@ class JavaSharedPreferences(key: String) : SharedPreferences {
 
         override fun putStringSet(
             key: String,
-            values: MutableSet<String>?
+            values: MutableSet<String>?,
         ): SharedPreferences.Editor {
             if (values != null) {
                 actions += Action.Add(key, values)

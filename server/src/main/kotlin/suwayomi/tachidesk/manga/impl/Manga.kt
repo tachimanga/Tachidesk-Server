@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
+import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import mu.KotlinLogging
@@ -23,6 +24,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.MangaList.buildThumbnailImg
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.impl.Source.getSource
@@ -40,10 +42,7 @@ import suwayomi.tachidesk.manga.model.dataclass.toGenreList
 import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
-import java.io.File
 import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.time.Instant
 
 object Manga {
@@ -65,7 +64,7 @@ object Manga {
         } else {
             null
         }
-        return if (mangaEntry[MangaTable.initialized] && !onlineFetch) {
+        val mangaData = if (mangaEntry[MangaTable.initialized] && !onlineFetch) {
             getMangaDataClass(mangaId, mangaEntry, meta)
         } else { // initialize manga
             if (source == null) {
@@ -77,7 +76,9 @@ object Manga {
             sManga.copyFrom(networkManga)
 
             val realUrl = runCatching {
-                (source as? HttpSource)?.getMangaUrl(sManga)
+                val clone = SManga.create()
+                clone.cloneFrom(sManga)
+                (source as? HttpSource)?.getMangaUrl(clone)
             }.getOrNull()
 
             // Tachiyomi: awaitUpdateFromSource
@@ -150,9 +151,11 @@ object Manga {
                 chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
                 updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
                 freshData = true,
-                trackers = Track.getTrackRecordsByMangaId(mangaId)
+                trackers = Track.getTrackRecordsByMangaId(mangaId),
             )
         }
+        mangaData.readDuration = History.queryMangaReadDuration(mangaId)
+        return mangaData
     }
 
     suspend fun getMangaFull(mangaId: Int, onlineFetch: Boolean = false): MangaDataClass {
@@ -233,7 +236,7 @@ object Manga {
         chaptersLastFetchedAt = mangaEntry[MangaTable.chaptersLastFetchedAt],
         updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
         freshData = false,
-        trackers = Track.getTrackRecordsByMangaId(mangaId)
+        trackers = Track.getTrackRecordsByMangaId(mangaId),
     )
 
     fun getMangaMetaMap(mangaId: Int): Map<String, String> {
@@ -273,11 +276,47 @@ object Manga {
                 }
             }
         }
+        markDirtyAndSetNeedSync(mangaId)
     }
 
     fun removeMangaMeta(mangaId: Int, key: String) {
         transaction {
             MangaMetaTable.deleteWhere { (MangaMetaTable.ref eq mangaId) and (MangaMetaTable.key eq key) }
+        }
+        markDirtyAndSetNeedSync(mangaId)
+    }
+
+    private fun markDirtyAndSetNeedSync(mangaId: Int) {
+        val now = System.currentTimeMillis()
+        transaction {
+            MangaTable.update({ MangaTable.id eq mangaId }) {
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
+            }
+        }
+        Sync.setNeedsSync()
+    }
+
+    fun markDirtyIfCommitIdZero(mangaId: Int) {
+        val now = System.currentTimeMillis()
+        transaction {
+            MangaTable.update({ (MangaTable.id eq mangaId) and (MangaTable.dirty eq false) and (MangaTable.commitId eq 0) }) {
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
+            }
+        }
+    }
+
+    fun batchMarkDirtyIfCommitIdZero(mangaIds: List<Int>) {
+        if (mangaIds.isEmpty()) {
+            return
+        }
+        val now = System.currentTimeMillis()
+        transaction {
+            MangaTable.update({ (MangaTable.id inList mangaIds) and (MangaTable.dirty eq false) and (MangaTable.commitId eq 0) }) {
+                it[MangaTable.updateAt] = now
+                it[MangaTable.dirty] = true
+            }
         }
     }
 
@@ -301,7 +340,7 @@ object Manga {
                         throw NullPointerException("No thumbnail found")
                     }
                 source.client.newCall(
-                    GET(thumbnailUrl, source.headers)
+                    GET(thumbnailUrl, source.headers),
                 ).asObservableSuccess().awaitSingle()
             }
 
@@ -313,7 +352,7 @@ object Manga {
                 val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
                     ?: throw NullPointerException("No thumbnail found")
                 network.client.newCall(
-                    GET(thumbnailUrl)
+                    GET(thumbnailUrl),
                 ).await()
             }
 
@@ -326,50 +365,5 @@ object Manga {
         val fileName = mangaId.toString()
 
         clearFastCachedImage(saveDir, fileName)
-    }
-
-    fun migrateMangaCoverCacheIfNeeded() {
-        val flag = transaction {
-            SettingTable.select { SettingTable.key eq SettingKey.HistoryMangaCover.name }.count()
-        }
-        logger.info { "migrateMangaCoverCacheIfNeeded flag=$flag" }
-        if (flag > 0) {
-            return
-        }
-        try {
-            doMigrateMangaCoverCache()
-        } catch (e: Throwable) {
-            logger.error(e) { "doMigrateMangaCoverCache error" }
-        }
-        transaction {
-            val now = System.currentTimeMillis()
-            SettingTable.insert {
-                it[SettingTable.key] = SettingKey.HistoryMangaCover.name
-                it[SettingTable.value] = "1"
-                it[SettingTable.createAt] = now
-                it[SettingTable.updateAt] = now
-            }
-        }
-    }
-
-    private fun doMigrateMangaCoverCache() {
-        logger.info { "doMigrateMangaCoverCache..." }
-        val mangaList = transaction {
-            MangaTable
-                .select { (MangaTable.inLibrary eq true) }
-                .toList()
-        }
-        val thumbnailsDir = applicationDirs.thumbnailsRoot
-        val coversDir = applicationDirs.coversRoot
-
-        mangaList.forEach {
-            val fileName = it[MangaTable.id].value.toString()
-            val srcFile = File(thumbnailsDir, fileName)
-            val destFile = File(coversDir, fileName)
-            if (srcFile.exists() && srcFile.isFile) {
-                Files.copy(srcFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            }
-        }
-        logger.info { "doMigrateMangaCoverCache done" }
     }
 }

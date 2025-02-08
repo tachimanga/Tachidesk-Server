@@ -13,7 +13,7 @@ import org.jetbrains.exposed.sql.statements.BatchInsertStatement
 open class MyBatchInsertStatement(
     table: Table,
     ignore: Boolean = false,
-    shouldReturnGeneratedValues: Boolean = true
+    shouldReturnGeneratedValues: Boolean = true,
 ) : BatchInsertStatement(table, ignore, shouldReturnGeneratedValues) {
 
     override fun prepareSQL(transaction: Transaction): String {
@@ -23,7 +23,11 @@ open class MyBatchInsertStatement(
         for ((i, values) in arguments!!.withIndex()) {
             with(builder) {
                 values.appendTo(prefix = "(", postfix = ")") { (col, value) ->
-                    registerArgument(col, value)
+                    if (value is String) {
+                        registerArgument(col, escapeNul(value))
+                    } else {
+                        registerArgument(col, value)
+                    }
                 }
             }
             if (i != arguments!!.size - 1) {
@@ -37,5 +41,12 @@ open class MyBatchInsertStatement(
         val valuesExpr = builder.toString()
 
         return "INSERT INTO ${transaction.identity(table)} $columnsExpr $valuesExpr"
+    }
+
+    private fun escapeNul(s: String): String {
+        if (s.indexOf('\u0000') == -1) {
+            return s
+        }
+        return s.filter { it != '\u0000' }
     }
 }

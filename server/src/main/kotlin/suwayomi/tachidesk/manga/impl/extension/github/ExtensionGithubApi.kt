@@ -35,7 +35,7 @@ object ExtensionGithubApi {
         val nsfw: Int,
         val hasReadme: Int = 0,
         val hasChangelog: Int = 0,
-        val sources: List<ExtensionSourceJsonObject>?
+        val sources: List<ExtensionSourceJsonObject>?,
     )
 
     @Serializable
@@ -43,7 +43,7 @@ object ExtensionGithubApi {
         val name: String,
         val lang: String,
         val id: Long,
-        val baseUrl: String
+        val baseUrl: String,
     )
 
     suspend fun findExtensions(repo: RepoDataClass): List<OnlineExtension> {
@@ -104,7 +104,7 @@ object ExtensionGithubApi {
                     apkName = it.apk,
                     iconUrl = "${baseUrl}icon/${it.pkg}.png",
                     repoId = repo.id,
-                    repoName = repo.name
+                    repoName = repo.name,
                 )
             }
     }
@@ -115,7 +115,7 @@ object ExtensionGithubApi {
                 name = it.name,
                 lang = it.lang,
                 id = it.id,
-                baseUrl = it.baseUrl
+                baseUrl = it.baseUrl,
             )
         }
     }

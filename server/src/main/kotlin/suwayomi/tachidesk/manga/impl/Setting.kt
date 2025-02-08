@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.source.SourceSetting
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import okhttp3.Cookie
+import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.download.DownloadManager
 import suwayomi.tachidesk.manga.impl.util.source.SourceConfig
 import uy.kohesive.injekt.injectLazy
@@ -27,7 +28,12 @@ object Setting {
         val enableNativeNet: Boolean? = null,
         val enableFlutterDirect: Boolean? = null,
         val sourceConfigList: List<SourceConfigInfo>? = null,
-        val downloadTaskInParallel: Int? = null
+        val downloadTaskInParallel: Int? = null,
+        val syncListenerInterval: Int? = null,
+        // https://api3.tachimanga.app
+        val cloudServer: String? = null,
+        val appInfo: AppInfoDataClass? = null,
+        val locale: String? = null,
     )
 
     @Serializable
@@ -38,13 +44,22 @@ object Setting {
         val domain: String? = null,
         val path: String? = null,
         val secure: Boolean? = null,
-        val httpOnly: Boolean? = null
+        val httpOnly: Boolean? = null,
     )
 
     @Serializable
     data class SourceConfigInfo(
         val sourceId: Long? = null,
-        val ua: String? = null
+        val ua: String? = null,
+    )
+
+    @Serializable
+    data class AppInfoDataClass(
+        val appVersion: String? = null,
+        val appBuild: String? = null,
+        val bundleId: String? = null,
+        val deviceId: String? = null,
+        val locale: String? = null,
     )
 
     fun uploadSettings(input: SettingData) {
@@ -61,6 +76,21 @@ object Setting {
         }
         if (input.downloadTaskInParallel != null) {
             DownloadManager.updateTaskInParallel(input.downloadTaskInParallel)
+        }
+        if (input.syncListenerInterval != null) {
+            Sync.setListenerInterval(input.syncListenerInterval)
+        }
+        if (input.cloudServer?.isNotEmpty() == true) {
+            Sync.setApiHost(input.cloudServer)
+        }
+        if (input.appInfo != null) {
+            AppInfo.appVersion = input.appInfo.appVersion
+            AppInfo.appBuild = input.appInfo.appBuild
+            AppInfo.bundleId = input.appInfo.bundleId
+            AppInfo.deviceId = input.appInfo.deviceId
+        }
+        if (input.locale != null) {
+            AppInfo.locale = input.locale
         }
     }
 

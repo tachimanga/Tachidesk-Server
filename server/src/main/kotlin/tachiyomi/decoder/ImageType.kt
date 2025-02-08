@@ -2,18 +2,25 @@ package tachiyomi.decoder
 
 data class ImageType internal constructor(
     val format: Format,
-    val isAnimated: Boolean
+    val isAnimated: Boolean,
 ) {
 
     // Called from JNI
     internal constructor(
         format: Int,
-        isAnimated: Boolean
+        isAnimated: Boolean,
     ) : this(Format.from(format), isAnimated)
 }
 
 enum class Format {
-    Jpeg, Png, Webp, Gif, Heif, Avif, Jxl;
+    Jpeg,
+    Png,
+    Webp,
+    Gif,
+    Heif,
+    Avif,
+    Jxl,
+    ;
 
     internal companion object {
         fun from(value: Int): Format {

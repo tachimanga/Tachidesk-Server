@@ -15,5 +15,5 @@ data class PipStatusDataClass(
     val downloadTotalCount: Int,
     val updateFinishCount: Int,
     val updateTotalCount: Int,
-    val working: Boolean
+    val working: Boolean,
 )

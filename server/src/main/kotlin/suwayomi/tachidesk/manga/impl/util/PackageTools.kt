@@ -78,7 +78,7 @@ object PackageTools {
                 https://bitbucket.org/pxb1988/dex2jar/issues
                 https://github.com/pxb1988/dex2jar/issues
                 dex2jar@googlegroups.com
-                """.trimIndent()
+                """.trimIndent(),
             )
             handler.dump(errorFile, emptyArray<String>())
         } else {
@@ -114,7 +114,7 @@ object PackageTools {
                     }.forEach {
                         putString(
                             it.attributes.getNamedItem("android:name").nodeValue,
-                            it.attributes.getNamedItem("android:value").nodeValue
+                            it.attributes.getNamedItem("android:value").nodeValue,
                         )
                     }
             }
@@ -122,7 +122,7 @@ object PackageTools {
             signatures = (
                 parsed.apkSingers.flatMap { it.certificateMetas }
                 /*+ parsed.apkV2Singers.flatMap { it.certificateMetas }*/
-                ) // Blocked by: https://github.com/hsiafan/apk-parser/issues/72
+            ) // Blocked by: https://github.com/hsiafan/apk-parser/issues/72
                 .map { Signature(it.data) }.toTypedArray()
         }
     }

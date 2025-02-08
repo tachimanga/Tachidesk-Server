@@ -29,7 +29,7 @@ object ImporterSocket : Websocket<ImportStatus>() {
                         |    - STATUS
                         |       sends the current update status
                         |
-                """.trimMargin()
+                """.trimMargin(),
             )
         }
     }

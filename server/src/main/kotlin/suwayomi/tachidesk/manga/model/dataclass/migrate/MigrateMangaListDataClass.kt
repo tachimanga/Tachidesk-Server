@@ -11,5 +11,5 @@ import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 
 data class MigrateMangaListDataClass(
     val sourceId: String,
-    val list: List<MangaDataClass>
+    val list: List<MangaDataClass>,
 )

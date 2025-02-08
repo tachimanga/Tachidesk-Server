@@ -30,7 +30,7 @@ object PipStatus {
             downloadTotalCount = downloadStatus.second,
             updateFinishCount = updateStatus.first,
             updateTotalCount = updateStatus.second,
-            working = !(downloadStatus.first == downloadStatus.second && updateStatus.first == updateStatus.second)
+            working = !(downloadStatus.first == downloadStatus.second && updateStatus.first == updateStatus.second),
         )
     }
 

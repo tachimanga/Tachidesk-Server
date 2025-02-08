@@ -34,7 +34,7 @@ fun ResultRow.toTrackRecordDataClass(): TrackRecordDataClass = TrackRecordDataCl
     score = this[TrackRecordTable.score],
     remoteUrl = this[TrackRecordTable.remoteUrl],
     startDate = this[TrackRecordTable.startDate],
-    finishDate = this[TrackRecordTable.finishDate]
+    finishDate = this[TrackRecordTable.finishDate],
 )
 
 fun ResultRow.toTrack(): Track = Track.create(this[TrackRecordTable.syncId].toLong()).also {

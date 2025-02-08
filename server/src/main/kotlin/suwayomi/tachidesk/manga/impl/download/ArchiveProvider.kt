@@ -26,7 +26,7 @@ class ArchiveProvider(mangaId: Int, chapterId: Int) : DownloadedFilesProvider(ma
     override suspend fun download(
         download: DownloadChapter,
         scope: CoroutineScope,
-        step: suspend (DownloadChapter?, Boolean) -> Unit
+        step: suspend (DownloadChapter?, Boolean) -> Unit,
     ): Boolean {
         val chapterDir = getChapterDownloadPath(mangaId, chapterId)
         val outputFile = File(getChapterCbzPath(mangaId, chapterId))

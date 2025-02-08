@@ -18,6 +18,9 @@ import org.kodein.di.DI
 import org.kodein.di.bind
 import org.kodein.di.conf.global
 import org.kodein.di.singleton
+import suwayomi.tachidesk.cloud.impl.Sync
+import suwayomi.tachidesk.manga.impl.UserData
+import suwayomi.tachidesk.manga.impl.extension.Extension
 import suwayomi.tachidesk.manga.impl.update.IUpdater
 import suwayomi.tachidesk.manga.impl.update.Updater
 import suwayomi.tachidesk.server.database.databaseUp
@@ -36,7 +39,7 @@ private val logger = KotlinLogging.logger {}
 
 class ApplicationDirs(
     val dataRoot: String = ApplicationRootDir,
-    val tempRoot: String = "${System.getProperty("java.io.tmpdir")}/Tachidesk"
+    val tempRoot: String = "${System.getProperty("java.io.tmpdir")}/Tachidesk",
 ) {
     val extensionsRoot = "$dataRoot/extensions"
     val thumbnailsRoot = "$dataRoot/thumbnails"
@@ -47,8 +50,7 @@ class ApplicationDirs(
     val localMangaRoot = "${System.getProperty("user.home")}/Documents/local"
     val prefsRoot = "${System.getProperty("user.home")}/Library/Preferences"
     val webUIRoot = "$dataRoot/webUI"
-
-    val tempMangaCacheRoot = "$tempRoot/manga-cache"
+    val tempProtoBackups = "$tempRoot/proto_backups"
 }
 
 val serverConfig: ServerConfig by lazy { GlobalConfigManager.module() }
@@ -64,11 +66,14 @@ fun envSetup() {
 
 fun applicationSetup() {
     val skipInit = System.getProperty("app.tachimanga.skipInit") == "1"
-    logger.info("Running Tachidesk ${BuildConfig.VERSION} revision ${BuildConfig.REVISION} skipInit $skipInit")
+    val cleanDb = System.getProperty("app.tachimanga.cleanDb") == "1"
+    val vacuum = System.getProperty("app.tachimanga.vacuum") == "1"
+    logger.info("Running Tachidesk ${BuildConfig.VERSION} revision ${BuildConfig.REVISION}")
+    logger.info("param skipInit=$skipInit, cleanDb=$cleanDb, vacuum=$vacuum")
 
     // register Tachidesk's config which is dubbed "ServerConfig"
     GlobalConfigManager.registerModule(
-        ServerConfig.register(GlobalConfigManager.config)
+        ServerConfig.register(GlobalConfigManager.config),
     )
 
     // Application dirs
@@ -80,7 +85,7 @@ fun applicationSetup() {
             bind<IUpdater>() with singleton { Updater() }
             bind<JsonMapper>() with singleton { JavalinJackson() }
             bind<Json>() with singleton { Json { ignoreUnknownKeys = true } }
-        }
+        },
     )
 
     logger.debug("Data Root directory is set to: ${applicationDirs.dataRoot}")
@@ -98,7 +103,8 @@ fun applicationSetup() {
         applicationDirs.coversRoot,
         applicationDirs.mangaDownloadsRoot,
         applicationDirs.mangaDownloadsRoot2,
-        applicationDirs.localMangaRoot
+        applicationDirs.tempProtoBackups,
+        applicationDirs.localMangaRoot,
     ).forEach {
         File(it).mkdirs()
     }
@@ -126,6 +132,7 @@ fun applicationSetup() {
     } catch (e: Exception) {
         logger.error("Exception while copying Local source's icon", e)
     }
+    Extension.preCopyExtensionIcon("tachiyomi-all.komga-v1.4.47.apk")
 
     if (!localDirExist) {
         copyDemoManga(applicationDirs)
@@ -142,6 +149,10 @@ fun applicationSetup() {
         LocalSource.register()
     }
 
+    if (vacuum) {
+        UserData.vacuum()
+    }
+
     // Disable jetty's logging
     System.setProperty("org.eclipse.jetty.util.log.announce", "false")
     System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog")
@@ -154,6 +165,8 @@ fun applicationSetup() {
         logger.info("Socks Proxy is enabled to ${serverConfig.socksProxyHost}:${serverConfig.socksProxyPort}")
     }
 
+    Sync.setup()
+
 //    // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga
 //    Security.addProvider(BouncyCastleProvider())
 }
@@ -162,6 +175,11 @@ fun applicationSetupExtra() {
     // AES/CBC/PKCS7Padding Cypher provider for zh.copymanga.
     launchIO {
         Security.addProvider(BouncyCastleProvider())
+
+        val cleanDb = System.getProperty("app.tachimanga.cleanDb") == "1"
+        if (cleanDb) {
+            UserData.cleanDb()
+        }
     }
 }
 
@@ -170,7 +188,7 @@ fun copyDemoManga(applicationDirs: ApplicationDirs) {
         val list = listOf(
             "Top to bottom",
             "Left to right",
-            "Right to left"
+            "Right to left",
         )
         for (n in list) {
             val file = File("${applicationDirs.localMangaRoot}/$n/$n.zip")

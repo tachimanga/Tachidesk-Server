@@ -8,12 +8,12 @@ import java.io.InputStream
 class ImageDecoder private constructor(
     private val bitmap: Bitmap,
     val width: Int,
-    val height: Int
+    val height: Int,
 ) {
     // Mihon Preview r6595+
     fun decode(
         region: Rect = Rect(0, 0, width, height),
-        sampleSize: Int = 1
+        sampleSize: Int = 1,
     ): Bitmap? {
         return bitmap
     }
@@ -22,7 +22,7 @@ class ImageDecoder private constructor(
     fun decode(
         region: Rect = Rect(0, 0, width, height),
         rgb565: Boolean = true,
-        sampleSize: Int = 1
+        sampleSize: Int = 1,
     ): Bitmap? {
         return bitmap
     }
@@ -36,7 +36,7 @@ class ImageDecoder private constructor(
         fun newInstance(
             stream: InputStream,
             cropBorders: Boolean = false,
-            displayProfile: ByteArray? = null
+            displayProfile: ByteArray? = null,
         ): ImageDecoder? {
             val bitmap = BitmapFactory.decodeStream(stream)
             return ImageDecoder(bitmap, bitmap.width, bitmap.height)
@@ -45,7 +45,7 @@ class ImageDecoder private constructor(
         // Mihon Stable & forks
         fun newInstance(
             stream: InputStream,
-            cropBorders: Boolean = false
+            cropBorders: Boolean = false,
         ): ImageDecoder? {
             val bitmap = BitmapFactory.decodeStream(stream)
             return ImageDecoder(bitmap, bitmap.width, bitmap.height)

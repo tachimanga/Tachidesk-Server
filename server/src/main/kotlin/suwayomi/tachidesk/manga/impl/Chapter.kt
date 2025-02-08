@@ -18,6 +18,8 @@ import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.tachiyomi.Profiler
+import suwayomi.tachidesk.cloud.impl.Sync
+import suwayomi.tachidesk.cloud.model.table.ChapterSyncTable
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
@@ -29,6 +31,7 @@ import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 import java.time.Instant
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.math.max
 
 object Chapter {
     suspend fun delgetChapterList(mangaId: Int, onlineFetch: Boolean = false): List<ChapterDataClass> {
@@ -110,54 +113,46 @@ object Chapter {
         val realUrlMap = chapterPairList.associate { p ->
             p.first to
                 runCatching {
-                    (source as? HttpSource)?.getChapterUrl(p.second)
+                    // tachiyomi:  val chapterUrl = source.getChapterUrl(chapter.toSChapter())
+                    val clone = SChapter.create()
+                    clone.copyFrom(p.second)
+                    (source as? HttpSource)?.getChapterUrl(clone)
                 }.getOrNull()
         }
         Profiler.split("after getChapterUrl")
+        var needSync = false
 
         transaction {
+            val chapterSyncMap = ChapterSyncTable
+                .select { ChapterSyncTable.mangaId eq mangaId }
+                .orderBy(ChapterSyncTable.id to SortOrder.DESC)
+                .limit(rawChapterList.size)
+                .associateBy { it[ChapterSyncTable.url] }
+
             if (insertList.isNotEmpty()) {
-                if (false) {
-                    ChapterTable.batchInsert(insertList) { pair ->
-                        val index = pair.first
-                        val fetchedChapter = pair.second
+                val myBatchInsertStatement = MyBatchInsertStatement(ChapterTable)
+                insertList.forEach { pair ->
+                    val index = pair.first
+                    val fetchedChapter = pair.second
 
-                        this[ChapterTable.url] = fetchedChapter.url
-                        this[ChapterTable.name] = fetchedChapter.name
-                        this[ChapterTable.date_upload] = fetchedChapter.date_upload
-                        this[ChapterTable.chapter_number] = fetchedChapter.chapter_number
-                        this[scanlator] = fetchedChapter.scanlator
+                    val my = myBatchInsertStatement
 
-                        this[ChapterTable.sourceOrder] = index + 1
-                        this[ChapterTable.fetchedAt] = now++
-                        this[ChapterTable.manga] = mangaId
+                    my.addBatch()
 
-                        this[ChapterTable.realUrl] = realUrlMap[index]
-                    }
-                } else {
-                    val myBatchInsertStatement = MyBatchInsertStatement(ChapterTable)
-                    insertList.forEach { pair ->
-                        val index = pair.first
-                        val fetchedChapter = pair.second
+                    my[ChapterTable.url] = fetchedChapter.url
+                    my[ChapterTable.name] = fetchedChapter.name.take(512)
+                    my[ChapterTable.date_upload] = fetchedChapter.date_upload
+                    my[ChapterTable.chapter_number] = fetchedChapter.chapter_number
+                    my[scanlator] = fetchedChapter.scanlator?.take(128)
 
-                        val my = myBatchInsertStatement
+                    my[ChapterTable.sourceOrder] = index + 1
+                    my[ChapterTable.fetchedAt] = now++
+                    my[ChapterTable.manga] = mangaId
 
-                        my.addBatch()
+                    my[ChapterTable.realUrl] = realUrlMap[index]
 
-                        my[ChapterTable.url] = fetchedChapter.url
-                        my[ChapterTable.name] = fetchedChapter.name.take(512)
-                        my[ChapterTable.date_upload] = fetchedChapter.date_upload
-                        my[ChapterTable.chapter_number] = fetchedChapter.chapter_number
-                        my[scanlator] = fetchedChapter.scanlator?.take(128)
-
-                        my[ChapterTable.sourceOrder] = index + 1
-                        my[ChapterTable.fetchedAt] = now++
-                        my[ChapterTable.manga] = mangaId
-
-                        my[ChapterTable.realUrl] = realUrlMap[index]
-
-                        val sameNameChapterList = toDeleteChapterNameMap[fetchedChapter.name]
-                        val sameNumChapterList = toDeleteChapterNumMap[fetchedChapter.chapter_number]
+                    val sameNameChapterList = toDeleteChapterNameMap[fetchedChapter.name]
+                    val sameNumChapterList = toDeleteChapterNumMap[fetchedChapter.chapter_number]
                         /*
                         val toDeleteChapter = if (sameNameChapterList?.size == 1) {
                             sameNameChapterList[0]
@@ -166,26 +161,38 @@ object Chapter {
                         } else {
                             null
                         }*/
-                        val toDeleteChapter = findSameChapter(sameNameChapterList) ?: findSameChapter(sameNumChapterList)
+                    val toDeleteChapter = findSameChapter(sameNameChapterList) ?: findSameChapter(sameNumChapterList)
 
-                        if (toDeleteChapter != null) {
-                            my[ChapterTable.isDownloaded] = toDeleteChapter[ChapterTable.isDownloaded]
-                            my[ChapterTable.pageCount] = toDeleteChapter[ChapterTable.pageCount]
-                            my[ChapterTable.isBookmarked] = toDeleteChapter[ChapterTable.isBookmarked]
-                            my[ChapterTable.isRead] = toDeleteChapter[ChapterTable.isRead]
-                            my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
-                            my[ChapterTable.lastPageRead] = toDeleteChapter[ChapterTable.lastPageRead]
-                            my[ChapterTable.lastReadAt] = toDeleteChapter[ChapterTable.lastReadAt]
-                            my[ChapterTable.originalChapterId] = toDeleteChapter[ChapterTable.originalChapterId] ?: toDeleteChapter[ChapterTable.id].value
-                        }
+                    if (toDeleteChapter != null) {
+                        my[ChapterTable.isDownloaded] = toDeleteChapter[ChapterTable.isDownloaded]
+                        my[ChapterTable.pageCount] = toDeleteChapter[ChapterTable.pageCount]
+                        my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
+                        my[ChapterTable.originalChapterId] = toDeleteChapter[ChapterTable.originalChapterId] ?: toDeleteChapter[ChapterTable.id].value
+                        my[ChapterTable.updateAt] = toDeleteChapter[ChapterTable.updateAt]
+                        my[ChapterTable.dirty] = true
+                        needSync = true
                     }
 
-                    val sql = myBatchInsertStatement.prepareSQL(this)
-                    val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
-                    val statement = conn.createStatement()
-                    // println(sql)
-                    statement.execute(sql)
+                    val chapterSync = chapterSyncMap[fetchedChapter.url]
+                    my[ChapterTable.isRead] = (toDeleteChapter?.get(ChapterTable.isRead) ?: false) || (chapterSync?.get(ChapterSyncTable.isRead) ?: false)
+                    my[ChapterTable.isBookmarked] = (toDeleteChapter?.get(ChapterTable.isBookmarked) ?: false) || (chapterSync?.get(ChapterSyncTable.isBookmarked) ?: false)
+                    my[ChapterTable.lastPageRead] = max(toDeleteChapter?.get(ChapterTable.lastPageRead) ?: 0, chapterSync?.get(ChapterSyncTable.lastPageRead) ?: 0)
+                    my[ChapterTable.lastReadAt] = max(toDeleteChapter?.get(ChapterTable.lastReadAt) ?: 0, chapterSync?.get(ChapterSyncTable.lastReadAt) ?: 0)
+
+                    if (chapterSync != null) {
+                        my[ChapterTable.updateAt] = chapterSync[ChapterSyncTable.updateAt]
+                        my[ChapterTable.commitId] = chapterSync[ChapterSyncTable.commitId]
+                    }
                 }
+
+                val sql = myBatchInsertStatement.prepareSQL(this)
+                val conn = (TransactionManager.current().connection as JdbcConnectionImpl).connection
+                val statement = conn.createStatement()
+                // println(sql)
+                statement.execute(sql)
+            }
+            if (chapterSyncMap.isNotEmpty()) {
+                ChapterSyncTable.deleteWhere { ChapterSyncTable.mangaId eq mangaId }
             }
         }
         Profiler.split("upsert chapterList")
@@ -274,10 +281,13 @@ object Chapter {
                 realUrl = dbChapter[ChapterTable.realUrl],
                 downloaded = dbChapter[ChapterTable.isDownloaded],
 
-                pageCount = dbChapter[ChapterTable.pageCount]
+                pageCount = dbChapter[ChapterTable.pageCount],
             )
         }
         fixUploadDate(chapterDataList)
+        if (needSync) {
+            Sync.setNeedsSync()
+        }
         return chapterDataList
     }
 
@@ -310,7 +320,7 @@ object Chapter {
     private fun decideChapterNeedUpdate(
         dbChapterMap: Map<String, ResultRow>,
         realChapterUrlMap: Map<Int, String?>,
-        pair: Pair<Int, SChapter>
+        pair: Pair<Int, SChapter>,
     ): Boolean {
         val index = pair.first
         val fetchedChapter = pair.second
@@ -329,45 +339,11 @@ object Chapter {
         return true
     }
 
-    fun modifyChapter(
-        mangaId: Int,
-        chapterIndex: Int,
-        isRead: Boolean?,
-        isBookmarked: Boolean?,
-        markPrevRead: Boolean?,
-        lastPageRead: Int?
-    ) {
-        transaction {
-            if (listOf(isRead, isBookmarked, lastPageRead).any { it != null }) {
-                ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) { update ->
-                    isRead?.also {
-                        update[ChapterTable.isRead] = it
-                    }
-                    isBookmarked?.also {
-                        update[ChapterTable.isBookmarked] = it
-                    }
-                    lastPageRead?.also {
-                        update[ChapterTable.lastPageRead] = it
-                        update[ChapterTable.lastReadAt] = Instant.now().epochSecond
-                    }
-                }
-            }
-            if (markPrevRead == true) {
-                ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder less chapterIndex) }) {
-                    it[ChapterTable.isRead] = markPrevRead
-                }
-            }
-        }
-
-        if (isRead == true || markPrevRead == true) {
-            Track.asyncTrackChapter(mangaId)
-        }
-    }
-
     fun modifyChapter2(input: ChapterModifyInput) {
         if (input.mangaId == null || input.chapterId == null) {
             return
         }
+        val now = System.currentTimeMillis()
         transaction {
             if (input.read != null || input.bookmarked != null || input.lastPageRead != null) {
                 ChapterTable.update({ (ChapterTable.id eq input.chapterId) }) {
@@ -381,21 +357,32 @@ object Chapter {
                         it[ChapterTable.lastPageRead] = input.lastPageRead
                         it[ChapterTable.lastReadAt] = Instant.now().epochSecond
                     }
+                    it[ChapterTable.updateAt] = now
+                    it[ChapterTable.dirty] = true
                 }
             }
             if (input.markPrevRead == true) {
                 val chapter = ChapterTable.select { ChapterTable.id eq input.chapterId }.first()
-                ChapterTable.update({ (ChapterTable.manga eq input.mangaId) and (ChapterTable.sourceOrder less chapter[ChapterTable.sourceOrder]) }) {
+                ChapterTable.update({
+                    (ChapterTable.manga eq input.mangaId) and
+                        (ChapterTable.sourceOrder less chapter[ChapterTable.sourceOrder]) and
+                        (ChapterTable.isRead eq false)
+                }) {
                     it[ChapterTable.isRead] = true
+                    it[ChapterTable.updateAt] = now
+                    it[ChapterTable.dirty] = true
                 }
             }
         }
         if (input.lastPageRead != null && input.incognito != true) {
-            History.upsertHistory(input.mangaId, input.chapterId)
+            History.upsertHistory(input.mangaId, input.chapterId, input.readDuration ?: 0)
+            Stats.upsertStats(input.mangaId, input.readDuration ?: 0)
         }
         if (input.read == true || input.markPrevRead == true) {
             Track.asyncTrackChapter(input.mangaId)
         }
+        Manga.markDirtyIfCommitIdZero(input.mangaId)
+        Sync.setNeedsSync()
     }
 
     fun chapterBatchQuery(input: ChapterBatchQueryInput): List<ChapterDataClass> {
@@ -418,7 +405,8 @@ object Chapter {
         val bookmarked: Boolean? = null,
         val markPrevRead: Boolean? = null,
         val lastPageRead: Int? = null,
-        val incognito: Boolean? = null
+        val readDuration: Int? = null,
+        val incognito: Boolean? = null,
     )
 
     @Serializable
@@ -426,25 +414,25 @@ object Chapter {
         val isRead: Boolean? = null,
         val isBookmarked: Boolean? = null,
         val lastPageRead: Int? = null,
-        val delete: Boolean? = null
+        val delete: Boolean? = null,
     )
 
     @Serializable
     data class MangaChapterBatchEditInput(
         val chapterIds: List<Int>? = null,
         val chapterIndexes: List<Int>? = null,
-        val change: ChapterChange?
+        val change: ChapterChange?,
     )
 
     @Serializable
     data class ChapterBatchEditInput(
         val chapterIds: List<Int>? = null,
-        val change: ChapterChange?
+        val change: ChapterChange?,
     )
 
     @Serializable
     data class ChapterBatchQueryInput(
-        val chapterIds: List<Int>? = null
+        val chapterIds: List<Int>? = null,
     )
 
     fun modifyChapters(input: MangaChapterBatchEditInput, mangaId: Int? = null) {
@@ -484,6 +472,7 @@ object Chapter {
 
         transaction {
             val now = Instant.now().epochSecond
+            val currentTimeMillis = System.currentTimeMillis()
             ChapterTable.update({ condition }) { update ->
                 isRead?.also {
                     update[ChapterTable.isRead] = it
@@ -495,17 +484,24 @@ object Chapter {
                     update[ChapterTable.lastPageRead] = it
                     update[ChapterTable.lastReadAt] = now
                 }
+                update[ChapterTable.updateAt] = currentTimeMillis
+                update[ChapterTable.dirty] = true
             }
         }
 
-        if (isRead == true) {
+        if (isRead != null || isBookmarked != null || lastPageRead != null) {
             val mangaIds = transaction {
-                ChapterTable.select { condition }
+                ChapterTable.slice(ChapterTable.manga)
+                    .select { condition }
+                    .withDistinct(true)
                     .map { it[ChapterTable.manga].value }
-                    .distinct()
             }
-            mangaIds.forEach { Track.asyncTrackChapter(it) }
+            if (isRead == true) {
+                mangaIds.forEach { Track.asyncTrackChapter(it) }
+            }
+            Manga.batchMarkDirtyIfCommitIdZero(mangaIds)
         }
+        Sync.setNeedsSync()
     }
 
     fun modifyChapterMeta(mangaId: Int, chapterIndex: Int, key: String, value: String) {
@@ -622,10 +618,10 @@ object Chapter {
             paginatedList.page.map {
                 MangaChapterDataClass(
                     mangaMap[it[ChapterTable.manga].value]!!,
-                    ChapterTable.toDataClass(it)
+                    ChapterTable.toDataClass(it),
                 )
             },
-            paginatedList.hasNextPage
+            paginatedList.hasNextPage,
         )
     }
 

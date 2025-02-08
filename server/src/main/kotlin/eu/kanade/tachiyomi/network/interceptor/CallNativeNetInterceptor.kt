@@ -12,6 +12,7 @@ import okhttp3.*
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okhttp3.internal.connection.RealCall
 import okio.Buffer
 import org.kodein.di.DI
 import org.kodein.di.conf.global
@@ -24,13 +25,13 @@ class CallNativeNetInterceptor : Interceptor {
     private val jsonMapper by DI.global.instance<JsonMapper>()
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        return sendNativeRequest(chain.request())
+        return sendNativeRequest(chain.request(), chain.call())
     }
 
-    private fun sendNativeRequest(request: Request): Response {
+    private fun sendNativeRequest(request: Request, call: Call): Response {
         val t = System.currentTimeMillis()
 
-        val req = buildRequest(request)
+        val req = buildRequest(request, call)
         val resp = NativeNet.call(req.first, req.second, jsonMapper)
         val response = buildResponse(request, resp, t)
         // println("NativeNet: response:$response")
@@ -46,7 +47,7 @@ class CallNativeNetInterceptor : Interceptor {
         return response
     }
 
-    private fun buildRequest(request: Request): Pair<NativeNet.Req, Buffer?> {
+    private fun buildRequest(request: Request, call: Call): Pair<NativeNet.Req, Buffer?> {
         val headers = mutableMapOf<String, String>()
         for (i in 0 until request.headers.size) {
             headers[request.headers.name(i)] = request.headers.value(i)
@@ -69,8 +70,12 @@ class CallNativeNetInterceptor : Interceptor {
         val meta = NativeNet.Req(
             request.url.toString(),
             request.method,
-            headers
+            headers,
         )
+        val client = (call as? RealCall)?.client
+        if (client?.followRedirects == false) {
+            meta.followRedirects = false
+        }
         return Pair(meta, buffer)
     }
 

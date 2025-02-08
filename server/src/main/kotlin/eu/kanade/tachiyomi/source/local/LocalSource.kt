@@ -390,9 +390,9 @@ class LocalSource : CatalogueSource {
                         .mapIndexed { index, page ->
                             Page(
                                 index,
-                                imageUrl = page.name
+                                imageUrl = page.name,
                             )
-                        }
+                        },
                 )
             }
             is Zip -> {
@@ -488,7 +488,7 @@ class LocalSource : CatalogueSource {
     private class OrderBy : Filter.Sort(
         "Order by",
         arrayOf("Title", "Date"),
-        Selection(0, true)
+        Selection(0, true),
     )
 
     sealed class Format {

@@ -12,5 +12,5 @@ data class TrackerDataClass(
     val name: String,
     val icon: String,
     val isLogin: Boolean,
-    val authUrl: String?
+    val authUrl: String?,
 )

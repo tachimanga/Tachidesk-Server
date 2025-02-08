@@ -18,5 +18,7 @@ object SettingTable : IntIdTable() {
 
 enum class SettingKey {
     HistoryMigrate,
-    HistoryMangaCover
+    HistoryMangaCover,
+    MigrateUserCredentials,
+    UserCredentials,
 }

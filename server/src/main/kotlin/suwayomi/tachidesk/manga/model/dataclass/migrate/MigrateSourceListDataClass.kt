@@ -10,10 +10,10 @@ import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 data class MigrateSourceListDataClass(
-    val list: List<MigrateSourceDataClass>
+    val list: List<MigrateSourceDataClass>,
 )
 
 data class MigrateSourceDataClass(
     val source: SourceDataClass,
-    val count: Long
+    val count: Long,
 )

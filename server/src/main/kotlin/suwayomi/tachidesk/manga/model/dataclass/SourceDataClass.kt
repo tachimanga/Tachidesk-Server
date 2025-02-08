@@ -31,5 +31,5 @@ data class SourceDataClass(
 
     val direct: Boolean? = null,
 
-    val installed: Boolean = true
+    val installed: Boolean = true,
 )

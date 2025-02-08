@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.util
 
 import eu.kanade.tachiyomi.data.backup.ProtoBackupImport
 import eu.kanade.tachiyomi.data.backup.models.Backup
-import eu.kanade.tachiyomi.data.backup.models.BackupSerializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import okio.buffer
 import okio.gzip
@@ -26,6 +25,6 @@ object BackupUtil {
             backupStringSource
         }.use { it.readByteArray() }
 
-        return ProtoBackupImport.parser.decodeFromByteArray(BackupSerializer, backupString)
+        return ProtoBackupImport.parser.decodeFromByteArray(Backup.serializer(), backupString)
     }
 }

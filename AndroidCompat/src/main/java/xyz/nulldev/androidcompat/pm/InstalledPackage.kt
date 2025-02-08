@@ -40,7 +40,7 @@ data class InstalledPackage(val root: File) {
                 }?.map {
                     putString(
                         it.attributes.getNamedItem("android:name").nodeValue,
-                        it.attributes.getNamedItem("android:value").nodeValue
+                        it.attributes.getNamedItem("android:value").nodeValue,
                     )
                 }
             }
@@ -48,7 +48,7 @@ data class InstalledPackage(val root: File) {
             it.signatures = (
                 parsed.apkSingers.flatMap { it.certificateMetas }
                 /*+ parsed.apkV2Singers.flatMap { it.certificateMetas }*/
-                ) // Blocked by: https://github.com/hsiafan/apk-parser/issues/72
+            ) // Blocked by: https://github.com/hsiafan/apk-parser/issues/72
                 .map { Signature(it.data) }.toTypedArray()
         }
 
@@ -88,8 +88,9 @@ data class InstalledPackage(val root: File) {
         fun NodeList.toList(): List<Node> {
             val out = mutableListOf<Node>()
 
-            for (i in 0 until length)
+            for (i in 0 until length) {
                 out += item(i)
+            }
 
             return out
         }

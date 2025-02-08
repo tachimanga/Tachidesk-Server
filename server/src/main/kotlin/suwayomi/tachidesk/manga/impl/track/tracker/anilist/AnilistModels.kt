@@ -15,7 +15,7 @@ data class ALManga(
     val format: String,
     val publishing_status: String,
     val start_date_fuzzy: Long,
-    val total_chapters: Int
+    val total_chapters: Int,
 ) {
 
     fun toTrack() = TrackSearch.create(TrackerManager.ANILIST).apply {
@@ -45,7 +45,7 @@ data class ALUserManga(
     val chapters_read: Int,
     val start_date_fuzzy: Long,
     val completed_date_fuzzy: Long,
-    val manga: ALManga
+    val manga: ALManga,
 ) {
 
     fun toTrack() = Track.create(TrackerManager.ANILIST).apply {
@@ -76,7 +76,7 @@ data class OAuth(
     val access_token: String,
     val token_type: String,
     val expires: Long,
-    val expires_in: Long
+    val expires_in: Long,
 )
 
 fun OAuth.isExpired() = System.currentTimeMillis() > expires

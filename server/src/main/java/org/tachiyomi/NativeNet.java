@@ -58,6 +58,7 @@ public class NativeNet {
         private String url;
         private String method;
         private Map<String, String> headers;
+        private Boolean followRedirects;
 
         public Req(String url, String method, Map<String, String> headers) {
             this.url = url;
@@ -87,6 +88,14 @@ public class NativeNet {
 
         public void setHeaders(Map<String, String> headers) {
             this.headers = headers;
+        }
+
+        public Boolean getFollowRedirects() {
+            return followRedirects;
+        }
+
+        public void setFollowRedirects(Boolean followRedirects) {
+            this.followRedirects = followRedirects;
         }
     }
 

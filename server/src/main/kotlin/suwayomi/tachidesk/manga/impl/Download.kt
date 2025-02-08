@@ -54,6 +54,6 @@ object Download {
 
     @Serializable
     data class BatchInput(
-        val mangaIds: List<Int>? = null
+        val mangaIds: List<Int>? = null,
     )
 }

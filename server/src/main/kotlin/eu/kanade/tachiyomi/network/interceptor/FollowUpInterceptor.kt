@@ -59,7 +59,7 @@ class FollowUpInterceptor(private val client: OkHttpClient) : Interceptor {
 
     @Throws(IOException::class)
     private fun followUpRequest(userResponse: Response): Request? {
-        if (userResponse.code == HTTP_UNAUTHORIZED) {
+        if (userResponse.code == 401) {
             return client.authenticator.authenticate(null, userResponse)
         }
         return null

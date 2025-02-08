@@ -11,7 +11,6 @@ import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.StateFlow
-import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -54,17 +53,14 @@ object Page {
                 return pair
             }
         }
-        // TODO: why not select by index?
-        val pageEntry =
-            transaction {
-                PageTable.select { (PageTable.chapter eq chapterId) }
-                    .orderBy(PageTable.index to SortOrder.ASC)
-                    .limit(1, index.toLong()).first()
-            }
+
+        val pageEntry = transaction {
+            PageTable.select { (PageTable.chapter eq chapterId) and (PageTable.index eq index) }.first()
+        }
         val tachiyomiPage = Page(
             pageEntry[PageTable.index],
             pageEntry[PageTable.url],
-            pageEntry[PageTable.imageUrl]
+            pageEntry[PageTable.imageUrl],
         )
         progressFlow?.invoke(tachiyomiPage.progress)
 

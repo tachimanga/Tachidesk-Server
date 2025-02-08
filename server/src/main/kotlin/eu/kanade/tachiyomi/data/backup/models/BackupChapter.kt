@@ -19,7 +19,7 @@ data class BackupChapter(
     // chapterNumber is called number is 1.x
     @ProtoNumber(9) var chapterNumber: Float = 0F,
     @ProtoNumber(10) var sourceOrder: Long = 0,
-    @ProtoNumber(11) var lastModifiedAt: Long = 0
+    @ProtoNumber(11) var lastModifiedAt: Long = 0,
 ) {
     override fun toString(): String {
         return "BackupChapter(name='$name', url='$url')"

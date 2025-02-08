@@ -52,6 +52,19 @@ interface SManga : Serializable {
         }
     }
 
+    fun cloneFrom(other: SManga) {
+        url = other.url
+        title = other.title
+        artist = other.artist
+        author = other.author
+        description = other.description
+        genre = other.genre
+        status = other.status
+        thumbnail_url = other.thumbnail_url
+        update_strategy = other.update_strategy
+        initialized = other.initialized
+    }
+
     companion object {
         const val UNKNOWN = 0
         const val ONGOING = 1

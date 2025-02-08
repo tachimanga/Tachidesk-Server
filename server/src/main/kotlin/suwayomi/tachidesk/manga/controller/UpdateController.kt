@@ -52,12 +52,12 @@ object UpdateController {
             ctx.future(
                 future {
                     Chapter.getRecentChapters(pageNum)
-                }
+                },
             )
         },
         withResults = {
             json<PagedMangaChapterListDataClass>(HttpCode.OK)
-        }
+        },
     )
 
     /**
@@ -79,7 +79,7 @@ object UpdateController {
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     private fun addCategoriesToUpdateQueue(categories: List<Int>, clear: Boolean = false) {
@@ -142,7 +142,7 @@ object UpdateController {
         },
         withResults = {
             json<UpdateStatus>(HttpCode.OK)
-        }
+        },
     )
 
     val reset = handler(
@@ -158,16 +158,16 @@ object UpdateController {
             ctx.future(
                 future {
                     updater.reset()
-                }
+                },
             )
         },
         withResults = {
             httpCode(HttpCode.OK)
-        }
+        },
     )
 
     @Serializable
     data class FetchRequest(
-        val categoryIds: List<Int>? = null
+        val categoryIds: List<Int>? = null,
     )
 }
