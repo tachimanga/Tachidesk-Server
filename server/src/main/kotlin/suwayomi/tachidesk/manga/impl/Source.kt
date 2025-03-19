@@ -9,6 +9,7 @@ package suwayomi.tachidesk.manga.impl
 
 import android.app.Application
 import android.content.Context
+import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -43,6 +44,13 @@ import xyz.nulldev.androidcompat.androidimpl.CustomContext
 
 object Source {
     private val logger = KotlinLogging.logger {}
+    private val CLASS_WHITE_LIST = listOf(
+        "CheckBoxPreference",
+        "SwitchPreferenceCompat",
+        "ListPreference",
+        "MultiSelectListPreference",
+        "EditTextPreference",
+    )
 
     fun getSourceList(): List<SourceDataClass> {
         val dbExtensionMap = transaction {
@@ -233,10 +241,26 @@ object Source {
             preferenceScreenMap[sourceId] = screen
 
             return screen.preferences.map {
-                PreferenceObject(it::class.java.simpleName, it)
+                PreferenceObject(findClassName(it), it)
             }
         }
         return emptyList()
+    }
+
+    private fun findClassName(preference: Preference): String {
+        val clazzName = preference::class.java.simpleName
+        if (CLASS_WHITE_LIST.contains(clazzName)) {
+            return clazzName
+        }
+        // fix SimpleEditTextPreference extends EditTextPreference
+        var current = preference.javaClass.superclass
+        while (current != null) {
+            if (CLASS_WHITE_LIST.contains(current.simpleName)) {
+                return current.simpleName
+            }
+            current = current.superclass
+        }
+        return clazzName
     }
 
     data class SourcePreferenceChange(
@@ -251,7 +275,6 @@ object Source {
         val screen = preferenceScreenMap[sourceId]!!
         val pref = screen.preferences[change.position]
 
-        println(jsonMapper::class.java.name)
         val newValue = when (pref.defaultValueType) {
             "String" -> change.value
             "Boolean" -> change.value.toBoolean()

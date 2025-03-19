@@ -73,6 +73,8 @@ object MangaAPI {
 
             post("install", MangaController.installFile)
             delete("removeLocal", MangaController.removeLocalManga)
+
+            post("batchUpdate", MangaController.batchUpdate)
         }
 
         path("history") {

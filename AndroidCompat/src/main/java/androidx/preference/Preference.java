@@ -27,6 +27,11 @@ public class Preference {
     private CharSequence summary;
     private Object defaultValue;
 
+    /**
+     * null or false
+     */
+    private Boolean enabled;
+
     /** Tachidesk specific API */
     @JsonIgnore
     private SharedPreferences sharedPreferences;
@@ -47,7 +52,6 @@ public class Preference {
     }
 
     public void setOnPreferenceClickListener(OnPreferenceClickListener onPreferenceClickListener) {
-        throw new RuntimeException("Stub!");
     }
 
     public CharSequence getTitle() {
@@ -67,7 +71,11 @@ public class Preference {
     }
 
     public void setEnabled(boolean enabled) {
-        throw new RuntimeException("Stub!");
+        this.enabled = enabled;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
     }
 
     public String getKey() {

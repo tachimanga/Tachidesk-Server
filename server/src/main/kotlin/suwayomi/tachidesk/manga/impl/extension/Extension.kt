@@ -49,6 +49,7 @@ import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -56,9 +57,16 @@ import java.util.zip.ZipOutputStream
 object Extension {
     private val logger = KotlinLogging.logger {}
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
+    private val installLock = ConcurrentHashMap<Int, Long>()
 
     suspend fun installExtension(extensionId: Int, markDirty: Boolean = true): Int {
         logger.debug("Installing $extensionId")
+        val now = System.currentTimeMillis()
+        val prev = installLock.putIfAbsent(extensionId, now)
+        if (prev != null && now - prev < 10 * 1000) {
+            logger.debug("Installing $extensionId, hit lock")
+            return 302
+        }
         val extensionRecord = transaction {
             ExtensionTable.select { ExtensionTable.id eq extensionId }.first()
         }

@@ -509,4 +509,14 @@ object MangaController {
             httpCode(HttpCode.OK)
         },
     )
+
+    val batchUpdate = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<MangaBatch.MangaBatchInput>(ctx.body())
+            MangaBatch.batchUpdate(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
 }

@@ -17,10 +17,7 @@ import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.global.impl.About
 import suwayomi.tachidesk.global.impl.AboutDataClass
-import suwayomi.tachidesk.global.impl.AppUpdate
-import suwayomi.tachidesk.global.impl.UpdateDataClass
 import suwayomi.tachidesk.manga.impl.Setting
-import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.withOperation
 
@@ -39,24 +36,6 @@ object SettingsController {
         },
         withResults = {
             json<AboutDataClass>(HttpCode.OK)
-        },
-    )
-
-    /** check for app updates */
-    val checkUpdate = handler(
-        documentWith = {
-            withOperation {
-                summary("Tachidesk update check")
-                description("Check for app updates")
-            }
-        },
-        behaviorOf = { ctx ->
-            ctx.future(
-                future { AppUpdate.checkUpdate() },
-            )
-        },
-        withResults = {
-            json<Array<UpdateDataClass>>(HttpCode.OK)
         },
     )
 

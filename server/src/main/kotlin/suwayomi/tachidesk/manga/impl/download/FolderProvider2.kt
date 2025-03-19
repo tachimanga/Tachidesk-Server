@@ -14,6 +14,7 @@ import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.Page
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
 import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath
+import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath
 import suwayomi.tachidesk.server.ApplicationDirs
 import java.io.File
 import java.io.FileInputStream
@@ -30,6 +31,11 @@ class FolderProvider2(val mangaId: Int, val chapterId: Int, private val original
     private fun getChapterDownloadPath2(mangaId: Int, chapterId: Int): String {
         val hash = "00$mangaId".takeLast(2)
         return "${applicationDirs.mangaDownloadsRoot2}/$hash/$mangaId/$chapterId"
+    }
+
+    private fun getMangaDownloadPath2(mangaId: Int): String {
+        val hash = "00$mangaId".takeLast(2)
+        return "${applicationDirs.mangaDownloadsRoot2}/$hash/$mangaId"
     }
 
     fun getImage(index: Int): Pair<InputStream, String>? {
@@ -135,5 +141,20 @@ class FolderProvider2(val mangaId: Int, val chapterId: Int, private val original
         val chapterDir = getChapterDownloadPath2(mangaId, realChapterId)
         logger.info { "[DOWNLOAD] download delete $chapterDir chapterId=$chapterId" }
         return File(chapterDir).deleteRecursively()
+    }
+
+    fun deleteAll(): Boolean {
+        // v1
+        try {
+            val mangaDir = getMangaDownloadPath(mangaId)
+            File(mangaDir).deleteRecursively()
+        } catch (e: Exception) {
+            logger.error("FolderProvider deleteAll error", e)
+        }
+
+        // v2
+        val mangaDir = getMangaDownloadPath2(mangaId)
+        logger.info { "[DOWNLOAD] download deleteAll $mangaDir" }
+        return File(mangaDir).deleteRecursively()
     }
 }

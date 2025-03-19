@@ -87,6 +87,62 @@ object CategoryManga {
         Sync.setNeedsSync()
     }
 
+    fun batchUpdateCategory(pairs: List<Pair<Int, List<Int>>>) {
+        if (pairs.isEmpty()) {
+            return
+        }
+        val mangaIds = pairs.map { it.first }.toList()
+        val dbRelations = transaction {
+            CategoryMangaTable.select { CategoryMangaTable.manga inList mangaIds }
+                .toList()
+        }
+        val dbRelationMap = dbRelations.groupBy { it[CategoryMangaTable.manga].value }
+            .mapValues { entry -> entry.value.map { it[CategoryMangaTable.category].value } }
+        val now = System.currentTimeMillis()
+        val seconds = Instant.now().epochSecond
+        for (pair in pairs) {
+            val mangaId = pair.first
+            val targetCategoryIds = pair.second
+            transaction {
+                val dirty = updateMangaCategories(mangaId, dbRelationMap.getOrDefault(mangaId, emptyList()), targetCategoryIds)
+                if (dirty) {
+                    // update inLibraryAt
+                    MangaTable.update({ (MangaTable.id eq mangaId) and (MangaTable.inLibrary eq false) }) {
+                        it[MangaTable.inLibrary] = true
+                        it[MangaTable.inLibraryAt] = seconds
+                    }
+                    // mark dirty
+                    MangaTable.update({ MangaTable.id eq mangaId }) {
+                        it[MangaTable.defaultCategory] = targetCategoryIds.isEmpty()
+                        it[MangaTable.updateAt] = now
+                        it[MangaTable.dirty] = true
+                    }
+                }
+            }
+        }
+        Sync.setNeedsSync()
+    }
+
+    private fun updateMangaCategories(
+        mangaId: Int,
+        dbCategoryIds: List<Int>,
+        targetCategoryIds: List<Int>,
+    ): Boolean {
+        val categoryIdsToDelete = dbCategoryIds.minus(targetCategoryIds.toSet())
+        val categoryIdsToAdd = targetCategoryIds.minus(dbCategoryIds.toSet())
+        logger.info { "categoryIdsToDelete:$categoryIdsToDelete, categoryIdsToAdd:$categoryIdsToAdd" }
+        for (categoryId in categoryIdsToDelete) {
+            CategoryMangaTable.deleteWhere { (CategoryMangaTable.category eq categoryId) and (CategoryMangaTable.manga eq mangaId) }
+        }
+        for (categoryId in categoryIdsToAdd) {
+            CategoryMangaTable.insert {
+                it[CategoryMangaTable.category] = categoryId
+                it[CategoryMangaTable.manga] = mangaId
+            }
+        }
+        return categoryIdsToDelete.isNotEmpty() || categoryIdsToAdd.isNotEmpty()
+    }
+
     /**
      * list of mangas that belong to a category
      */

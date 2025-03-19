@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.toTrack
 import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
@@ -143,6 +144,10 @@ object Migrate {
                 MangaTable.update({ MangaTable.id eq destMangaId }) {
                     it[MangaTable.inLibraryAt] = srcManga[MangaTable.inLibraryAt]
                 }
+            }
+
+            if (request.removeDownloadsIfMigrate == true) {
+                FolderProvider2(srcMangaId, 0, 0).deleteAll()
             }
         }
     }
@@ -301,5 +306,6 @@ object Migrate {
         val migrateCategoryFlag: Boolean? = null,
         val migrateTrackFlag: Boolean? = null,
         val replaceFlag: Boolean? = null,
+        val removeDownloadsIfMigrate: Boolean? = null,
     )
 }
