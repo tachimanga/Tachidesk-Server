@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.impl
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.case
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -143,63 +144,23 @@ object CategoryManga {
         return categoryIdsToDelete.isNotEmpty() || categoryIdsToAdd.isNotEmpty()
     }
 
-    /**
-     * list of mangas that belong to a category
-     */
-    fun getCategoryMangaList(categoryId: Int): List<MangaDataClass> {
-        // Select the required columns from the MangaTable and add the aggregate functions to compute unread, download, and chapter counts
-        val unreadCount = wrapAsExpression<Int>(
-            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isRead eq false) and (ChapterTable.manga eq MangaTable.id)),
-        )
-        val downloadedCount = wrapAsExpression<Int>(
-            ChapterTable.slice(ChapterTable.id.count()).select((ChapterTable.isDownloaded eq true) and (ChapterTable.manga eq MangaTable.id)),
-        )
+    fun getCategoryMangaListV2(categoryId: Int): List<MangaDataClass> {
+        val mangaList = getMangaListByCategory(categoryId)
+        Profiler.split("[Category] get mangaList")
 
-        val chapterCount = ChapterTable.id.count().alias("chapter_count")
-        val lastReadAt = ChapterTable.lastReadAt.max().alias("last_read_at")
-        val selectedColumns = MangaTable.columns + unreadCount + downloadedCount + chapterCount + lastReadAt
+        fillChapterInfo(mangaList)
+        Profiler.split("[Category] fillChapterInfo")
 
-        val transform: (ResultRow) -> MangaDataClass = {
-            // Map the data from the result row to the MangaDataClass
-            val dataClass = MangaTable.toDataClass(it)
-            dataClass.lastReadAt = it[lastReadAt]
-            dataClass.unreadCount = it[unreadCount]?.toLong()
-            dataClass.downloadCount = it[downloadedCount]?.toLong()
-            dataClass.chapterCount = it[chapterCount]
-            dataClass
-        }
-
-        return transaction {
-            // Fetch data from the MangaTable and join with the CategoryMangaTable, if a category is specified
-            val query = if (categoryId == DEFAULT_CATEGORY_ID) {
-                MangaTable
-                    .leftJoin(ChapterTable, { MangaTable.id }, { ChapterTable.manga })
-                    .slice(columns = selectedColumns)
-                    .select { (MangaTable.inLibrary eq true) and (MangaTable.defaultCategory eq true) }
-            } else {
-                MangaTable
-                    .innerJoin(CategoryMangaTable)
-                    .leftJoin(ChapterTable, { MangaTable.id }, { ChapterTable.manga })
-                    .slice(columns = selectedColumns)
-                    .select { (MangaTable.inLibrary eq true) and (CategoryMangaTable.category eq categoryId) }
-            }
-
-            // Join with the ChapterTable to fetch the last read chapter for each manga
-            query.groupBy(*MangaTable.columns.toTypedArray()).map(transform)
-        }
+        return mangaList
     }
 
-    fun getCategoryMangaListV2(categoryId: Int): List<MangaDataClass> {
+    fun getMangaListByCategory(categoryId: Int): List<MangaDataClass> {
         return if (categoryId == DEFAULT_CATEGORY_ID) {
-            val mangaList = transaction {
+            transaction {
                 MangaTable
                     .select { (MangaTable.inLibrary eq true) and (MangaTable.defaultCategory eq true) }
                     .map { MangaTable.toDataClass(it) }
             }
-            Profiler.split("[Category] get mangaList")
-            fillChapterInfo(mangaList)
-            Profiler.split("[Category] fillChapterInfo")
-            mangaList
         } else {
             val mangaIds = transaction {
                 CategoryMangaTable
@@ -208,16 +169,11 @@ object CategoryManga {
                     .map { it[CategoryMangaTable.manga].value }
                     .toList()
             }
-            Profiler.split("[Category] get mangaIds")
-            val mangaList = transaction {
+            transaction {
                 MangaTable
                     .select { (MangaTable.id inList mangaIds) and (MangaTable.inLibrary eq true) }
                     .map { MangaTable.toDataClass(it) }
             }
-            Profiler.split("[Category] get mangaList")
-            fillChapterInfo(mangaList)
-            Profiler.split("[Category] fillChapterInfo")
-            mangaList
         }
     }
 
@@ -270,22 +226,93 @@ object CategoryManga {
         }
     }
 
-    private fun unreadCountMapWithScanlator(mangaIds: List<Int>): Map<Int, Long>? {
+    fun unreadCountMapWithScanlator(mangaIds: List<Int>): Map<Int, Long>? {
         val list = MangaMeta.batchQueryMangaScanlator(mangaIds)
         if (list.isEmpty()) {
             return null
         }
         val map = mutableMapOf<Int, Long>()
+        fillUnreadCountMapForScanlatorFilter(list, map)
+        fillUnreadCountMapForScanlatorPriority(list, map)
+        return map
+    }
+
+    private fun fillUnreadCountMapForScanlatorFilter(list: List<Pair<Int, MangaMeta.MangaScanlatorMeta>>, map: MutableMap<Int, Long>) {
         transaction {
             for (pair in list) {
-                val mangaId = pair.first
-                val unreadCount = ChapterTable
-                    .select { (ChapterTable.manga eq mangaId) and (ChapterTable.scanlator inList pair.second) and (ChapterTable.isRead eq false) }
-                    .count()
-                map[mangaId] = unreadCount
+                val meta = pair.second
+                val type = MangaMeta.ScanlatorFilterType.valueOf(meta.type)
+                if (type == MangaMeta.ScanlatorFilterType.Filter && meta.list?.isNotEmpty() == true) {
+                    val mangaId = pair.first
+                    val unreadCount = ChapterTable
+                        .select { (ChapterTable.manga eq mangaId) and (ChapterTable.scanlator inList meta.list) and (ChapterTable.isRead eq false) }
+                        .count()
+                    map[mangaId] = unreadCount
+                }
             }
         }
-        return map
+    }
+
+    private fun fillUnreadCountMapForScanlatorPriority(list: List<Pair<Int, MangaMeta.MangaScanlatorMeta>>, map: MutableMap<Int, Long>) {
+        val mangaIds = list.filter { it.second.type == MangaMeta.ScanlatorFilterType.Priority.type }
+            .map { it.first }
+            .toList()
+        if (mangaIds.isEmpty()) {
+            return
+        }
+
+        mangaIds.forEach { mangaId ->
+            map[mangaId] = 0
+        }
+
+        transaction {
+            // SELECT sub.manga, COUNT(sub.manga) FROM
+            // (SELECT Chapter.manga, Chapter.chapter_number
+            // FROM Chapter
+            // WHERE (Chapter.manga IN (4, 5, 1682)) AND (Chapter.chapter_number >= 0.0)
+            // GROUP BY Chapter.manga, Chapter.chapter_number
+            // HAVING SUM(CASE  WHEN Chapter."read" = 1 THEN 1 ELSE 0 END) = 0
+            // ) sub
+            // GROUP BY sub.manga
+            val caseExpr = case()
+                .When(ChapterTable.isRead eq booleanLiteral(true), intLiteral(1))
+                .Else(intLiteral(0))
+            val subQuery = ChapterTable
+                .slice(ChapterTable.manga, ChapterTable.chapter_number)
+                .select { (ChapterTable.manga inList mangaIds) and (ChapterTable.chapter_number greaterEq 0f) }
+                .groupBy(ChapterTable.manga, ChapterTable.chapter_number)
+                .having { Sum(caseExpr, IntegerColumnType()) eq 0 }
+                .alias("sub")
+            subQuery
+                .slice(subQuery[ChapterTable.manga], subQuery[ChapterTable.manga].count())
+                .selectAll()
+                .groupBy(subQuery[ChapterTable.manga])
+                .forEach {
+                    val mangaId = it[subQuery[ChapterTable.manga]].value
+                    val count = it[subQuery[ChapterTable.manga].count()]
+                    map[mangaId] = count
+                }
+
+            // SQL: SELECT Chapter.manga, SUM(CASE  WHEN Chapter."read" = 0 THEN 1 ELSE 0 END)
+            // FROM Chapter
+            // WHERE (Chapter.manga IN (4, 5, 1682)) AND (Chapter.chapter_number < 0.0)
+            // GROUP BY Chapter.manga
+            val unreadCount = Expression.build {
+                val caseExpr2 = case()
+                    .When(ChapterTable.isRead eq booleanLiteral(false), intLiteral(1))
+                    .Else(intLiteral(0))
+                Sum(caseExpr2, IntegerColumnType())
+            }
+            ChapterTable
+                .slice(ChapterTable.manga, unreadCount)
+                .select { (ChapterTable.manga inList mangaIds) and (ChapterTable.chapter_number less 0f) }
+                .groupBy(ChapterTable.manga)
+                .forEach {
+                    val mangaId = it[ChapterTable.manga].value
+                    val count = it[unreadCount]
+                    map[mangaId] = (map[mangaId] ?: 0) + (count ?: 0)
+                }
+        }
     }
 
     /**

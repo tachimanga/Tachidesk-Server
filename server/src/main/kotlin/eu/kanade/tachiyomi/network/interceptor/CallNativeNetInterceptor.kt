@@ -19,6 +19,7 @@ import org.kodein.di.conf.global
 import org.kodein.di.instance
 import org.tachiyomi.NativeNet
 import org.tachiyomi.Profiler
+import xyz.nulldev.androidcompat.CommonSwitch
 import java.io.IOException
 
 class CallNativeNetInterceptor : Interceptor {
@@ -74,6 +75,10 @@ class CallNativeNetInterceptor : Interceptor {
         )
         val client = (call as? RealCall)?.client
         if (client?.followRedirects == false) {
+            meta.followRedirects = false
+        }
+        if (CommonSwitch.ENABLE_NATIVE_COOKIE) {
+            meta.noCookie = true
             meta.followRedirects = false
         }
         return Pair(meta, buffer)

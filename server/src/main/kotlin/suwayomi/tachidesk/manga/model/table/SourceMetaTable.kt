@@ -1,4 +1,4 @@
-package suwayomi.tachidesk.global.model.table
+package suwayomi.tachidesk.manga.model.table
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
@@ -9,10 +9,14 @@ package suwayomi.tachidesk.global.model.table
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-/**
- * Metadata storage for clients, server/global level.
- */
-object GlobalMetaTable : IntIdTable() {
+object SourceMetaTable : IntIdTable() {
+    val createAt = long("create_at").default(0)
+    val updateAt = long("update_at").default(0)
+    val isDelete = bool("is_delete").default(false)
+    val dirty = bool("dirty").default(false)
+    val commitId = long("commit_id").default(0)
+
+    val sourceId = long("source_id")
     val key = varchar("key", 256)
     val value = varchar("value", 4096)
 }

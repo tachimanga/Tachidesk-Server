@@ -183,12 +183,12 @@ object MangaList {
     }
 
     private fun setupDemoMangaExt(manga: SManga, mangaId: Int) {
-        var mode = "webtoon"
-        if (manga.title == "Left to right") {
-            mode = "singleHorizontalLTR"
-        } else if (manga.title == "Right to left") {
-            mode = "singleHorizontalRTL"
+        val mode = when (manga.title) {
+            "Left to right" -> "singleHorizontalLTR"
+            "Right to left" -> "singleHorizontalRTL"
+            "Top to bottom" -> "webtoon"
+            else -> null
         }
-        Manga.modifyMangaMeta(mangaId, "flutter_readerMode", mode)
+        mode?.let { Manga.modifyMangaMeta(mangaId, "flutter_readerMode", it) }
     }
 }

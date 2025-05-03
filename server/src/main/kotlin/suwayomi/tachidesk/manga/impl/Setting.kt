@@ -1,15 +1,16 @@
 package suwayomi.tachidesk.manga.impl
 
-import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.interceptor.EnableNativeNetInterceptor
 import eu.kanade.tachiyomi.source.SourceSetting
+import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
-import okhttp3.Cookie
 import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.download.DownloadManager
+import suwayomi.tachidesk.manga.impl.update.UpdateManager
+import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.SourceConfig
-import uy.kohesive.injekt.injectLazy
+import xyz.nulldev.androidcompat.CommonSwitch
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
@@ -20,12 +21,12 @@ import uy.kohesive.injekt.injectLazy
 
 object Setting {
     private val logger = KotlinLogging.logger {}
-    private val network: NetworkHelper by injectLazy()
 
     @Serializable
     data class SettingData(
         val cookies: List<CookieInfo>? = null,
         val enableNativeNet: Boolean? = null,
+        val enableNativeCookie: Boolean? = null,
         val enableFlutterDirect: Boolean? = null,
         val sourceConfigList: List<SourceConfigInfo>? = null,
         val downloadTaskInParallel: Int? = null,
@@ -34,6 +35,8 @@ object Setting {
         val cloudServer: String? = null,
         val appInfo: AppInfoDataClass? = null,
         val locale: String? = null,
+        val userAgent: String? = null,
+        val selectedCategories: List<String>? = null,
     )
 
     @Serializable
@@ -64,8 +67,12 @@ object Setting {
 
     fun uploadSettings(input: SettingData) {
         if (input.enableNativeNet != null) {
-            println("update ENABLE_NATIVE_NET to " + input.enableNativeNet)
+            logger.info { "update ENABLE_NATIVE_NET to ${input.enableNativeNet}" }
             EnableNativeNetInterceptor.ENABLE_NATIVE_NET = input.enableNativeNet
+        }
+        if (input.enableNativeCookie != null) {
+            logger.info { "update ENABLE_NATIVE_COOKIE to ${input.enableNativeCookie}" }
+            CommonSwitch.ENABLE_NATIVE_COOKIE = input.enableNativeCookie
         }
         if (input.enableFlutterDirect != null) {
             println("update enableFlutterDirect to " + input.enableFlutterDirect)
@@ -92,42 +99,23 @@ object Setting {
         if (input.locale != null) {
             AppInfo.locale = input.locale
         }
+        if (input.userAgent != null) {
+            updateUserAgent(input.userAgent)
+        }
+        if (input.selectedCategories != null) {
+            UpdateManager.migrateMigrateSelectedCategoriesIfNeeded(input.selectedCategories)
+        }
     }
 
-    fun uploadCookies(input: SettingData) {
-        if (input.cookies.isNullOrEmpty()) {
-            return
+    fun updateUserAgent(userAgent: String?) {
+        logger.info { "[UA]uploadSettings userAgent: $userAgent" }
+        if (userAgent?.isNotBlank() == true) {
+            val prev = HttpSource.DEFAULT_USER_AGENT
+            HttpSource.DEFAULT_USER_AGENT = userAgent
+            System.setProperty("http.agent", userAgent)
+            if (prev != HttpSource.INIT_USER_AGENT && prev != userAgent) {
+                GetCatalogueSource.unregisterAllCatalogueSource()
+            }
         }
-        val list = input.cookies.map { c ->
-            val builder = Cookie.Builder()
-            if (c.name != null) {
-                builder.name(c.name)
-            }
-            if (c.value != null) {
-                builder.value(c.value)
-            }
-            if (c.expiresAt != null) {
-                builder.expiresAt(c.expiresAt)
-            }
-            if (c.domain != null) {
-                builder.domain(c.domain.removePrefix("."))
-            }
-            if (c.path != null) {
-                builder.path(c.path)
-            }
-            if (c.secure != null && c.secure) {
-                builder.secure()
-            }
-            if (c.httpOnly != null && c.httpOnly) {
-                builder.httpOnly()
-            }
-            builder.build()
-        }
-        logger.info { "list $list" }
-        network.cookieManager.store.uploadAll(list)
-    }
-
-    fun clearCookies() {
-        network.cookieManager.store.removeAll()
     }
 }

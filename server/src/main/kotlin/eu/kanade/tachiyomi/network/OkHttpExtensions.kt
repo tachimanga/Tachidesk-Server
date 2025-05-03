@@ -9,7 +9,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.internal.closeQuietly
 import rx.Observable
 import rx.Producer
 import rx.Subscription
@@ -45,7 +44,7 @@ fun Call.asObservable(): Observable<Response> {
             }
 
             override fun unsubscribe() {
-                // call.cancel()
+                call.cancel()
             }
 
             override fun isUnsubscribed(): Boolean {
@@ -58,19 +57,23 @@ fun Call.asObservable(): Observable<Response> {
     }
 }
 
+fun Call.asObservableSuccess(): Observable<Response> {
+    return asObservable().doOnNext { response ->
+        if (!response.isSuccessful) {
+            response.close()
+            throw HttpException(response.code)
+        }
+    }
+}
+
 // Based on https://github.com/gildor/kotlin-coroutines-okhttp
 suspend fun Call.await(): Response {
     return suspendCancellableCoroutine { continuation ->
-        enqueue(
+        val callback =
             object : Callback {
                 override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        continuation.resumeWithException(HttpException(response.code))
-                        return
-                    }
-
                     continuation.resume(response) {
-                        response.body?.closeQuietly()
+                        response.body.close()
                     }
                 }
 
@@ -79,8 +82,9 @@ suspend fun Call.await(): Response {
                     if (continuation.isCancelled) return
                     continuation.resumeWithException(e)
                 }
-            },
-        )
+            }
+
+        enqueue(callback)
 
         continuation.invokeOnCancellation {
             try {
@@ -92,31 +96,17 @@ suspend fun Call.await(): Response {
     }
 }
 
-suspend fun Call.awaitSuccess() = await()
-
-fun Call.asObservableSuccess(): Observable<Response> {
-    return asObservable()
-        .doOnNext { response ->
-            if (!response.isSuccessful) {
-                response.close()
-                throw HttpException(response.code)
-            }
-        }
+/**
+ * @since extensions-lib 1.5
+ */
+suspend fun Call.awaitSuccess(): Response {
+    val response = await()
+    if (!response.isSuccessful) {
+        response.close()
+        throw HttpException(response.code)
+    }
+    return response
 }
-
-// fun OkHttpClient.newCallWithProgress(request: Request, listener: ProgressListener): Call {
-//    val progressClient = newBuilder()
-//        .cache(nasObservableSuccessull)
-//        .addNetworkInterceptor { chain ->
-//            val originalResponse = chain.proceed(chain.request())
-//            originalResponse.newBuilder()
-//                .body(ProgressResponseBody(originalResponse.body!!, listener))
-//                .build()
-//        }
-//        .build()
-//
-//    return progressClient.newCall(request)
-// }
 
 @Suppress("UNUSED_PARAMETER")
 fun OkHttpClient.newCallWithProgress(request: Request, listener: ProgressListener): Call {

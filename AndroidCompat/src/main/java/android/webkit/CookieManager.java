@@ -47,7 +47,7 @@ public abstract class CookieManager {
      * @return the singleton CookieManager instance
      */
     public static CookieManager getInstance() {
-        return new SimpleCookieManager();
+        return new McCookieManager();
     }
 
     /**

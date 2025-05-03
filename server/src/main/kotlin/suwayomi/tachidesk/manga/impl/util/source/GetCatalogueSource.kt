@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
 import eu.kanade.tachiyomi.source.SourceMeta
+import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,7 @@ object GetCatalogueSource {
     private val metaCache = ConcurrentHashMap<Long, SourceMeta>()
     private val clientToSourceMap = ConcurrentHashMap<OkHttpClient, Long>()
     private val sourceRandomUaMap = ConcurrentHashMap<Long, Boolean>()
+    private val sourceLatestUserAgentMap = ConcurrentHashMap<Long, String>()
     private val applicationDirs by DI.global.instance<ApplicationDirs>()
     private val network: NetworkHelper by injectLazy()
     private val WHITE_LIST = listOf(
@@ -134,7 +136,7 @@ object GetCatalogueSource {
                     ", simpleClient:" + meta.simpleClient,
             )
         } else {
-            val sCookie = client.cookieJar == network.cookieManager
+            val sCookie = client.cookieJar == network.cookieJar
             val sRedirects = client.followRedirects
             val sAuth = client.authenticator == Authenticator.NONE
             var sInterceptors = true
@@ -209,6 +211,14 @@ object GetCatalogueSource {
         metaCache.remove(sourceId)
     }
 
+    fun unregisterAllCatalogueSource() {
+        sourceCache.clear()
+        LocalSource.registerFast()
+        metaCache.clear()
+        clientToSourceMap.clear()
+        sourceRandomUaMap.clear()
+    }
+
     fun getSourceRandomUaByClient(client: OkHttpClient?, headers: Headers?): Boolean {
         if (client == null) {
             return false
@@ -269,9 +279,21 @@ object GetCatalogueSource {
         sourceRandomUaMap[sourceId] = randomUa
     }
 
+    fun recordLatestUserAgent(client: OkHttpClient?, userAgent: String?) {
+        val sourceId = clientToSourceMap[client] ?: return
+        if (userAgent == null) {
+            return
+        }
+        sourceLatestUserAgentMap[sourceId] = userAgent
+    }
+
+    fun queryLatestUserAgent(sourceId: Long): String? {
+        return sourceLatestUserAgentMap[sourceId]
+    }
+
     fun isAndroidMobileUa(headers: Headers?): Boolean {
         val userAgent = headers?.get("User-Agent")
-        if (userAgent?.startsWith("Mozilla/5.0 (Linux; Android") == true) {
+        if (userAgent?.startsWith("Mozilla/5.0 (Linux; Android") == true || userAgent?.startsWith("Mozilla/5.0 (Android") == true) {
             logger.info { "isAndroidMobileUa true, ua:$userAgent" }
             return true
         }

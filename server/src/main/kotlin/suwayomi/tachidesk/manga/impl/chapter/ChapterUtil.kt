@@ -7,7 +7,9 @@ package suwayomi.tachidesk.manga.impl.chapter
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.online.HttpSource
 import mu.KotlinLogging
 import okhttp3.internal.trimSubstring
 import org.jetbrains.exposed.sql.ResultRow
@@ -16,9 +18,11 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.model.table.ChapterTable
 import suwayomi.tachidesk.manga.model.table.PageTable
+import suwayomi.tachidesk.manga.model.table.toSChapter
 import suwayomi.tachidesk.server.database.MyBatchInsertStatement
 
 object ChapterUtil {
@@ -83,5 +87,25 @@ object ChapterUtil {
         val ret = imageFile != null
         logger.info { "[DOWNLOAD]firstPageExists=$ret" }
         return ret
+    }
+
+    fun fetchChapterRealUrlIfNeeded(source: CatalogueSource, chapterEntry: ResultRow) {
+        if (chapterEntry[ChapterTable.realUrl] != null) {
+            return
+        }
+        logger.info { "fetching chapter real url..." }
+        val realUrl = runCatching {
+            val sChapter = ChapterTable.toSChapter(chapterEntry)
+            (source as? HttpSource)?.getChapterUrl(sChapter)
+        }.getOrNull()
+        logger.info { "fetching chapter real url done $realUrl" }
+        if (realUrl != null) {
+            chapterEntry[ChapterTable.realUrl] = realUrl
+            transaction {
+                ChapterTable.update({ (ChapterTable.id eq chapterEntry[ChapterTable.id]) }) {
+                    it[ChapterTable.realUrl] = realUrl
+                }
+            }
+        }
     }
 }

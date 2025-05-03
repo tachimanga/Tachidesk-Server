@@ -64,7 +64,7 @@ class Updater : IUpdater {
         _status.value = UpdateStatus(tracker.values, flag)
     }
 
-    private suspend fun process(job: UpdateJob): List<UpdateJob> {
+    private suspend fun process(job: UpdateJob) {
         tracker[job.manga.id] = job.copy(status = JobStatus.RUNNING)
         updateStatus(true)
         tracker[job.manga.id] = try {
@@ -79,9 +79,8 @@ class Updater : IUpdater {
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
             logger.error(e) { "Error while updating ${job.manga.title}" }
-            job.copy(status = JobStatus.FAILED)
+            job.copy(status = JobStatus.FAILED, failedInfo = FailedInfo(errorCode = JobErrorCode.UPDATE_FAILED, errorMessage = e.message))
         }
-        return tracker.values.toList()
     }
 
     override fun addMangaToQueue(manga: MangaDataClass) {
@@ -91,6 +90,29 @@ class Updater : IUpdater {
         }
         tracker[manga.id] = UpdateJob(manga)
         updateStatus(true)
+    }
+
+    override fun addMangaListToQueue(mangaList: List<MangaDataClass>) {
+        if (mangaList.isEmpty()) {
+            return
+        }
+        for (manga in mangaList) {
+            val prevJob = tracker[manga.id]
+            if (prevJob?.status == JobStatus.PENDING || prevJob?.status == JobStatus.COMPLETE) {
+                logger.info { "[UPDATE] jon exist, skip. mangaId=${manga.id}, job=$prevJob" }
+                continue
+            }
+            val updateChannel = getOrCreateUpdateChannelFor(manga.sourceId)
+            scope.launch {
+                updateChannel.send(UpdateJob(manga))
+            }
+            tracker[manga.id] = UpdateJob(manga)
+        }
+        updateStatus(true)
+    }
+
+    override fun addMangaToTracker(job: UpdateJob) {
+        tracker[job.manga.id] = job
     }
 
     override fun reset() {
@@ -103,9 +125,14 @@ class Updater : IUpdater {
 
     override fun getQueueStatus(): Pair<Int, Int> {
         val jobs = tracker.values
+        val skipCount = jobs.count { i -> i.status == JobStatus.FAILED && i.failedInfo?.errorCode != JobErrorCode.UPDATE_FAILED }
         return Pair(
-            jobs.count { i -> i.status == JobStatus.COMPLETE || i.status == JobStatus.FAILED },
-            jobs.size,
+            jobs.count { i -> i.status == JobStatus.COMPLETE || i.status == JobStatus.FAILED } - skipCount,
+            jobs.size - skipCount,
         )
+    }
+
+    override fun fetchAllJobs(): List<UpdateJob> {
+        return tracker.values.toList()
     }
 }

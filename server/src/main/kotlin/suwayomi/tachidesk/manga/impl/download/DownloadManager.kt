@@ -220,19 +220,21 @@ object DownloadManager {
     fun enqueue(input: EnqueueInput) {
         if (input.chapterIds.isNullOrEmpty()) return
 
-        val chapters = transaction {
-            (ChapterTable innerJoin MangaTable)
-                .select { ChapterTable.id inList input.chapterIds }
-                .toList()
+        val chapterMap = transaction {
+            ChapterTable.select { ChapterTable.id inList input.chapterIds }
+                .associateBy { it[ChapterTable.id].value }
         }
+        val chapters = input.chapterIds.mapNotNull { chapterMap[it] }
 
+        val mangaIds = chapters.map { it[ChapterTable.manga].value }.distinct()
         val mangas = transaction {
-            chapters.distinctBy { chapter -> chapter[MangaTable.id] }
+            MangaTable
+                .select { (MangaTable.id inList mangaIds) }
                 .map { MangaTable.toDataClass(it) }
                 .associateBy { it.id }
         }
 
-        val inputPairs = transaction {
+        val inputPairs =
             chapters.map {
                 Pair(
                     // this should be safe because mangas is created above from chapters
@@ -240,7 +242,6 @@ object DownloadManager {
                     ChapterTable.toDataClass(it),
                 )
             }
-        }
 
         addMultipleToQueue(inputPairs)
     }

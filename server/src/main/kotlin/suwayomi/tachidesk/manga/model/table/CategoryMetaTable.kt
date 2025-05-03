@@ -19,3 +19,7 @@ object CategoryMetaTable : IntIdTable() {
     val value = varchar("value", 4096)
     val ref = reference("category_ref", CategoryTable, ReferenceOption.CASCADE)
 }
+
+enum class CategoryMetaKey {
+    flutter_update_exclude, // bool
+}

@@ -122,17 +122,6 @@ object MangaController {
         },
     )
 
-    val mangaRealUrl = handler(
-        pathParam<Int>("mangaId"),
-        documentWith = {},
-        behaviorOf = { ctx, mangaId ->
-            ctx.future(
-                future { Manga.getMangaRealUrl(mangaId) },
-            )
-        },
-        withResults = { httpCode(HttpCode.OK) },
-    )
-
     /** adds the manga to library */
     val addToLibrary = handler(
         pathParam<Int>("mangaId"),
@@ -357,18 +346,6 @@ object MangaController {
             json<ChapterDataClass>(HttpCode.OK)
             httpCode(HttpCode.NOT_FOUND)
         },
-    )
-
-    val chapterRealUrl = handler(
-        pathParam<Int>("mangaId"),
-        pathParam<Int>("chapterIndex"),
-        documentWith = {},
-        behaviorOf = { ctx, mangaId, chapterIndex ->
-            ctx.future(
-                future { Chapter.getChapterRealUrl(mangaId, chapterIndex) },
-            )
-        },
-        withResults = { httpCode(HttpCode.OK) },
     )
 
     val chapterModify2 = handler(

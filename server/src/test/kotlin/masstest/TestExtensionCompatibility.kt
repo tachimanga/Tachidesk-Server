@@ -64,11 +64,11 @@ class TestExtensionCompatibility {
                         uninstallExtension(it.pkgName)
                     }
                     it.hasUpdate -> {
-                        updateExtension(it.pkgName)
+                        updateExtension(it.extensionId)
                     }
                     else -> {
                         uninstallExtension(it.pkgName)
-                        installExtension(it.pkgName)
+                        installExtension(it.extensionId)
                     }
                 }
             }

@@ -59,6 +59,7 @@ public class NativeNet {
         private String method;
         private Map<String, String> headers;
         private Boolean followRedirects;
+        private Boolean noCookie;
 
         public Req(String url, String method, Map<String, String> headers) {
             this.url = url;
@@ -96,6 +97,14 @@ public class NativeNet {
 
         public void setFollowRedirects(Boolean followRedirects) {
             this.followRedirects = followRedirects;
+        }
+
+        public Boolean getNoCookie() {
+            return noCookie;
+        }
+
+        public void setNoCookie(Boolean noCookie) {
+            this.noCookie = noCookie;
         }
     }
 

@@ -1,11 +1,12 @@
 package suwayomi.tachidesk.global.impl
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import suwayomi.tachidesk.global.model.table.GlobalMetaTable
+import suwayomi.tachidesk.manga.model.table.SettingTable
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
@@ -16,28 +17,52 @@ import suwayomi.tachidesk.global.model.table.GlobalMetaTable
 
 object GlobalMeta {
     fun modifyMeta(key: String, value: String) {
+        val now = System.currentTimeMillis()
         transaction {
             val meta = transaction {
-                GlobalMetaTable.select { GlobalMetaTable.key eq key }
+                SettingTable.select { SettingTable.key eq key }
             }.firstOrNull()
 
             if (meta == null) {
-                GlobalMetaTable.insert {
-                    it[GlobalMetaTable.key] = key
-                    it[GlobalMetaTable.value] = value
+                SettingTable.insert {
+                    it[SettingTable.key] = key
+                    it[SettingTable.value] = value
+                    it[SettingTable.createAt] = now
+                    it[SettingTable.updateAt] = now
                 }
             } else {
-                GlobalMetaTable.update({ GlobalMetaTable.key eq key }) {
-                    it[GlobalMetaTable.value] = value
+                SettingTable.update({ SettingTable.key eq key }) {
+                    it[SettingTable.value] = value
+                    it[SettingTable.updateAt] = now
                 }
             }
         }
     }
 
-    fun getMetaMap(): Map<String, String> {
+    fun getValue(key: String): String? {
         return transaction {
-            GlobalMetaTable.selectAll()
-                .associate { it[GlobalMetaTable.key] to it[GlobalMetaTable.value] }
+            SettingTable.slice(SettingTable.value)
+                .select { SettingTable.key eq key }
+                .map { it[SettingTable.value] }
+                .firstOrNull()
         }
     }
+
+    fun getMetaMap(): Map<String, String> {
+        return transaction {
+            SettingTable.selectAll()
+                .associate { it[SettingTable.key] to it[SettingTable.value] }
+        }
+    }
+
+    @Serializable
+    data class QueryMetaInput(
+        val key: String? = null,
+    )
+
+    @Serializable
+    data class UpdateMetaInput(
+        val key: String? = null,
+        val value: String? = null,
+    )
 }

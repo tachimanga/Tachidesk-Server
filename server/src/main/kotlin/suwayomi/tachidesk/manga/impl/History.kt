@@ -47,9 +47,14 @@ object History {
                         it[HistoryTable.readDuration] = max(history[HistoryTable.readDuration], readDuration)
                     } else {
                         it[HistoryTable.readDuration] = HistoryTable.readDuration + readDuration
+                        it[HistoryTable.syncBuff] = HistoryTable.syncBuff + readDuration
                     }
                     it[HistoryTable.isDelete] = false
-                    if (history[HistoryTable.lastChapterId] != chapterId || history[HistoryTable.isDelete]) {
+                    if (history[HistoryTable.lastChapterId] != chapterId ||
+                        history[HistoryTable.isDelete] ||
+                        history[HistoryTable.syncBuff] > 180
+                    ) {
+                        it[HistoryTable.syncBuff] = 0
                         it[HistoryTable.updateAt] = now
                         it[HistoryTable.dirty] = true
                         markDirty = true

@@ -53,11 +53,10 @@ object Stats {
         val now = System.currentTimeMillis()
 
         transaction {
-            val stats = transaction {
+            val stats =
                 StatsTable.slice(StatsTable.id)
                     .select { (StatsTable.mangaId eq mangaId) and (StatsTable.day eq currentDateAsInt) }
                     .firstOrNull()
-            }
             if (stats != null) {
                 StatsTable.update({ StatsTable.id eq stats[StatsTable.id] }) {
                     it[StatsTable.updateAt] = now

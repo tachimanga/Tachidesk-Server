@@ -7,10 +7,7 @@ package suwayomi.tachidesk.manga.impl.extension.github
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.network.await
-import eu.kanade.tachiyomi.network.parseAs
+import eu.kanade.tachiyomi.network.*
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MAX
@@ -52,7 +49,7 @@ object ExtensionGithubApi {
             null
         } else {
             try {
-                client.newCall(GET(repo.metaUrl)).await()
+                client.newCall(GET(repo.metaUrl)).awaitSuccess()
             } catch (e: Throwable) {
                 logger.error(e) { "Failed to get extensions from GitHub, repo:$repo" }
                 requiresFallbackSourceMap[repo.id] = true
@@ -60,7 +57,7 @@ object ExtensionGithubApi {
             }
         }
         val response = githubResponse ?: run {
-            client.newCall(GET(toJsDeliverUrl(repo.metaUrl))).await()
+            client.newCall(GET(toJsDeliverUrl(repo.metaUrl))).awaitSuccess()
         }
         return response
             .parseAs<List<ExtensionJsonObject>>()

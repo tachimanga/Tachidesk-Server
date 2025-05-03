@@ -46,6 +46,9 @@ private class ChapterForRead(
         val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
         val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
 
+        // fetch chapter url
+        ChapterUtil.fetchChapterRealUrlIfNeeded(source, chapterEntry)
+
         // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
         val sChapter = ChapterTable.toSChapter(chapterEntry)
         val pageListSrc = source.fetchPageList(sChapter).awaitSingle()

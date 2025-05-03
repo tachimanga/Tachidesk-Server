@@ -7,19 +7,20 @@ package suwayomi.tachidesk.global.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.network.NetworkHelper
 import io.javalin.http.HttpCode
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import org.tachiyomi.NativeChannel
 import suwayomi.tachidesk.global.impl.About
 import suwayomi.tachidesk.global.impl.AboutDataClass
 import suwayomi.tachidesk.manga.impl.Setting
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.withOperation
+import uy.kohesive.injekt.injectLazy
 
 /** Settings Page/Screen */
 object SettingsController {
@@ -41,22 +42,13 @@ object SettingsController {
 
     private val json by DI.global.instance<Json>()
     private val logger = KotlinLogging.logger {}
+    val network: NetworkHelper by injectLazy()
 
     val uploadSettings = handler(
         behaviorOf = { ctx ->
             val input = json.decodeFromString<Setting.SettingData>(ctx.body())
             logger.info { "uploadSettings: $input" }
             Setting.uploadSettings(input)
-            Setting.uploadCookies(input)
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-        },
-    )
-
-    val clearCookies = handler(
-        behaviorOf = { ctx ->
-            Setting.clearCookies()
         },
         withResults = {
             httpCode(HttpCode.OK)
@@ -66,10 +58,18 @@ object SettingsController {
     val uploadUserAgent = handler(
         behaviorOf = { ctx ->
             val ua = ctx.header("User-Agent")
-            logger.info { "uploadUserAgent: $ua" }
+            Setting.updateUserAgent(ua)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val detectDefaultUserAgent = handler(
+        behaviorOf = { ctx ->
+            val ua = ctx.header("User-Agent")
             if (ua != null) {
-                HttpSource.DEFAULT_USER_AGENT = ua
-                System.setProperty("http.agent", ua)
+                NativeChannel.call("USERAGENT:DEFAULT", ua)
             }
         },
         withResults = {

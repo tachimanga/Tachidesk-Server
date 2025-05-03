@@ -30,6 +30,8 @@ object HistoryTable : IntIdTable() {
     val lastChapterName = varchar("last_chapter_name", 512).nullable()
     val dirty = bool("dirty").default(false)
     val commitId = long("commit_id").default(0)
+
+    val syncBuff = integer("sync_buff").default(0)
 }
 
 fun HistoryTable.toSyncData(entry: ResultRow): SyncCommitDTO {

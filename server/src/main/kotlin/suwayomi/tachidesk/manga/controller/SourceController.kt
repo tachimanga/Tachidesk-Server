@@ -17,10 +17,10 @@ import org.kodein.di.instance
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.MangaList
 import suwayomi.tachidesk.manga.impl.Search
-import suwayomi.tachidesk.manga.impl.Search.FilterChange
 import suwayomi.tachidesk.manga.impl.Search.FilterData
 import suwayomi.tachidesk.manga.impl.Source
 import suwayomi.tachidesk.manga.impl.Source.SourcePreferenceChange
+import suwayomi.tachidesk.manga.impl.SourceMeta
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
@@ -176,50 +176,6 @@ object SourceController {
 
     private val json by DI.global.instance<Json>()
 
-    /** change filters of source with id `sourceId` */
-    val setFilters = handler(
-        pathParam<Long>("sourceId"),
-        documentWith = {
-            withOperation {
-                summary("Source filters set")
-                description("Change filters of source with id `sourceId`")
-            }
-            // body<FilterChange>()
-            // body<Array<FilterChange>>()
-        },
-        behaviorOf = { ctx, sourceId ->
-            val filterChange = try {
-                json.decodeFromString<List<FilterChange>>(ctx.body())
-            } catch (e: Exception) {
-                listOf(json.decodeFromString<FilterChange>(ctx.body()))
-            }
-
-            ctx.json(Search.setFilter(sourceId, filterChange))
-        },
-        withResults = {
-            httpCode(HttpCode.OK)
-        },
-    )
-
-    /** single source search */
-    val searchSingle = handler(
-        pathParam<Long>("sourceId"),
-        queryParam("searchTerm", ""),
-        queryParam("pageNum", 1),
-        documentWith = {
-            withOperation {
-                summary("Source search")
-                description("Single source search")
-            }
-        },
-        behaviorOf = { ctx, sourceId, searchTerm, pageNum ->
-            ctx.future(future { Search.sourceSearch(sourceId, searchTerm, pageNum) })
-        },
-        withResults = {
-            json<PagedMangaListDataClass>(HttpCode.OK)
-        },
-    )
-
     /** quick search single source filter */
     val quickSearchSingle = handler(
         pathParam<Long>("sourceId"),
@@ -242,18 +198,21 @@ object SourceController {
         },
     )
 
-    /** all source search */
-    val searchAll = handler(
-        pathParam<String>("searchTerm"),
-        documentWith = {
-            withOperation {
-                summary("Source global search")
-                description("All source search")
-            }
+    val queryMeta = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<SourceMeta.SourceMetaQueryInput>(ctx.body())
+            ctx.json(SourceMeta.queryMeta(input.sourceId, input.key))
         },
-        behaviorOf = { ctx, searchTerm ->
-            // TODO
-            ctx.json(Search.sourceGlobalSearch(searchTerm))
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val updateMeta = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<SourceMeta.SourceMetaUpdateInput>(ctx.body())
+            logger.info { "updateMeta: $input" }
+            ctx.json(SourceMeta.upsertMeta(input.sourceId, input.key, input.value))
         },
         withResults = {
             httpCode(HttpCode.OK)

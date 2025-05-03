@@ -21,4 +21,6 @@ enum class SettingKey {
     HistoryMangaCover,
     MigrateUserCredentials,
     UserCredentials,
+    MigrateSelectedCategories,
+    UpdateRestrictions,
 }

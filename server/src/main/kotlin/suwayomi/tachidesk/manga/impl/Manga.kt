@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.impl
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.asObservableSuccess
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.SManga
@@ -30,7 +31,6 @@ import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.impl.Source.getSource
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
-import suwayomi.tachidesk.manga.impl.util.network.await
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrNull
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
@@ -192,24 +192,6 @@ object Manga {
         }
     }
 
-    fun getMangaRealUrl(mangaId: Int): MangaDataClass {
-        val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
-        val source = getCatalogueSourceOrNull(mangaEntry[MangaTable.sourceReference])
-        val meta = if (source != null) {
-            GetCatalogueSource.getCatalogueSourceMeta(source)
-        } else {
-            null
-        }
-        val mangaData = getMangaDataClass(mangaId, mangaEntry, meta)
-        return if (source is HttpSource && mangaData.realUrl.isNullOrEmpty()) {
-            val sManga = MangaTable.toSManga(mangaEntry)
-            val realUrl = source.getMangaUrl(sManga)
-            mangaData.copy(realUrl = realUrl)
-        } else {
-            mangaData
-        }
-    }
-
     private fun getMangaDataClass(mangaId: Int, mangaEntry: ResultRow, meta: SourceMeta?) = MangaDataClass(
         id = mangaId,
         sourceId = mangaEntry[MangaTable.sourceReference].toString(),
@@ -353,7 +335,7 @@ object Manga {
                     ?: throw NullPointerException("No thumbnail found")
                 network.client.newCall(
                     GET(thumbnailUrl),
-                ).await()
+                ).awaitSuccess()
             }
 
             else -> throw IllegalArgumentException("Unknown source")

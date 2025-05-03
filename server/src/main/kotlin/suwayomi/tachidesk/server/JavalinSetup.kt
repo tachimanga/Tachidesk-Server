@@ -9,7 +9,6 @@ package suwayomi.tachidesk.server
 
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.path
-import io.javalin.core.security.RouteRole
 import io.javalin.http.staticfiles.Location
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,14 +19,9 @@ import org.eclipse.jetty.server.Connector
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.MyStatisticsHandler
 import org.eclipse.jetty.util.thread.QueuedThreadPool
-import org.kodein.di.DI
-import org.kodein.di.conf.global
-import org.kodein.di.instance
 import suwayomi.tachidesk.cloud.CloudAPI
 import suwayomi.tachidesk.global.GlobalAPI
 import suwayomi.tachidesk.manga.MangaAPI
-import suwayomi.tachidesk.server.util.Browser
-import suwayomi.tachidesk.server.util.setupWebInterface
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,8 +30,6 @@ import kotlin.concurrent.thread
 
 object JavalinSetup {
     private val logger = KotlinLogging.logger {}
-
-    private val applicationDirs by DI.global.instance<ApplicationDirs>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -50,14 +42,6 @@ object JavalinSetup {
 
     fun javalinSetup() {
         val app = Javalin.create { config ->
-            if (serverConfig.webUIEnabled) {
-                setupWebInterface()
-
-                logger.info { "Serving web static files for ${serverConfig.webUIFlavor}" }
-                config.addStaticFiles(applicationDirs.webUIRoot, Location.EXTERNAL)
-                config.addSinglePageRoot("/", applicationDirs.webUIRoot + "/index.html", Location.EXTERNAL)
-            }
-
             STAT_HANDLER = MyStatisticsHandler()
 
             config.server {
@@ -87,12 +71,6 @@ object JavalinSetup {
                     ctx.status(401).json("Unauthorized")
                 } else {
                     handler.handle(ctx)
-                }
-            }
-        }.events { event ->
-            event.serverStarted {
-                if (serverConfig.initialOpenInBrowserEnabled) {
-                    Browser.openInBrowser()
                 }
             }
         }.start(serverConfig.ip, serverConfig.port)
@@ -213,9 +191,5 @@ object JavalinSetup {
         }
         connector.stop()
         logger.info("stopSocket done")
-    }
-
-    object Auth {
-        enum class Role : RouteRole { ANYONE, USER_READ, USER_WRITE }
     }
 }

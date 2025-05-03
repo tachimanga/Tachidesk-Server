@@ -25,7 +25,7 @@ object MangaMeta {
     private val logger = KotlinLogging.logger {}
     private val json by DI.global.instance<Json>()
 
-    fun batchQueryMangaScanlator(mangaIds: List<Int>): List<Pair<Int, List<String>>> {
+    fun batchQueryMangaScanlator(mangaIds: List<Int>): List<Pair<Int, MangaScanlatorMeta>> {
         val metaList = transaction {
             MangaMetaTable.slice(MangaMetaTable.value, MangaMetaTable.ref)
                 .select { (MangaMetaTable.ref inList mangaIds) and (MangaMetaTable.key eq "flutter_scanlator") }
@@ -37,9 +37,12 @@ object MangaMeta {
         val list = metaList.mapNotNull {
             val mangaId = it[MangaMetaTable.ref].value
             val value = it[MangaMetaTable.value]
-            val scanlatorList = extractScanlatorList(value)
-            if (scanlatorList?.isNotEmpty() == true) {
-                mangaId to scanlatorList
+            val meta = extractScanlatorMeta(value)
+            val type = ScanlatorFilterType.valueOf(meta?.type)
+            if (meta != null && type == ScanlatorFilterType.Filter && meta.list?.isNotEmpty() == true) {
+                mangaId to meta
+            } else if (meta != null && type == ScanlatorFilterType.Priority) {
+                mangaId to meta
             } else {
                 null
             }
@@ -47,22 +50,43 @@ object MangaMeta {
         return list
     }
 
-    private fun extractScanlatorList(value: String): List<String>? {
+    private fun extractScanlatorMeta(value: String): MangaScanlatorMeta? {
         if (value.isEmpty()) {
             return null
         }
         if (value.startsWith("{")) {
             return try {
-                val scanlatorMeta = json.decodeFromString<MangaScanlatorMeta>(value)
-                scanlatorMeta.list
+                json.decodeFromString<MangaScanlatorMeta>(value)
             } catch (e: Exception) {
                 logger.error(e) { "decode MangaScanlatorMeta error, value:$value" }
                 null
             }
         }
-        return listOf(value)
+        return MangaScanlatorMeta(list = listOf(value))
     }
 
     @Serializable
-    data class MangaScanlatorMeta(val list: List<String>? = null)
+    data class MangaScanlatorMeta(
+        // ScanlatorFilterType
+        val type: Int? = null,
+        val list: List<String>? = null,
+        val priority: List<String>? = null,
+    )
+
+    enum class ScanlatorFilterType(val type: Int) {
+        Filter(0),
+        Priority(1),
+        ;
+
+        companion object {
+            fun valueOf(type: Int?): ScanlatorFilterType? {
+                if (type == null || type == Filter.type) {
+                    return Filter
+                } else if (type == Priority.type) {
+                    return Priority
+                }
+                return null
+            }
+        }
+    }
 }

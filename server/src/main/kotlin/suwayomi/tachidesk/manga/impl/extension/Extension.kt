@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.impl.extension
 import android.net.Uri
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
@@ -37,7 +38,6 @@ import suwayomi.tachidesk.manga.impl.util.PackageTools.METADATA_SOURCE_FACTORY
 import suwayomi.tachidesk.manga.impl.util.PackageTools.dex2jar
 import suwayomi.tachidesk.manga.impl.util.PackageTools.getPackageInfo
 import suwayomi.tachidesk.manga.impl.util.PackageTools.loadExtensionSources
-import suwayomi.tachidesk.manga.impl.util.network.await
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse
 import suwayomi.tachidesk.manga.model.table.ExtensionTable
@@ -230,7 +230,7 @@ object Extension {
                 val dbExtensionId = if (extensionId != null) {
                     extensionId
                 } else {
-                    val record = ExtensionTable.select { ExtensionTable.pkgName eq pkgName }.firstOrNull()
+                    val record = ExtensionTable.select { (ExtensionTable.pkgName eq pkgName) and (ExtensionTable.repoId eq 0) }.firstOrNull()
                     if (record != null) {
                         record[ExtensionTable.id].value
                     } else {
@@ -335,7 +335,7 @@ object Extension {
 
     private suspend fun downloadAPKFile(url: String, savePath: String) {
         val request = Request.Builder().url(url).build()
-        val response = network.client.newCall(request).await()
+        val response = network.client.newCall(request).awaitSuccess()
 
         val downloadedFile = File(savePath)
         downloadedFile.sink().buffer().use { sink ->
@@ -445,7 +445,7 @@ object Extension {
         return ImageResponse.buildImageResponse {
             network.client.newCall(
                 GET(iconUrl),
-            ).await()
+            ).awaitSuccess()
         }
     }
 

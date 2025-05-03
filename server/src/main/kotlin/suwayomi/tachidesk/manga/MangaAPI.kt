@@ -40,17 +40,16 @@ object MangaAPI {
             post("{sourceId}/preferences", SourceController.setPreference)
 
             get("{sourceId}/filters", SourceController.getFilters)
-            post("{sourceId}/filters", SourceController.setFilters)
-
-            get("{sourceId}/search", SourceController.searchSingle)
             post("{sourceId}/quick-search", SourceController.quickSearchSingle)
+
+            post("meta/query", SourceController.queryMeta)
+            post("meta/update", SourceController.updateMeta)
         }
 
         path("manga") {
             get("{mangaId}", MangaController.retrieve)
             get("{mangaId}/full", MangaController.retrieveFull)
             get("{mangaId}/thumbnail", MangaController.thumbnail)
-            get("{mangaId}/realUrl", MangaController.mangaRealUrl)
 
             get("{mangaId}/category", MangaController.categoryList)
             post("{mangaId}/updateCategory", MangaController.updateCategory)
@@ -66,7 +65,6 @@ object MangaAPI {
             post("chapter/modify", MangaController.chapterModify2)
 
             delete("{mangaId}/chapter/{chapterIndex}", MangaController.chapterDelete)
-            get("{mangaId}/chapter/{chapterIndex}/realUrl", MangaController.chapterRealUrl)
 
             patch("{mangaId}/chapter/{chapterIndex}/meta", MangaController.chapterMeta)
             get("{mangaId}/chapter/{chapterIndex}/page/{index}", MangaController.pageRetrieve)
@@ -128,6 +126,8 @@ object MangaAPI {
         path("update") {
             get("recentChapters/{pageNum}", UpdateController.recentChapters)
             post("fetch2", UpdateController.categoryUpdate2)
+            post("retryByCodes", UpdateController.retryByCodes)
+            post("retrySkipped", UpdateController.retrySkipped)
             post("reset", UpdateController.reset)
             get("summary", UpdateController.updateSummary)
             ws("", UpdateController::categoryUpdateWS)
@@ -161,6 +161,10 @@ object MangaAPI {
             get("sourceList", MigrateController.sourceList)
             get("mangaList", MigrateController.mangaList)
             post("migrate", MigrateController.migrate)
+        }
+
+        path("browse") {
+            post("fetchUrl", BrowseController.fetchUrl)
         }
 
         path("pip") {

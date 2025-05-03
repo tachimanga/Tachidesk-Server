@@ -43,6 +43,7 @@ data class MangaDataClass(
 
     val freshData: Boolean = false,
     var unreadCount: Long? = null,
+    var unreadCountRaw: Long? = null,
     var downloadCount: Long? = null,
     var chapterCount: Long? = null,
     var lastReadAt: Long? = null,

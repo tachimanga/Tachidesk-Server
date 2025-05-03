@@ -16,15 +16,18 @@ class UserAgentInterceptor : Interceptor {
         val randomUa = GetCatalogueSource.getSourceRandomUaByClient(client, originalRequest.headers)
         val forceUa = GetCatalogueSource.getForceUaByClient(client)
         val androidMobileUa = GetCatalogueSource.isAndroidMobileUa(originalRequest.headers)
-        println("Profiler: forceRandomUa:$randomUa, forceUa:$forceUa")
+        println("Profiler: forceRandomUa:$randomUa, forceUa:$forceUa a:${originalRequest.header("User-Agent")}, HttpSource:${HttpSource.DEFAULT_USER_AGENT}")
         return if (randomUa || originalRequest.header("User-Agent").isNullOrEmpty() || forceUa?.isNotEmpty() == true || androidMobileUa) {
+            val userAgent = forceUa ?: HttpSource.DEFAULT_USER_AGENT
             val newRequest = originalRequest
                 .newBuilder()
                 .removeHeader("User-Agent")
-                .addHeader("User-Agent", forceUa ?: HttpSource.DEFAULT_USER_AGENT)
+                .addHeader("User-Agent", userAgent)
                 .build()
+            GetCatalogueSource.recordLatestUserAgent(client, userAgent)
             chain.proceed(newRequest)
         } else {
+            GetCatalogueSource.recordLatestUserAgent(client, originalRequest.header("User-Agent"))
             chain.proceed(originalRequest)
         }
     }

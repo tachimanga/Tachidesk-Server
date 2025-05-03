@@ -14,14 +14,15 @@ import suwayomi.tachidesk.global.controller.SettingsController
 object GlobalAPI {
     fun defineEndpoints() {
         path("meta") {
-            get("", GlobalMetaController.getMeta)
-            patch("", GlobalMetaController.modifyMeta)
+            post("query", GlobalMetaController.getMeta)
+            post("update", GlobalMetaController.modifyMeta)
         }
+
         path("settings") {
             get("about", SettingsController.about)
             post("uploadSettings", SettingsController.uploadSettings)
-            get("clearCookies", SettingsController.clearCookies)
             get("uploadUserAgent", SettingsController.uploadUserAgent)
+            get("detectDefaultUserAgent", SettingsController.detectDefaultUserAgent)
             get("systemInfo", SettingsController.systemInfo)
         }
     }

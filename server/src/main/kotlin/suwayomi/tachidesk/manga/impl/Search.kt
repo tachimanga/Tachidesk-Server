@@ -7,7 +7,6 @@ package suwayomi.tachidesk.manga.impl
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import io.javalin.plugin.json.JsonMapper
@@ -21,32 +20,17 @@ import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogue
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
 
 object Search {
-    suspend fun sourceSearch(sourceId: Long, searchTerm: String, pageNum: Int): PagedMangaListDataClass {
-        val source = getCatalogueSourceOrStub(sourceId)
-        val searchManga = source.fetchSearchManga(pageNum, searchTerm, getFilterListOf(source)).awaitSingle()
-        return searchManga.processEntries(sourceId)
-    }
-
     suspend fun sourceFilter(sourceId: Long, pageNum: Int, filter: FilterData): PagedMangaListDataClass {
         val source = getCatalogueSourceOrStub(sourceId)
-        val filterList = if (filter.filter != null) buildFilterList(sourceId, filter.filter) else source.getFilterList()
+        val filterList0 = source.getFilterList()
+        val filterList = if (filter.filter != null) updateFilterList(filterList0, filter.filter) else filterList0
         val searchManga = source.fetchSearchManga(pageNum, filter.searchTerm ?: "", filterList).awaitSingle()
         return searchManga.processEntries(sourceId)
     }
 
-    private val filterListCache = mutableMapOf<Long, FilterList>()
-
-    private fun getFilterListOf(source: CatalogueSource, reset: Boolean = false): FilterList {
-        if (reset || !filterListCache.containsKey(source.id)) {
-            filterListCache[source.id] = source.getFilterList()
-        }
-        return filterListCache[source.id]!!
-    }
-
     fun getFilterList(sourceId: Long, reset: Boolean): List<FilterObject> {
         val source = getCatalogueSourceOrStub(sourceId)
-
-        return getFilterListOf(source, reset).list.map {
+        return source.getFilterList().list.map {
             FilterObject(
                 when (it) {
                     is Filter.Header -> "Header"
@@ -88,12 +72,6 @@ object Search {
         val filter: Filter<*>,
     )
 
-    fun setFilter(sourceId: Long, changes: List<FilterChange>) {
-        val source = getCatalogueSourceOrStub(sourceId)
-        val filterList = getFilterListOf(source, false)
-        updateFilterList(filterList, changes)
-    }
-
     private fun updateFilterList(filterList: FilterList, changes: List<FilterChange>): FilterList {
         changes.forEach { change ->
             when (val filter = filterList[change.position]) {
@@ -125,12 +103,6 @@ object Search {
         return filterList
     }
 
-    private fun buildFilterList(sourceId: Long, changes: List<FilterChange>): FilterList {
-        val source = getCatalogueSourceOrStub(sourceId)
-        val filterList = source.getFilterList()
-        return updateFilterList(filterList, changes)
-    }
-
     private val jsonMapper by DI.global.instance<JsonMapper>()
 
     @Serializable
@@ -144,9 +116,4 @@ object Search {
         val searchTerm: String?,
         val filter: List<FilterChange>?,
     )
-
-    @Suppress("UNUSED_PARAMETER")
-    fun sourceGlobalSearch(searchTerm: String) {
-        // TODO
-    }
 }

@@ -398,6 +398,7 @@ abstract class HttpSource : CatalogueSource {
     override fun getFilterList() = FilterList()
 
     companion object {
-        var DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/115.0.5790.160 Mobile/15E148 Safari/604.1"
+        val INIT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/115.0.5790.160 Mobile/15E148 Safari/604.1"
+        var DEFAULT_USER_AGENT = INIT_USER_AGENT
     }
 }

@@ -8,46 +8,43 @@ package suwayomi.tachidesk.global.controller
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import io.javalin.http.HttpCode
+import kotlinx.serialization.json.Json
+import mu.KotlinLogging
+import org.kodein.di.DI
+import org.kodein.di.conf.global
+import org.kodein.di.instance
 import suwayomi.tachidesk.global.impl.GlobalMeta
-import suwayomi.tachidesk.server.util.formParam
 import suwayomi.tachidesk.server.util.handler
-import suwayomi.tachidesk.server.util.withOperation
 
 object GlobalMetaController {
-    /** used to modify a category's meta parameters */
+    private val json by DI.global.instance<Json>()
+    private val logger = KotlinLogging.logger {}
+
     val getMeta = handler(
-        documentWith = {
-            withOperation {
-                summary("Server level meta mapping")
-                description("Get a list of globally stored key-value mapping, you can set values for whatever you want inside it.")
-            }
-        },
         behaviorOf = { ctx ->
-            ctx.json(GlobalMeta.getMetaMap())
-            ctx.status(200)
+            val input = json.decodeFromString<GlobalMeta.QueryMetaInput>(ctx.body())
+            logger.info { "getMeta: $input" }
+            val result = mutableMapOf<String, String?>()
+            if (input.key != null) {
+                result[input.key] = GlobalMeta.getValue(input.key)
+            }
+            ctx.json(result)
         },
         withResults = {
             httpCode(HttpCode.OK)
         },
     )
 
-    /** used to modify global meta parameters */
     val modifyMeta = handler(
-        formParam<String>("key"),
-        formParam<String>("value"),
-        documentWith = {
-            withOperation {
-                summary("Add meta data to the global meta mapping")
-                description("A simple Key-Value stored at server global level, you can set values for whatever you want inside it.")
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<GlobalMeta.UpdateMetaInput>(ctx.body())
+            logger.info { "modifyMeta: $input" }
+            if (input.key != null && input.value != null) {
+                GlobalMeta.modifyMeta(input.key, input.value)
             }
-        },
-        behaviorOf = { ctx, key, value ->
-            GlobalMeta.modifyMeta(key, value)
-            ctx.status(200)
         },
         withResults = {
             httpCode(HttpCode.OK)
-            httpCode(HttpCode.NOT_FOUND)
         },
     )
 }

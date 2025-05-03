@@ -110,16 +110,6 @@ object Chapter {
         val (insertList, updateList) = chapterPairList
             .partition { dbChapterListUrlMap[it.second.url] == null }
 
-        val realUrlMap = chapterPairList.associate { p ->
-            p.first to
-                runCatching {
-                    // tachiyomi:  val chapterUrl = source.getChapterUrl(chapter.toSChapter())
-                    val clone = SChapter.create()
-                    clone.copyFrom(p.second)
-                    (source as? HttpSource)?.getChapterUrl(clone)
-                }.getOrNull()
-        }
-        Profiler.split("after getChapterUrl")
         var needSync = false
 
         transaction {
@@ -148,8 +138,6 @@ object Chapter {
                     my[ChapterTable.sourceOrder] = index + 1
                     my[ChapterTable.fetchedAt] = now++
                     my[ChapterTable.manga] = mangaId
-
-                    my[ChapterTable.realUrl] = realUrlMap[index]
 
                     val sameNameChapterList = toDeleteChapterNameMap[fetchedChapter.name]
                     val sameNumChapterList = toDeleteChapterNumMap[fetchedChapter.chapter_number]
@@ -199,7 +187,7 @@ object Chapter {
 
         val toUpdateList = updateList
             .filter {
-                decideChapterNeedUpdate(dbChapterListUrlMap, realUrlMap, it)
+                decideChapterNeedUpdate(dbChapterListUrlMap, it)
             }
             .toList()
 
@@ -218,7 +206,6 @@ object Chapter {
 
                         it[sourceOrder] = index + 1
                         it[ChapterTable.manga] = mangaId
-                        it[realUrl] = realUrlMap[index]
                     }
                 }
             }
@@ -319,20 +306,17 @@ object Chapter {
 
     private fun decideChapterNeedUpdate(
         dbChapterMap: Map<String, ResultRow>,
-        realChapterUrlMap: Map<Int, String?>,
         pair: Pair<Int, SChapter>,
     ): Boolean {
         val index = pair.first
         val fetchedChapter = pair.second
         val dbChapter = dbChapterMap[fetchedChapter.url] ?: return false
-        val realUrl = realChapterUrlMap[index]
 
         if (dbChapter[ChapterTable.name] == fetchedChapter.name &&
             dbChapter[ChapterTable.date_upload] == fetchedChapter.date_upload &&
             dbChapter[ChapterTable.chapter_number] == fetchedChapter.chapter_number &&
             dbChapter[ChapterTable.scanlator] == fetchedChapter.scanlator &&
-            dbChapter[ChapterTable.sourceOrder] == index + 1 &&
-            dbChapter[ChapterTable.realUrl] == realUrl
+            dbChapter[ChapterTable.sourceOrder] == index + 1
         ) {
             return false
         }
@@ -369,6 +353,7 @@ object Chapter {
                         (ChapterTable.isRead eq false)
                 }) {
                     it[ChapterTable.isRead] = true
+                    it[ChapterTable.lastReadAt] = 0
                     it[ChapterTable.updateAt] = now
                     it[ChapterTable.dirty] = true
                 }
@@ -378,7 +363,7 @@ object Chapter {
             History.upsertHistory(input.mangaId, input.chapterId, input.readDuration ?: 0)
             Stats.upsertStats(input.mangaId, input.readDuration ?: 0)
         }
-        if (input.read == true || input.markPrevRead == true) {
+        if ((input.read == true && input.lastPageRead == 0) || input.markPrevRead == true) {
             Track.asyncTrackChapter(input.mangaId)
         }
         Manga.markDirtyIfCommitIdZero(input.mangaId)
@@ -638,29 +623,5 @@ object Chapter {
                 }
         }
         return mangaList
-    }
-
-    fun getChapterRealUrl(mangaId: Int, chapterIndex: Int): ChapterDataClass {
-        val chapterEntry = transaction {
-            ChapterTable.select {
-                (ChapterTable.sourceOrder eq chapterIndex) and (ChapterTable.manga eq mangaId)
-            }.first()
-        }
-
-        val chapterData = ChapterTable.toDataClass(chapterEntry)
-        if (chapterData.realUrl?.isNotEmpty() == true) {
-            return chapterData
-        }
-
-        val mangaEntry = transaction { MangaTable.select { MangaTable.id eq mangaId }.first() }
-        val source = getCatalogueSourceOrStub(mangaEntry[MangaTable.sourceReference])
-
-        return if (source is HttpSource) {
-            val sChapter = ChapterTable.toSChapter(chapterEntry)
-            val realUrl = source.getChapterUrl(sChapter)
-            return chapterData.copy(realUrl = realUrl)
-        } else {
-            chapterData
-        }
     }
 }
