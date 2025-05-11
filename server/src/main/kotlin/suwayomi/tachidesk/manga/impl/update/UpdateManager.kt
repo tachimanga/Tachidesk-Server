@@ -12,6 +12,7 @@ import org.kodein.di.instance
 import suwayomi.tachidesk.global.impl.GlobalMeta
 import suwayomi.tachidesk.manga.impl.Category
 import suwayomi.tachidesk.manga.impl.CategoryManga
+import suwayomi.tachidesk.manga.impl.util.lang.isNotEmpty
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.table.*
 
@@ -118,6 +119,7 @@ object UpdateManager {
             return mangaList
         }
 
+        val excludeDefaultCategory = excludeCategoryIds.contains(0)
         val dest = mutableListOf<MangaDataClass>()
         for (subList in mangaList.chunked(200)) {
             val mangaIds = subList.map { it.id }
@@ -126,7 +128,20 @@ object UpdateManager {
                     .slice(CategoryMangaTable.manga)
                     .select { (CategoryMangaTable.category inList excludeCategoryIds) and (CategoryMangaTable.manga inList mangaIds) }
                     .map { it[CategoryMangaTable.manga].value }
-                    .toSet()
+                    .toMutableSet()
+            }
+            if (excludeDefaultCategory) {
+                val defaultCategoryMangaIds = transaction {
+                    MangaTable
+                        .slice(MangaTable.id)
+                        .select { (MangaTable.id inList mangaIds) and (MangaTable.defaultCategory eq true) }
+                        .map { it[MangaTable.id].value }
+                        .toList()
+                }
+                logger.info { "[UPDATE]defaultCategoryMangaIds=$defaultCategoryMangaIds" }
+                if (defaultCategoryMangaIds.isNotEmpty()) {
+                    excludeMangaIds.addAll(defaultCategoryMangaIds)
+                }
             }
             logger.info { "[UPDATE]excludeMangaIds=$excludeMangaIds" }
             for (manga in subList) {
