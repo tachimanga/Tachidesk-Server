@@ -124,7 +124,19 @@ object ProtoBackupExport {
 
     private fun batchBackupMangaChapters(mangaIds: List<Int>): Map<Int, List<BackupChapter>> {
         val chapters = transaction {
-            ChapterTable.select {
+            ChapterTable.slice(
+                ChapterTable.manga,
+                ChapterTable.url,
+                ChapterTable.name,
+                ChapterTable.scanlator,
+                ChapterTable.isRead,
+                ChapterTable.isBookmarked,
+                ChapterTable.lastPageRead,
+                ChapterTable.fetchedAt,
+                ChapterTable.date_upload,
+                ChapterTable.chapter_number,
+                ChapterTable.sourceOrder,
+            ).select {
                 (ChapterTable.manga inList mangaIds) and
                     ((ChapterTable.isRead eq true) or (ChapterTable.isBookmarked eq true) or (ChapterTable.lastPageRead greater 0) or (ChapterTable.lastReadAt greater 0))
             }.toList()

@@ -11,29 +11,38 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
 import kotlinx.serialization.Serializable
+import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SortOrder.ASC
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.kodein.di.DI
+import org.kodein.di.conf.global
+import org.kodein.di.instance
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.cloud.model.table.ChapterSyncTable
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
+import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath
 import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.*
 import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.manga.model.table.ChapterTable.scanlator
+import suwayomi.tachidesk.server.ApplicationDirs
 import suwayomi.tachidesk.server.database.MyBatchInsertStatement
+import java.io.File
 import java.time.Instant
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.max
 
 object Chapter {
+    private val logger = KotlinLogging.logger {}
+    private val applicationDirs by DI.global.instance<ApplicationDirs>()
     suspend fun delgetChapterList(mangaId: Int, onlineFetch: Boolean = false): List<ChapterDataClass> {
         transaction {
             val delte = ChapterTable.deleteWhere { ChapterTable.manga eq mangaId }.toString()
@@ -56,6 +65,7 @@ object Chapter {
                     .toList()
             }
             Profiler.split("get chapterList")
+            fixDownloadFlag(chapterList, mangaId)
             val list = chapterList.map {
                 ChapterTable.toDataClass(it)
             }
@@ -246,7 +256,7 @@ object Chapter {
             ChapterTable.select { ChapterTable.manga eq mangaId }
                 .associateBy({ it[ChapterTable.url] }, { it })
         }
-
+        fixDownloadFlag(dbChapterMap.values.toList(), mangaId)
         val chapterDataList = chapterList.mapIndexed { index, it ->
             val dbChapter = dbChapterMap.getValue(it.url)
             ChapterDataClass(
@@ -300,6 +310,32 @@ object Chapter {
                 it.uploadDate = if (maxSeenUploadDate == 0L) rightNow else maxSeenUploadDate
             } else {
                 maxSeenUploadDate = Math.max(maxSeenUploadDate, it.uploadDate)
+            }
+        }
+    }
+
+    private fun fixDownloadFlag(list: List<ResultRow>, mangaId: Int) {
+        val downloaded = list.filter { it[ChapterTable.isDownloaded] && it[ChapterTable.pageCount] > 0 }
+        if (downloaded.isEmpty()) {
+            return
+        }
+        val mangaDownloadPath1 = getMangaDownloadPath(mangaId)
+        val mangaDownloadPath1Exist = File(mangaDownloadPath1).exists()
+        val toMarkUnDownloadedIds = mutableListOf<Int>()
+        for (chapter in downloaded) {
+            val folder = FolderProvider2(mangaId, chapter[ChapterTable.id].value, chapter[ChapterTable.originalChapterId])
+            val imageV2Exist = folder.getImageV2(0) != null
+            if (!mangaDownloadPath1Exist && !imageV2Exist) {
+                toMarkUnDownloadedIds.add(chapter[ChapterTable.id].value)
+                chapter[ChapterTable.isDownloaded] = false
+            }
+        }
+        if (toMarkUnDownloadedIds.isNotEmpty()) {
+            logger.info { "[DOWNLOAD]clear download flag, chapterIds=$toMarkUnDownloadedIds" }
+            transaction {
+                ChapterTable.update({ (ChapterTable.id inList toMarkUnDownloadedIds) }) {
+                    it[isDownloaded] = false
+                }
             }
         }
     }

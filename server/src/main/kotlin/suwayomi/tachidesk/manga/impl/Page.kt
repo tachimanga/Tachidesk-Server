@@ -11,6 +11,11 @@ import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.flow.StateFlow
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -81,7 +86,16 @@ object Page {
         }
 
         return buildImageResponse {
-            source.fetchImage(tachiyomiPage).awaitSingle()
+            try {
+                source.fetchImage(tachiyomiPage).awaitSingle()
+            } catch (e: IllegalArgumentException) {
+                // imageUrl = "" HttpUrl.kt:1366 throw IllegalArgumentException("Expected URL scheme 'http' or 'https' but no scheme was found for $truncated",)
+                if (e.message != "Expected URL scheme 'http' or 'https' but no scheme was found for ") {
+                    throw e
+                }
+                // return 1x1.png
+                createEmptyImageResponse(e)
+            }
         }
     }
 
@@ -89,4 +103,16 @@ object Page {
     fun getPageName(index: Int): String {
         return String.format("%03d", index + 1)
     }
+
+    private fun createEmptyImageResponse(e: Throwable) =
+        Page::class.java.getResourceAsStream("/icon/1x1.png")
+            ?.use { stream ->
+                Response.Builder()
+                    .request(Request.Builder().url("https://example.com/1x1.png").build())
+                    .protocol(Protocol.HTTP_1_1)
+                    .message("OK")
+                    .code(200)
+                    .body(stream.readBytes().toResponseBody("image/png".toMediaType()))
+                    .build()
+            } ?: throw e
 }

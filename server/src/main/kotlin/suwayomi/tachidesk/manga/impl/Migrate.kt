@@ -143,11 +143,17 @@ object Migrate {
                 }
                 MangaTable.update({ MangaTable.id eq destMangaId }) {
                     it[MangaTable.inLibraryAt] = srcManga[MangaTable.inLibraryAt]
+                    it[MangaTable.chaptersLastFetchedAt] = srcManga[MangaTable.chaptersLastFetchedAt]
                 }
             }
 
             if (request.removeDownloadsIfMigrate == true) {
                 FolderProvider2(srcMangaId, 0, 0).deleteAll()
+                transaction {
+                    ChapterTable.update({ (ChapterTable.manga eq srcMangaId) and (ChapterTable.isDownloaded eq true) }) {
+                        it[ChapterTable.isDownloaded] = false
+                    }
+                }
             }
         }
     }
@@ -268,6 +274,9 @@ object Migrate {
             logger.info { "metaList is empty, skip" }
         }
         for (meta in metaList) {
+            if (meta[MangaMetaTable.key] == "flutter_scanlator") {
+                continue
+            }
             Manga.modifyMangaMeta(destMangaId, meta[MangaMetaTable.key], meta[MangaMetaTable.value])
         }
     }

@@ -121,6 +121,8 @@ object MangaAPI {
         path("downloaded") {
             get("list", DownloadController.getDownloadedMangaList)
             delete("batch", DownloadController.deleteDownloadedManga)
+            post("batchRemoveLegacyDownloads", DownloadController.batchRemoveLegacyDownloads)
+            get("batchQueryMangaInfo", DownloadController.batchQueryMangaInfo)
         }
 
         path("update") {

@@ -92,9 +92,8 @@ object Manga {
 
             transaction {
                 MangaTable.update({ MangaTable.id eq mangaId }) {
-                    // if the manga isn't a favorite, set its title from source and update in db
                     val title = remoteTitle.take(512)
-                    if (title.isNotEmpty() && !mangaEntry[MangaTable.inLibrary] && title != mangaEntry[MangaTable.title]) {
+                    if (title.isNotEmpty() && title != mangaEntry[MangaTable.title]) {
                         it[MangaTable.title] = title
                     }
 

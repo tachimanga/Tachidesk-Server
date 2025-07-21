@@ -17,7 +17,6 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.cloud.impl.Sync
-import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.model.table.CategoryMangaTable
 import suwayomi.tachidesk.manga.model.table.ChapterTable
@@ -131,19 +130,8 @@ object MangaBatch {
         val mangaIds = changes
             .filter { it.removeDownloads == true }
             .mapNotNull { it.mangaId }
-            .distinct()
             .toList()
-        if (mangaIds.isEmpty()) {
-            return
-        }
-        for (mangaId in mangaIds) {
-            FolderProvider2(mangaId, 0, 0).deleteAll()
-        }
-        transaction {
-            ChapterTable.update({ (ChapterTable.manga inList mangaIds) and (ChapterTable.isDownloaded eq true) }) {
-                it[ChapterTable.isDownloaded] = false
-            }
-        }
+        Download.batchRemoveDownloads(mangaIds)
     }
 
     @Serializable

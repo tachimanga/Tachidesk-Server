@@ -229,7 +229,28 @@ object DownloadController {
     val deleteDownloadedManga = handler(
         behaviorOf = { ctx ->
             val input = json.decodeFromString<Download.BatchInput>(ctx.body())
-            Download.deleteDownloadedManga(input)
+            Download.batchRemoveDownloads(input.mangaIds)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val batchRemoveLegacyDownloads = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<Download.BatchRemoveLegacyDownloadsInput>(ctx.body())
+            Download.batchRemoveLegacyDownloads(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val batchQueryMangaInfo = handler(
+        behaviorOf = { ctx ->
+            ctx.future(
+                future { Download.batchQueryDownloadMangaInfo() },
+            )
         },
         withResults = {
             httpCode(HttpCode.OK)

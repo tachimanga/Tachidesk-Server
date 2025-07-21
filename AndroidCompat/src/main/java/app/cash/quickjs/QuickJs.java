@@ -31,6 +31,10 @@ import java.util.logging.Logger;
  * externally.
  */
 public final class QuickJs implements Closeable {
+  static {
+    System.loadLibrary("quickjs");
+  }
+
   /**
    * Create a new interpreter instance. Calls to this method <strong>must</strong> matched with
    * calls to {@link #close()} on the returned instance to avoid leaking native memory.

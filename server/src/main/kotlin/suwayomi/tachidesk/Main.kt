@@ -8,6 +8,7 @@ package suwayomi.tachidesk
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import suwayomi.tachidesk.manga.impl.PipStatus
+import suwayomi.tachidesk.manga.impl.util.LogEvent
 import suwayomi.tachidesk.server.JavalinSetup.javalinSetup
 import suwayomi.tachidesk.server.JavalinSetup.javalinStartSocket
 import suwayomi.tachidesk.server.JavalinSetup.javalinStop
@@ -18,6 +19,15 @@ import suwayomi.tachidesk.server.applicationSetupExtra
 import suwayomi.tachidesk.server.envSetup
 
 fun main() {
+    try {
+        main0()
+    } catch (e: Throwable) {
+        LogEvent.log("SERVER:BOOT:FAILED", mapOf("error" to (e.message ?: "")))
+        throw e
+    }
+}
+
+fun main0() {
     val t = System.currentTimeMillis()
     envSetup()
     applicationSetup()

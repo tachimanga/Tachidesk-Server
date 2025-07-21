@@ -7,15 +7,18 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.sample
+import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.Page
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
+import suwayomi.tachidesk.manga.impl.download.model.DownloadChapterMetadata
 import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath
+import suwayomi.tachidesk.manga.impl.util.getChapterDownloadPath2
 import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath
-import suwayomi.tachidesk.server.ApplicationDirs
+import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath2
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -25,18 +28,7 @@ class FolderProvider2(val mangaId: Int, val chapterId: Int, private val original
         get() = originalChapterId ?: chapterId
 
     private val logger = KotlinLogging.logger {}
-
-    private val applicationDirs by DI.global.instance<ApplicationDirs>()
-
-    private fun getChapterDownloadPath2(mangaId: Int, chapterId: Int): String {
-        val hash = "00$mangaId".takeLast(2)
-        return "${applicationDirs.mangaDownloadsRoot2}/$hash/$mangaId/$chapterId"
-    }
-
-    private fun getMangaDownloadPath2(mangaId: Int): String {
-        val hash = "00$mangaId".takeLast(2)
-        return "${applicationDirs.mangaDownloadsRoot2}/$hash/$mangaId"
-    }
+    private val json by DI.global.instance<Json>()
 
     fun getImage(index: Int): Pair<InputStream, String>? {
         val file = getImageFile(index)
@@ -60,12 +52,12 @@ class FolderProvider2(val mangaId: Int, val chapterId: Int, private val original
         return null
     }
 
-    private fun getImageV2(index: Int): File? {
+    fun getImageV2(index: Int): File? {
         val chapterDir = getChapterDownloadPath2(mangaId, realChapterId)
         val path = "$chapterDir/$index"
         val file = File(path)
         val exist = file.exists()
-        logger.info { "[DOWNLOAD] getImageV2 path:$path chapterId=$chapterId exist:$exist" }
+        // logger.info { "[DOWNLOAD] getImageV2 path:$path chapterId=$chapterId exist:$exist" }
         if (!exist) {
             return null
         }
@@ -126,7 +118,42 @@ class FolderProvider2(val mangaId: Int, val chapterId: Int, private val original
             download.progress = ((pageNum + 1).toFloat()) / pageCount
             step(download, false)
         }
+        try {
+            createMetadataFile(chapterDir, download)
+        } catch (e: Throwable) {
+            logger.error(e) { "createMetadataFile failed." }
+        }
         return true
+    }
+
+    private fun createMetadataFile(chapterDir: String, chapter: DownloadChapter) {
+        val metadataFile = File("$chapterDir/.metadata")
+        val metadata = DownloadChapterMetadata(
+            mangaId = mangaId,
+            chapterId = chapterId,
+            originalChapterId = originalChapterId,
+            pageCount = chapter.chapter.pageCount,
+        )
+        val jsonString = json.encodeToString(metadata)
+        metadataFile.writeText(jsonString)
+    }
+
+    fun readMetadata(): DownloadChapterMetadata? {
+        val chapterDir = getChapterDownloadPath2(mangaId, realChapterId)
+        val metadataFile = File("$chapterDir/.metadata")
+        if (!metadataFile.exists()) {
+            return null
+        }
+        val jsonString = try {
+            metadataFile.readText()
+        } catch (e: Exception) {
+            return null
+        }
+        return try {
+            json.decodeFromString<DownloadChapterMetadata>(jsonString)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun delete(): Boolean {
