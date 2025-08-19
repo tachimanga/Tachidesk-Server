@@ -2,11 +2,8 @@ package suwayomi.tachidesk.manga.impl.track.tracker.anilist
 
 import android.net.Uri
 import androidx.core.net.toUri
-import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.network.*
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
-import eu.kanade.tachiyomi.network.jsonMime
-import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -20,12 +17,15 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import suwayomi.tachidesk.manga.impl.track.tracker.model.Track
 import suwayomi.tachidesk.manga.impl.track.tracker.model.TrackSearch
 import tachiyomi.core.util.lang.withIOContext
 import uy.kohesive.injekt.injectLazy
+import java.io.IOException
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -64,7 +64,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
+                    .awaitAniApiSuccess()
                     .parseAs<JsonObject>()
                     .let {
                         track.library_id =
@@ -105,7 +105,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             authClient.newCall(POST(apiUrl, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+                .awaitAniApiSuccess()
             track
         }
     }
@@ -127,7 +127,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                 }
             }
             authClient.newCall(POST(apiUrl, body = payload.toString().toRequestBody(jsonMime)))
-                .awaitSuccess()
+                .awaitAniApiSuccess()
             track
         }
     }
@@ -171,7 +171,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
+                    .awaitAniApiSuccess()
                     .parseAs<JsonObject>()
                     .let { response ->
                         val data = response["data"]!!.jsonObject
@@ -241,7 +241,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
+                    .awaitAniApiSuccess()
                     .parseAs<JsonObject>()
                     .let { response ->
                         val data = response["data"]!!.jsonObject
@@ -285,7 +285,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                         body = payload.toString().toRequestBody(jsonMime),
                     ),
                 )
-                    .awaitSuccess()
+                    .awaitAniApiSuccess()
                     .parseAs<JsonObject>()
                     .let {
                         val data = it["data"]!!.jsonObject
@@ -370,5 +370,25 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
             .appendQueryParameter("client_id", clientId)
             .appendQueryParameter("response_type", "token")
             .build()
+    }
+
+    private suspend fun Call.awaitAniApiSuccess(): Response {
+        val response = await()
+        if (response.isSuccessful) {
+            return response
+        }
+
+        val message = try {
+            val result = response.parseAs<JsonObject>()
+            // {"data":null,"errors":[{"message":"Invalid token","status":400}]}
+            result["errors"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonPrimitive?.content
+        } catch (_: Throwable) {
+            null
+        }
+        if (message != null) {
+            throw IOException(message)
+        } else {
+            throw HttpException(response.code)
+        }
     }
 }

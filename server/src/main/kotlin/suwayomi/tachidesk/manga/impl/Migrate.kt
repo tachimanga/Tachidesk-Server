@@ -283,26 +283,46 @@ object Migrate {
 
     private fun migrateHistory(srcMangaId: Int, destMangaId: Int) {
         val srcHistory = transaction {
-            HistoryTable.select { HistoryTable.mangaId eq srcMangaId }
+            HistoryTable
+                .slice(
+                    HistoryTable.lastChapterId,
+                    HistoryTable.lastChapterName,
+                    HistoryTable.readDuration,
+                    HistoryTable.lastReadAt,
+                )
+                .select { HistoryTable.mangaId eq srcMangaId }
                 .firstOrNull()
         }
         if (srcHistory == null) {
             logger.info { "srcHistory is empty, skip" }
             return
         }
-        val srcChapterId = srcHistory[HistoryTable.lastChapterId]
-        val srcChapterEntry = transaction { ChapterTable.select { ChapterTable.id eq srcChapterId }.firstOrNull() }
-        if (srcChapterEntry == null) {
-            logger.info { "srcChapterEntry is empty, skip" }
+
+        val lastChapterName = srcHistory[HistoryTable.lastChapterName]
+            ?: transaction {
+                ChapterTable.slice(ChapterTable.name)
+                    .select { ChapterTable.id eq srcHistory[HistoryTable.lastChapterId] }
+                    .firstOrNull()
+                    ?.get(ChapterTable.name)
+            }
+        if (lastChapterName == null) {
+            logger.info { "lastChapterName is empty, skip" }
             return
+        }
+
+        val existDuration = transaction {
+            HistoryTable.slice(HistoryTable.readDuration)
+                .select { HistoryTable.mangaId eq destMangaId }
+                .firstOrNull()
+                ?.get(HistoryTable.readDuration)
         }
 
         History.upsertHistory(
             destMangaId,
             0,
-            srcHistory[HistoryTable.readDuration],
+            srcHistory[HistoryTable.readDuration] + (existDuration ?: 0),
             lastReadAt = srcHistory[HistoryTable.lastReadAt],
-            lastChapterName = srcChapterEntry[ChapterTable.name],
+            lastChapterName = lastChapterName,
         )
         History.batchDeleteV2(History.BatchInput(mangaIds = listOf(srcMangaId)))
     }

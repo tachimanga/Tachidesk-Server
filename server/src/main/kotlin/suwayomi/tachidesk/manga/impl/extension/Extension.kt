@@ -409,7 +409,15 @@ object Extension {
     }
 
     suspend fun updateExtension(extensionId: Int): Int {
-        val targetExtension = ExtensionsList.updateMap.remove(extensionId) ?: return 200
+        val targetExtension = ExtensionsList.updateMap.remove(extensionId)
+        if (targetExtension == null) {
+            transaction {
+                ExtensionTable.update({ ExtensionTable.id eq extensionId }) {
+                    it[hasUpdate] = false
+                }
+            }
+            return 200
+        }
         uninstallExtensionById(extensionId)
         transaction {
             ExtensionTable.update({ ExtensionTable.id eq extensionId }) {

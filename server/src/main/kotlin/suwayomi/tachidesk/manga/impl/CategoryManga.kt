@@ -238,6 +238,12 @@ object CategoryManga {
     }
 
     private fun fillUnreadCountMapForScanlatorFilter(list: List<Pair<Int, MangaMeta.MangaScanlatorMeta>>, map: MutableMap<Int, Long>) {
+        for (pairs in list.chunked(50)) {
+            fillUnreadCountMapForScanlatorFilter0(pairs, map)
+        }
+    }
+
+    private fun fillUnreadCountMapForScanlatorFilter0(list: List<Pair<Int, MangaMeta.MangaScanlatorMeta>>, map: MutableMap<Int, Long>) {
         transaction {
             for (pair in list) {
                 val meta = pair.second

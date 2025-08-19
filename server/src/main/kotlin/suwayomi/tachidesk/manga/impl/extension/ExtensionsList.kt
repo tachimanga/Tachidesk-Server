@@ -185,7 +185,7 @@ object ExtensionsList {
                             extensionRecord[ExtensionTable.hasUpdate] == updateFlag &&
                             extensionRecord[ExtensionTable.isObsolete] == obsoleteFlag
                         if (!same) {
-                            ExtensionTable.update({ ExtensionTable.pkgName eq foundExtension.pkgName }) {
+                            ExtensionTable.update({ ExtensionTable.id eq extensionRecord[ExtensionTable.id] }) {
                                 it[hasReadme] = foundExtension.hasReadme
                                 it[hasChangelog] = foundExtension.hasChangelog
                                 it[iconUrl] = foundExtension.iconUrl
