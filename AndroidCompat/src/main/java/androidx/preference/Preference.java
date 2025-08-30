@@ -124,6 +124,7 @@ public class Preference {
     /** Tachidesk specific API */
     @SuppressWarnings("unchecked")
     public Object getCurrentValue() {
+        if (key == null) return defaultValue;
         switch (getDefaultValueType()) {
             case "String":
                 return sharedPreferences.getString(key, (String)defaultValue);
@@ -139,6 +140,7 @@ public class Preference {
     /** Tachidesk specific API */
     @SuppressWarnings("unchecked")
     public void saveNewValue(Object value) {
+        if (key == null) return;
         switch (getDefaultValueType()) {
             case "String":
                 sharedPreferences.edit().putString(key, (String)value).apply();

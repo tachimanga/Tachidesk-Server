@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,7 +58,6 @@ object GetCatalogueSource {
         "SpecificHostRateLimitInterceptor",
         "EnableNativeNetInterceptor",
     )
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private fun getCatalogueSource(sourceId: Long): CatalogueSource? {
@@ -123,59 +123,17 @@ object GetCatalogueSource {
         return meta
     }
 
-    fun getCatalogueSourceMeta0(source: CatalogueSource, meta: SourceMeta) {
+    private fun getCatalogueSourceMeta0(source: CatalogueSource, meta: SourceMeta) {
         val httpSource = source as? HttpSource ?: return
 
-        val client = httpSource.client
-        // val sClient = client == network.client || client == network.cloudflareClient
-        // if (sClient) {
-        if (false) {
-            meta.simpleClient = true
-            println(
-                "SourceMeta:" + source.name +
-                    ", simpleClient:" + meta.simpleClient,
-            )
-        } else {
-            val sCookie = client.cookieJar == network.cookieJar
-            val sRedirects = client.followRedirects
-            val sAuth = client.authenticator == Authenticator.NONE
-            var sInterceptors = true
-            for (interceptor in client.interceptors) {
-                if (!WHITE_LIST.contains(interceptor.javaClass.simpleName)) {
-                    sInterceptors = false
-                    break
-                }
-            }
-            if (client.networkInterceptors.isNotEmpty()) {
-                sInterceptors = false
-            }
-            if (sCookie && sRedirects && sInterceptors && sAuth) {
-                meta.simpleClient = true
-            }
-            println(
-                "SourceMeta:" + source.name +
-                    ", sCookie:" + sCookie +
-                    ", sRedirects:" + sRedirects +
-                    ", sInterceptors:" + sInterceptors +
-                    ", sAuth:" + sAuth,
-            )
-        }
-
+        meta.simpleClient = isSimpleClient(httpSource)
         if (!meta.simpleClient) {
             return
         }
 
         // fun imageRequest
-        try {
-            val method = source.javaClass.getDeclaredMethod("imageRequest", Page::class.java)
-        } catch (ignored: NoSuchMethodException) {
-            meta.simpleRequest = true
-        }
-        println(
-            "SourceMeta:" + source.name +
-                ", simpleRequest:" + meta.simpleRequest,
-        )
-
+        meta.simpleRequest = !hasCustomImageRequest(httpSource)
+        logger.info { "SourceMeta: ${source.name}, simpleRequest=${meta.simpleRequest}" }
         if (!meta.simpleRequest) {
             return
         }
@@ -191,11 +149,53 @@ object GetCatalogueSource {
             map["User-Agent"] = HttpSource.DEFAULT_USER_AGENT
         }
         meta.headers = map
+        logger.info { "SourceMeta: ${source.name}, headers: ${meta.headers}" }
+    }
 
-        println(
-            "SourceMeta:" + source.name +
-                ", headers:" + meta.headers,
-        )
+    private fun isSimpleClient(httpSource: HttpSource): Boolean {
+        val client = httpSource.client
+        val sCookie = client.cookieJar == network.cookieJar
+        val sRedirects = client.followRedirects
+        val sAuth = client.authenticator == Authenticator.NONE
+        var sInterceptors = true
+        for (interceptor in client.interceptors) {
+            if (!WHITE_LIST.contains(interceptor.javaClass.simpleName)) {
+                sInterceptors = false
+                break
+            }
+        }
+        if (client.networkInterceptors.isNotEmpty()) {
+            sInterceptors = false
+        }
+        val simpleClient = sCookie && sRedirects && sInterceptors && sAuth
+        logger.info {
+            "SourceMeta: ${httpSource.name} simpleClient=$simpleClient" +
+                ", sCookie: $sCookie" +
+                ", sRedirects: $sRedirects" +
+                ", sInterceptors: $sInterceptors" +
+                ", sAuth: $sAuth"
+        }
+        return simpleClient
+    }
+
+    private fun hasCustomImageRequest(source: HttpSource): Boolean {
+        var found = false
+        var currentClass: Class<*>? = source.javaClass
+        while (currentClass != null) {
+            try {
+                val method = currentClass.getDeclaredMethod("imageRequest", Page::class.java)
+                found = true
+            } catch (_: NoSuchMethodException) {
+            }
+            currentClass = currentClass.superclass
+            if (currentClass == HttpSource::class.java ||
+                currentClass == ParsedHttpSource::class.java ||
+                currentClass == Any::class.java
+            ) {
+                break
+            }
+        }
+        return found
     }
 
     fun registerCatalogueSource(sourcePair: Pair<Long, CatalogueSource>) {
