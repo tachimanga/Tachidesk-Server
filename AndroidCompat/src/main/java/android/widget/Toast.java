@@ -7,14 +7,23 @@ package android.widget;
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import org.json.JSONObject;
+import org.tachiyomi.NativeChannel;
+
 public class Toast {
     public static final int LENGTH_LONG = 1;
     public static final int LENGTH_SHORT = 0;
 
     private CharSequence text;
+    private int duration = LENGTH_LONG;
 
     private Toast(CharSequence text) {
         this.text = text;
+    }
+
+    public Toast(CharSequence text, int duration) {
+        this.text = text;
+        this.duration = duration;
     }
 
     public Toast(android.content.Context context) {
@@ -23,6 +32,10 @@ public class Toast {
 
     public void show() {
         System.out.printf("made a Toast: \"%s\"\n", text.toString());
+        JSONObject object = new JSONObject();
+        object.put("text", text.toString());
+        object.put("duration", duration);
+        NativeChannel.call("TOAST:JSON", object.toString());
     }
 
     public void cancel() {
@@ -74,7 +87,7 @@ public class Toast {
     }
 
     public static Toast makeText(android.content.Context context, java.lang.CharSequence text, int duration) {
-        return new Toast(text);
+        return new Toast(text, duration);
     }
 
     public static android.widget.Toast makeText(android.content.Context context, int resId, int duration) throws android.content.res.Resources.NotFoundException {

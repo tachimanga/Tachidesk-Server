@@ -7,10 +7,10 @@ package suwayomi.tachidesk.server.database.migration
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import de.neonew.exposed.migrations.helpers.SQLMigration
+import de.neonew.exposed.migrations.helpers.SQLMigration2
 
 @Suppress("ClassName", "unused")
-class M0004_TrackRecord : SQLMigration() {
+class M0004_TrackRecord : SQLMigration2() {
     override val sql = """
         CREATE TABLE TrackRecord(
             id INTEGER NOT NULL PRIMARY KEY,

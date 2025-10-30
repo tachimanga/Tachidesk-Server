@@ -23,7 +23,8 @@ object UpdateManager {
 
     fun updateAll() {
         logger.info { "[UPDATE]updateAll" }
-        addMangaToUpdater {
+        val task = UpdateTask(startAt = System.currentTimeMillis(), type = TaskType.MANUAL)
+        addMangaToUpdater(task = task) {
             var mangaList = transaction {
                 MangaTable
                     .select { (MangaTable.inLibrary eq true) }
@@ -42,7 +43,8 @@ object UpdateManager {
 
     fun updateByCategories(categories: List<Int>) {
         logger.info { "[UPDATE]updateByCategories ids=$categories" }
-        addMangaToUpdater {
+        val task = UpdateTask(startAt = System.currentTimeMillis(), type = TaskType.MANUAL)
+        addMangaToUpdater(task = task) {
             var mangaList = categories
                 .flatMap { CategoryManga.getMangaListByCategory(it) }
                 .distinctBy { it.id }
@@ -52,6 +54,26 @@ object UpdateManager {
             logger.info { "[UPDATE]updateAll mangaList before size=${mangaList.size}" }
             mangaList = filteredByConditions(mangaList)
             logger.info { "[UPDATE]updateAll mangaList after size=${mangaList.size}" }
+            mangaList
+        }
+    }
+
+    fun backgroundUpdate() {
+        logger.info { "[UPDATE]backgroundUpdate" }
+        val task = UpdateTask(startAt = System.currentTimeMillis(), type = TaskType.BG_TASK)
+        addMangaToUpdater(task = task) {
+            var mangaList = transaction {
+                MangaTable
+                    .select { (MangaTable.inLibrary eq true) }
+                    .toList()
+            }.map { MangaTable.toDataClass(it) }
+
+            fillChapterInfo(mangaList)
+
+            logger.info { "[UPDATE]backgroundUpdate mangaList before size=${mangaList.size}" }
+            mangaList = filteredByCategories(mangaList)
+            mangaList = filteredByConditions(mangaList)
+            logger.info { "[UPDATE]backgroundUpdate mangaList after size=${mangaList.size}" }
             mangaList
         }
     }
@@ -83,9 +105,9 @@ object UpdateManager {
         }
     }
 
-    private fun addMangaToUpdater(reset: Boolean = true, fetch: () -> List<MangaDataClass>) {
+    private fun addMangaToUpdater(reset: Boolean = true, task: UpdateTask? = null, fetch: () -> List<MangaDataClass>) {
         if (reset) {
-            updater.reset()
+            updater.reset(task)
         }
         updater.updateStatus(true)
         try {

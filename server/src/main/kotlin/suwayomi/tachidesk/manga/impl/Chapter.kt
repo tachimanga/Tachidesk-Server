@@ -279,6 +279,8 @@ object Chapter {
                 downloaded = dbChapter[ChapterTable.isDownloaded],
 
                 pageCount = dbChapter[ChapterTable.pageCount],
+
+                newChapter = dbChapterListUrlMap[it.url] == null,
             )
         }
         fixUploadDate(chapterDataList)

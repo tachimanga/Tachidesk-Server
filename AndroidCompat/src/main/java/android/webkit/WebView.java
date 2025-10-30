@@ -31,21 +31,19 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStructure;
-import android.view.ViewTreeObserver;
 import android.view.ViewDebug.ExportedProperty;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.autofill.AutofillValue;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.textclassifier.TextClassifier;
-import android.widget.AbsoluteLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,6 +87,9 @@ public class WebView  {
                 break;
             case "didReceiveScriptMessage":
                 webView.didReceiveScriptMessage(jsonParam);
+                break;
+            case "startURLSchemeTask":
+               webView.onStartURLSchemeTask(jsonParam);
                 break;
             default:
                 System.out.println("[NativeWeb]onNativeCall unhandled method=" + method);
@@ -161,6 +162,42 @@ public class WebView  {
         }
     }
 
+    private void onStartURLSchemeTask(JSONObject param) {
+        if (webViewClient == null) {
+            return;
+        }
+        System.out.println("[NativeWeb] onStartURLSchemeTask param=" + param);
+
+        String url = param.getString("url");
+        String method = param.getString("method");
+        Map<String, String> headers = jsonObjectToMap(param.getJSONObject("headers"));
+
+        // onLoadResource
+        webViewClient.onLoadResource(this, url);
+
+        // shouldInterceptRequest
+        WebResourceResponse response = webViewClient.shouldInterceptRequest(this, new MyWebResourceRequest(url, method, headers));
+        if (response == null) {
+            webViewClient.shouldInterceptRequest(this, url);
+        }
+    }
+
+    public static Map<String, String> jsonObjectToMap(JSONObject jsonObject) {
+        if (jsonObject == null) {
+            return null;
+        }
+        Map<String, String> map = new HashMap<>();
+        Iterator<String> keys = jsonObject.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object value = jsonObject.get(key);
+            if (value instanceof String) {
+                map.put(key, (String) value);
+            }
+        }
+        return map;
+    }
+
     public static final int RENDERER_PRIORITY_BOUND = 1;
     public static final int RENDERER_PRIORITY_IMPORTANT = 2;
     public static final int RENDERER_PRIORITY_WAIVED = 0;
@@ -171,6 +208,8 @@ public class WebView  {
     private WebViewClient webViewClient;
     private WebChromeClient webChromeClient;
     private NativeRef nativeRef;
+
+    private boolean needIntercept = false;
 
     public WebView(@NonNull Context context) {
         this.createNative();
@@ -289,6 +328,9 @@ public class WebView  {
 
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("url", url);
+        if (needIntercept) {
+            jsonObject.put("needIntercept", "1");
+        }
         if (additionalHttpHeaders != null) {
             jsonObject.put("headers", new JSONObject(additionalHttpHeaders));
         }
@@ -315,6 +357,9 @@ public class WebView  {
         jsonObject.put("mimeType", mimeType);
         jsonObject.put("encoding", encoding);
         jsonObject.put("historyUrl", historyUrl);
+        if (needIntercept) {
+            jsonObject.put("needIntercept", "1");
+        }
         this.invokeNativeMethod("loadDataWithBaseURL", jsonObject);
     }
 
@@ -581,7 +626,55 @@ public class WebView  {
     }
 
     public void setWebViewClient(@NonNull WebViewClient client) {
+        boolean hasCustomShouldInterceptRequest = hasCustomShouldInterceptRequest(client);
+        boolean hasCustomOnLoadResource = hasCustomOnLoadResource(client);
+        this.needIntercept = hasCustomShouldInterceptRequest || hasCustomOnLoadResource;
+        System.out.println("[NativeWeb] needIntercept=" + needIntercept
+                + ", hasCustomShouldInterceptRequest" + hasCustomShouldInterceptRequest
+                + ", hasCustomOnLoadResource" + hasCustomOnLoadResource
+        );
         this.webViewClient = client;
+    }
+
+    private boolean hasCustomShouldInterceptRequest(WebViewClient client) {
+        boolean found = false;
+        Class<?> currentClass = client.getClass();
+        while (currentClass != null) {
+            try {
+                Method method = currentClass.getDeclaredMethod("shouldInterceptRequest", WebView.class, WebResourceRequest.class);
+                found = true;
+            } catch (NoSuchMethodException e) {
+            }
+            try {
+                Method method = currentClass.getDeclaredMethod("shouldInterceptRequest", WebView.class, String.class);
+                found = true;
+            } catch (NoSuchMethodException e) {
+            }
+            currentClass = currentClass.getSuperclass();
+            if (currentClass == WebViewClient.class ||
+                    currentClass == Object.class) {
+                break;
+            }
+        }
+        return found;
+    }
+
+    private boolean hasCustomOnLoadResource(WebViewClient client) {
+        boolean found = false;
+        Class<?> currentClass = client.getClass();
+        while (currentClass != null) {
+            try {
+                Method method = currentClass.getDeclaredMethod("onLoadResource", WebView.class, String.class);
+                found = true;
+            } catch (NoSuchMethodException e) {
+            }
+            currentClass = currentClass.getSuperclass();
+            if (currentClass == WebViewClient.class ||
+                    currentClass == Object.class) {
+                break;
+            }
+        }
+        return found;
     }
 
     @NonNull

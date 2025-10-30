@@ -7,10 +7,10 @@ package suwayomi.tachidesk.server.database.migration
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import de.neonew.exposed.migrations.helpers.SQLMigration
+import de.neonew.exposed.migrations.helpers.SQLMigration2
 
 @Suppress("ClassName", "unused")
-class M0007_Extension_Changelog : SQLMigration() {
+class M0007_Extension_Changelog : SQLMigration2() {
     override val sql = """
         ALTER TABLE Extension ADD COLUMN has_changelog BOOLEAN DEFAULT 0 NOT NULL;
     """.trimIndent()

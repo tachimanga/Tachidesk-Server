@@ -16,21 +16,18 @@ import java.util.Set;
  * A minimal implementation of androidx.preference.Preference
  */
 public class Preference {
-    // reference: https://android.googlesource.com/platform/frameworks/support/+/996971f962fcd554339a7cb2859cef9ca89dbcb7/preference/preference/src/main/java/androidx/preference/Preference.java
+    // reference: https://android.googlesource.com/platform/frameworks/support/+/refs/heads/androidx-camerax-release/preference/preference/src/main/java/androidx/preference/Preference.java
     // Note: `Preference` doesn't actually hold or persist the value, `OnPreferenceChangeListener` is called and it's up to the extension to persist it.
 
     @JsonIgnore
     protected Context context;
 
+    private boolean mEnabled = true;
+    private boolean mVisible = true;
     private String key;
     private CharSequence title;
     private CharSequence summary;
     private Object defaultValue;
-
-    /**
-     * null or false
-     */
-    private Boolean enabled;
 
     /** Tachidesk specific API */
     @JsonIgnore
@@ -71,11 +68,11 @@ public class Preference {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        mEnabled = enabled;
     }
 
-    public Boolean getEnabled() {
-        return enabled;
+    public boolean isEnabled() {
+        return mEnabled;
     }
 
     public String getKey() {
@@ -106,6 +103,14 @@ public class Preference {
     /** Tachidesk specific API */
     public SharedPreferences getSharedPreferences() {
         return sharedPreferences;
+    }
+
+    public final void setVisible(boolean visible) {
+        mVisible = visible;
+    }
+
+    public final boolean isVisible() {
+        return mVisible;
     }
 
     /** Tachidesk specific API */

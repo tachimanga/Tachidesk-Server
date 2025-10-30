@@ -22,6 +22,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import org.tachiyomi.NativeChannel
 import suwayomi.tachidesk.manga.impl.download.model.DownloadChapter
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState
 import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Downloading
@@ -29,6 +30,7 @@ import suwayomi.tachidesk.manga.impl.download.model.DownloadState.Finished
 import suwayomi.tachidesk.manga.impl.download.model.DownloadStatus
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
+import suwayomi.tachidesk.manga.model.dataclass.task.BgContinuedDownloadResultDataClass
 import suwayomi.tachidesk.manga.model.table.ChapterTable
 import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.toDataClass
@@ -53,6 +55,9 @@ object DownloadManager {
     private var finishCount: Int = 0
 
     private var taskInParallel = 1
+
+    private var runningFlag = false
+    private var pauseFlag = false
 
     fun addClient(ctx: WsContext) {
         logger.info { "DownloadManager onConnect ${ctx.sessionId}" }
@@ -106,6 +111,20 @@ object DownloadManager {
         // logger.info { "DownloadManager sendStatusToAllClients, json:${jsonMapper.toJsonString(status)}" }
         clients.forEach {
             it.value.send(status)
+        }
+        notifyNativeIfNeeded(status)
+    }
+
+    private fun notifyNativeIfNeeded(status: DownloadStatus) {
+        val prev = runningFlag
+        runningFlag = downloadQueue.any { i -> i.state == DownloadState.Downloading }
+        logger.info { "notifyNativeIfNeeded prev=$prev curr=$runningFlag" }
+        if (!prev && runningFlag) {
+            try {
+                NativeChannel.call("DOWNLOAD:START", "")
+            } catch (e: Exception) {
+                logger.error(e) { "notifyNative error" }
+            }
         }
     }
 
@@ -304,6 +323,7 @@ object DownloadManager {
         scope.launch {
             downloaderWatch.emit(Unit)
         }
+        pauseFlag = false
     }
 
     suspend fun stop() {
@@ -314,6 +334,7 @@ object DownloadManager {
                 }
             }.awaitAll()
         }
+        pauseFlag = true
         notifyAllClients()
     }
 
@@ -327,6 +348,19 @@ object DownloadManager {
         return Pair(
             downloadQueue.count { i -> i.state == Finished || i.state == DownloadState.Error } + finishCount,
             downloadQueue.size + finishCount,
+        )
+    }
+
+    fun getBgContinuedResult(): BgContinuedDownloadResultDataClass {
+        val totalCount = downloadQueue.size + finishCount
+        val finishCount = downloadQueue.count { i -> i.state == Finished || i.state == DownloadState.Error } + finishCount
+        val failedCount = downloadQueue.count { i -> i.state == DownloadState.Error }
+        val running = !pauseFlag && downloadQueue.any { i -> i.state == DownloadState.Downloading || i.state == DownloadState.Queued }
+        return BgContinuedDownloadResultDataClass(
+            running = running,
+            totalCount = totalCount,
+            finishCount = finishCount,
+            failedCount = failedCount,
         )
     }
 }

@@ -47,4 +47,7 @@ data class ChapterDataClass(
 
     /** pageData **/
     var pageData: Map<Int, ImgDataClass>? = null,
+
+    /** new chapter flag **/
+    var newChapter: Boolean? = null,
 )

@@ -52,7 +52,8 @@ object History {
                     it[HistoryTable.isDelete] = false
                     if (history[HistoryTable.lastChapterId] != chapterId ||
                         history[HistoryTable.isDelete] ||
-                        history[HistoryTable.syncBuff] > 180
+                        history[HistoryTable.syncBuff] + readDuration > 180 ||
+                        lastReadAt != null
                     ) {
                         it[HistoryTable.syncBuff] = 0
                         it[HistoryTable.updateAt] = now

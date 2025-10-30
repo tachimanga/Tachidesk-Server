@@ -16,6 +16,7 @@ import suwayomi.tachidesk.manga.model.dataclass.PaginatedList
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
+import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
 
 /*
@@ -137,9 +138,21 @@ object UpdateController {
             logger.info { "Resetting Updater" }
             ctx.future(
                 future {
-                    updater.reset()
+                    updater.reset(null)
                 },
             )
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val queryUpdateRecords = handler(
+        queryParam<Int?>("type"),
+        documentWith = {
+        },
+        behaviorOf = { ctx, type ->
+            ctx.json(UpdateRecord.queryUpdateRecords(TaskType.valueOf(type)))
         },
         withResults = {
             httpCode(HttpCode.OK)

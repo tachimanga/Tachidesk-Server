@@ -63,12 +63,12 @@ public class WebViewClient {
     @Deprecated
     @Nullable
     public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
-        throw new RuntimeException("Stub!");
+        return null;
     }
 
     @Nullable
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        throw new RuntimeException("Stub!");
+        return null;
     }
 
     /** @deprecated */

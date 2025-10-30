@@ -7,8 +7,9 @@ package suwayomi.tachidesk.server.database.migration
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import de.neonew.exposed.migrations.helpers.SQLMigration
+import de.neonew.exposed.migrations.helpers.SQLMigration2
+
 @Suppress("ClassName", "unused")
-class M0021_Chapter_manga_index : SQLMigration() {
+class M0021_Chapter_manga_index : SQLMigration2() {
     override val sql = """CREATE INDEX Chapter_idx_manga ON Chapter(manga);"""
 }

@@ -107,6 +107,7 @@ object MangaAPI {
             get("start", DownloadController.start)
             get("stop", DownloadController.stop)
             get("clear", DownloadController.clear)
+            get("restart", DownloadController.restart)
             post("updateSetting", DownloadController.updateSetting)
         }
 
@@ -132,6 +133,7 @@ object MangaAPI {
             post("retrySkipped", UpdateController.retrySkipped)
             post("reset", UpdateController.reset)
             get("summary", UpdateController.updateSummary)
+            get("queryRecords", UpdateController.queryUpdateRecords)
             ws("", UpdateController::categoryUpdateWS)
         }
 

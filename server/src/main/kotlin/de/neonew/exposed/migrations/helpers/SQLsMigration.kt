@@ -19,7 +19,15 @@ abstract class SQLsMigration : Migration() {
         val t = System.currentTimeMillis()
         with(TransactionManager.current()) {
             for (statement in sqls) {
-                exec(statement)
+                try {
+                    exec(statement)
+                } catch (e: Exception) {
+                    if (SQLMigrationUtils.isIgnorableException(e)) {
+                        logger.error(e) { "SQLsMigration exception skipped!, sql: $statement" }
+                    } else {
+                        throw e
+                    }
+                }
             }
             commit()
             currentDialect.resetCaches()

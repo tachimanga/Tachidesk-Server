@@ -7,6 +7,7 @@ package suwayomi.tachidesk
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import suwayomi.tachidesk.manga.impl.JavaChannel
 import suwayomi.tachidesk.manga.impl.PipStatus
 import suwayomi.tachidesk.manga.impl.util.LogEvent
 import suwayomi.tachidesk.server.JavalinSetup.javalinSetup
@@ -58,4 +59,8 @@ fun stopSocket() {
 
 fun getStatus(): String {
     return PipStatus.getPipStatusString()
+}
+
+fun javaChannel(tag: String, content: String): String {
+    return JavaChannel.call(tag, content)
 }

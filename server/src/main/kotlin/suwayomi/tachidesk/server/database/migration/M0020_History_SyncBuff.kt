@@ -7,8 +7,8 @@ package suwayomi.tachidesk.server.database.migration
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import de.neonew.exposed.migrations.helpers.SQLMigration
+import de.neonew.exposed.migrations.helpers.SQLMigration2
 @Suppress("ClassName", "unused")
-class M0020_History_SyncBuff : SQLMigration() {
+class M0020_History_SyncBuff : SQLMigration2() {
     override val sql = """ALTER TABLE History ADD COLUMN "sync_buff" INT DEFAULT 0 NOT NULL;"""
 }

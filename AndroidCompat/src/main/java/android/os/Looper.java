@@ -11,13 +11,21 @@ import android.util.Printer;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 public final class Looper {
-    public static final Looper MAIN_LOOPER = new Looper(Executors.newSingleThreadExecutor());
+    public static final ScheduledExecutorService MAIN_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "MainDispatcher");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MAX_PRIORITY);
+        return thread;
+    });
 
-    public ExecutorService executor;
+    public static final Looper MAIN_LOOPER = new Looper(MAIN_EXECUTOR);
 
-    private Looper(ExecutorService executor) {
+    public ScheduledExecutorService executor;
+
+    private Looper(ScheduledExecutorService executor) {
         this.executor = executor;
     }
 

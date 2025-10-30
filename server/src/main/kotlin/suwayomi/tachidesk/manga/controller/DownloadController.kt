@@ -95,6 +95,23 @@ object DownloadController {
         },
     )
 
+    /** Restart the downloader */
+    val restart = handler(
+        documentWith = {
+        },
+        behaviorOf = { ctx ->
+            ctx.future(
+                future {
+                    DownloadManager.stop()
+                    DownloadManager.start()
+                },
+            )
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
     val updateSetting = handler(
         behaviorOf = { ctx ->
             val input = json.decodeFromString<UpdateSettingInput>(ctx.body())

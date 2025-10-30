@@ -9,6 +9,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.Printer;
 
+import java.util.concurrent.TimeUnit;
+
 public class Handler {
     private Looper looper;
 
@@ -105,15 +107,14 @@ public class Handler {
     }
 
     public final boolean postDelayed(@NonNull Runnable r, @Nullable Object token, long delayMillis) {
-        this.looper.executor.execute(() -> {
+        this.looper.executor.schedule(() -> {
             try {
-                Thread.sleep(delayMillis);
                 r.run();
             } catch (Exception e) {
                 System.out.println("looper postDelayed run err:" + e);
                 e.printStackTrace();
             }
-        });
+        }, delayMillis, TimeUnit.MICROSECONDS);
         return true;
     }
 

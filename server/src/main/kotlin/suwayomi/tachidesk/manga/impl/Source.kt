@@ -73,6 +73,7 @@ object Source {
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
                 it[SourceTable.isNsfw],
+                // HttpSource.toString = "$name (${lang.uppercase()})"
                 catalogueSource.toString(),
             )
         }
@@ -240,7 +241,7 @@ object Source {
 
             preferenceScreenMap[sourceId] = screen
 
-            return screen.preferences.map {
+            return screen.preferences.filter { it.isVisible }.map {
                 PreferenceObject(findClassName(it), it)
             }
         }

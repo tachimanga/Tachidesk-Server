@@ -7,10 +7,10 @@ package suwayomi.tachidesk.server.database.migration
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import de.neonew.exposed.migrations.helpers.SQLMigration
+import de.neonew.exposed.migrations.helpers.SQLMigration2
 
 @Suppress("ClassName", "unused")
-class M0011_Setting : SQLMigration() {
+class M0011_Setting : SQLMigration2() {
     override val sql = """
         CREATE TABLE Setting(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
