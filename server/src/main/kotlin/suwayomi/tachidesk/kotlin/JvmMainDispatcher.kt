@@ -33,16 +33,12 @@ open class JvmMainDispatcher private constructor() : MainCoroutineDispatcher(), 
     override val immediate: MainCoroutineDispatcher
         get() = this
 
-    override fun dispatch(context: CoroutineContext, block: Runnable) {
-        if (isDispatchNeeded(context)) {
-            mainThreadExecutor.execute(block)
-        } else {
-            block.run()
-        }
-    }
-
     override fun isDispatchNeeded(context: CoroutineContext): Boolean {
         return mainThread.get() != Thread.currentThread()
+    }
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        mainThreadExecutor.execute(block)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
