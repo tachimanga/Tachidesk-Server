@@ -13,7 +13,6 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.table.*
@@ -61,7 +60,7 @@ private class ChapterForDownload(
 
         // tachyomi: val pages = download.source.getPageList(download.chapter.toSChapter())
         val sChapter = ChapterTable.toSChapter(chapterEntry)
-        return source.fetchPageList(sChapter).awaitSingle()
+        return source.getPageList(sChapter)
     }
 
     private fun markAsNotDownloaded() {

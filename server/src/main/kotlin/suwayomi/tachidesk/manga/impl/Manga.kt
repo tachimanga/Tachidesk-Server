@@ -72,7 +72,7 @@ object Manga {
             }
             // Tachiyomi: val networkManga = state.source.getMangaDetails(state.manga.toSManga())
             val sManga = MangaTable.toSManga(mangaEntry)
-            val networkManga = source.fetchMangaDetails(sManga).awaitSingle()
+            val networkManga = source.getMangaDetails(sManga)
             sManga.copyFrom(networkManga)
 
             val realUrl = runCatching {

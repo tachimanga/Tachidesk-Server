@@ -87,7 +87,7 @@ object Page {
 
         return buildImageResponse {
             try {
-                source.fetchImage(tachiyomiPage).awaitSingle()
+                source.getImage(tachiyomiPage)
             } catch (e: IllegalArgumentException) {
                 // imageUrl = "" HttpUrl.kt:1366 throw IllegalArgumentException("Expected URL scheme 'http' or 'https' but no scheme was found for $truncated",)
                 if (e.message != "Expected URL scheme 'http' or 'https' but no scheme was found for ") {

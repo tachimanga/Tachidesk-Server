@@ -20,7 +20,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.manga.impl.Manga.batchGetMangaMetaMap
-import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceMeta
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.*
@@ -51,10 +50,10 @@ object MangaList {
         }
         val source = getCatalogueSourceOrStub(sourceId)
         val mangasPage = if (popular) {
-            source.fetchPopularManga(pageNum).awaitSingle()
+            source.getPopularManga(pageNum)
         } else {
             if (source.supportsLatest) {
-                source.fetchLatestUpdates(pageNum).awaitSingle()
+                source.getLatestUpdates(pageNum)
             } else {
                 throw Exception("Source $source doesn't support latest")
             }

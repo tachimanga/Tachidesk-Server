@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import rx.Observable
+import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 
 /**
  * A basic interface for creating a source. It could be an online source, a local source, etc...
@@ -19,6 +20,27 @@ interface Source {
      * Name of the source.
      */
     val name: String
+
+    /**
+     * ext-lib 1.5
+     */
+    suspend fun getMangaDetails(manga: SManga): SManga {
+        return fetchMangaDetails(manga).awaitSingle()
+    }
+
+    /**
+     * ext-lib 1.5
+     */
+    suspend fun getChapterList(manga: SManga): List<SChapter> {
+        return fetchChapterList(manga).awaitSingle()
+    }
+
+    /**
+     * ext-lib 1.5
+     */
+    suspend fun getPageList(chapter: SChapter): List<Page> {
+        return fetchPageList(chapter).awaitSingle()
+    }
 
     /**
      * Returns an observable with the updated details for a manga.
@@ -41,7 +63,5 @@ interface Source {
      */
     fun fetchPageList(chapter: SChapter): Observable<List<Page>>
 }
-
-// fun Source.icon(): Drawable? = Injekt.get<ExtensionManager>().getAppIconForSource(this)
 
 fun Source.getPreferenceKey(): String = "source_$id"

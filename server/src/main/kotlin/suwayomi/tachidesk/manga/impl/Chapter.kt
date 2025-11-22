@@ -27,7 +27,6 @@ import suwayomi.tachidesk.cloud.model.table.ChapterSyncTable
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath
-import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.*
 import suwayomi.tachidesk.manga.model.table.*
@@ -83,7 +82,7 @@ object Chapter {
         Profiler.split("getManga")
         // tachiyomi: state.source.getMangaDetails(state.manga.toSManga())
         val sManga = MangaTable.toSManga(mangaEntry)
-        val rawChapterList = source.fetchChapterList(sManga).awaitSingle()
+        val rawChapterList = source.getChapterList(sManga)
         val chapterList = rawChapterList
             .distinctBy { it.url }
         Profiler.split("after fetchChapterList")
