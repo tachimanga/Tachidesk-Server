@@ -27,6 +27,7 @@ import suwayomi.tachidesk.manga.impl.chapter.getChapterReadReady
 import suwayomi.tachidesk.manga.model.dataclass.CategoryDataClass
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
+import suwayomi.tachidesk.manga.model.dataclass.SMangaDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.formParam
 import suwayomi.tachidesk.server.util.handler
@@ -491,6 +492,26 @@ object MangaController {
         behaviorOf = { ctx ->
             val input = json.decodeFromString<MangaBatch.MangaBatchInput>(ctx.body())
             MangaBatch.batchUpdate(input)
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val batchQuery = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<MangaQuery.MangaBatchQueryInput>(ctx.body())
+            ctx.json(MangaQuery.batchQuery(input))
+        },
+        withResults = {
+            httpCode(HttpCode.OK)
+        },
+    )
+
+    val networkToLocalManga = handler(
+        behaviorOf = { ctx ->
+            val input = json.decodeFromString<SMangaDataClass>(ctx.body())
+            ctx.json(Manga.networkToLocalManga(input))
         },
         withResults = {
             httpCode(HttpCode.OK)

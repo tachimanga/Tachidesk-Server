@@ -177,7 +177,7 @@ object CategoryManga {
         }
     }
 
-    private fun fillChapterInfo(mangaList: List<MangaDataClass>) {
+    fun fillChapterInfo(mangaList: List<MangaDataClass>) {
         val mangaIds = mangaList.map { it.id }
         val unreadCountMap = unreadCountMapWithScanlator(mangaIds)
 

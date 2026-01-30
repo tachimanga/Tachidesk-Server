@@ -96,7 +96,7 @@ object Migrate {
 
         // 2. fetch chapters
         logger.info { "(2/8)fetch chapters..." }
-        val chapters = Chapter.getChapterList(destMangaId, true)
+        val chapters = Chapter.getChapterList(destMangaId, request.skipFetchChapter != true)
 
         // 3. migrateChapter
         logger.info { "(3/8)migrateChapter..." }
@@ -336,5 +336,6 @@ object Migrate {
         val migrateTrackFlag: Boolean? = null,
         val replaceFlag: Boolean? = null,
         val removeDownloadsIfMigrate: Boolean? = null,
+        val skipFetchChapter: Boolean? = null,
     )
 }

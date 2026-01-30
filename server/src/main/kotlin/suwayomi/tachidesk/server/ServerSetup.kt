@@ -47,6 +47,7 @@ class ApplicationDirs(
     val customCoversRoot = "$dataRoot/custom_covers"
     val mangaDownloadsRoot = serverConfig.downloadsPath.ifBlank { "$dataRoot/downloads" }
     val mangaDownloadsRoot2 = "$dataRoot/downloads2"
+    val jarsRoot = "$dataRoot/jars"
     val localMangaRoot = "${System.getProperty("user.home")}/Documents/local"
     val prefsRoot = "${System.getProperty("user.home")}/Library/Preferences"
     val webUIRoot = "$dataRoot/webUI"
@@ -103,6 +104,7 @@ fun applicationSetup() {
         applicationDirs.coversRoot,
         applicationDirs.mangaDownloadsRoot,
         applicationDirs.mangaDownloadsRoot2,
+        applicationDirs.jarsRoot,
         applicationDirs.tempProtoBackups,
         applicationDirs.localMangaRoot,
     ).forEach {

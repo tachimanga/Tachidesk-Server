@@ -10,6 +10,7 @@ package suwayomi.tachidesk.manga.impl
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
+import eu.kanade.tachiyomi.util.chapter.ChapterSanitizer
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
@@ -86,6 +87,10 @@ object Chapter {
         val chapterList = rawChapterList
             .distinctBy { it.url }
         Profiler.split("after fetchChapterList")
+        // Remove manga title from chapter title
+        chapterList.forEach {
+            it.name = ChapterSanitizer.sanitize(it.name, sManga.title)
+        }
         // Recognize number for new chapters.
         chapterList.forEach {
             (source as? HttpSource)?.prepareNewChapter(it, sManga)
@@ -127,6 +132,7 @@ object Chapter {
                 .orderBy(ChapterSyncTable.id to SortOrder.DESC)
                 .limit(rawChapterList.size)
                 .associateBy { it[ChapterSyncTable.url] }
+            val chapterSyncMapByName = chapterSyncMap.values.associateBy { it[ChapterSyncTable.name] }
 
             if (insertList.isNotEmpty()) {
                 val myBatchInsertStatement = MyBatchInsertStatement(ChapterTable)
@@ -166,11 +172,12 @@ object Chapter {
                         my[ChapterTable.fetchedAt] = toDeleteChapter[ChapterTable.fetchedAt]
                         my[ChapterTable.originalChapterId] = toDeleteChapter[ChapterTable.originalChapterId] ?: toDeleteChapter[ChapterTable.id].value
                         my[ChapterTable.updateAt] = toDeleteChapter[ChapterTable.updateAt]
-                        my[ChapterTable.dirty] = true
-                        needSync = true
+                        if (toDeleteChapter[ChapterTable.isRead] || toDeleteChapter[ChapterTable.isBookmarked] || toDeleteChapter[ChapterTable.lastPageRead] > 0 || toDeleteChapter[ChapterTable.lastReadAt] > 0) {
+                            my[ChapterTable.dirty] = true
+                            needSync = true
+                        }
                     }
-
-                    val chapterSync = chapterSyncMap[fetchedChapter.url]
+                    val chapterSync = chapterSyncMap[fetchedChapter.url] ?: chapterSyncMapByName[fetchedChapter.name]
                     my[ChapterTable.isRead] = (toDeleteChapter?.get(ChapterTable.isRead) ?: false) || (chapterSync?.get(ChapterSyncTable.isRead) ?: false)
                     my[ChapterTable.isBookmarked] = (toDeleteChapter?.get(ChapterTable.isBookmarked) ?: false) || (chapterSync?.get(ChapterSyncTable.isBookmarked) ?: false)
                     my[ChapterTable.lastPageRead] = max(toDeleteChapter?.get(ChapterTable.lastPageRead) ?: 0, chapterSync?.get(ChapterSyncTable.lastPageRead) ?: 0)

@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.source.SourceMeta
 import eu.kanade.tachiyomi.source.local.LocalSource
+import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -26,7 +27,9 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.cloud.impl.Sync
+import suwayomi.tachidesk.cloud.model.table.ChapterSyncTable
 import suwayomi.tachidesk.manga.impl.MangaList.buildThumbnailImg
+import suwayomi.tachidesk.manga.impl.MangaList.processEntries
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
 import suwayomi.tachidesk.manga.impl.Source.getSource
 import suwayomi.tachidesk.manga.impl.track.Track
@@ -38,7 +41,9 @@ import suwayomi.tachidesk.manga.impl.util.source.StubSource
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.buildImageResponse
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.clearFastCachedImage
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
+import suwayomi.tachidesk.manga.model.dataclass.SMangaDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
+import suwayomi.tachidesk.manga.model.dataclass.toSManga
 import suwayomi.tachidesk.manga.model.table.*
 import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
@@ -218,12 +223,19 @@ object Manga {
         updateStrategy = UpdateStrategy.valueOf(mangaEntry[MangaTable.updateStrategy]),
         freshData = false,
         trackers = Track.getTrackRecordsByMangaId(mangaId),
+        existChapterSyncData = getExistChapterSyncData(mangaId),
     )
 
     fun getMangaMetaMap(mangaId: Int): Map<String, String> {
         return transaction {
             MangaMetaTable.select { MangaMetaTable.ref eq mangaId }
                 .associate { it[MangaMetaTable.key] to it[MangaMetaTable.value] }
+        }
+    }
+
+    private fun getExistChapterSyncData(mangaId: Int): Boolean {
+        return transaction {
+            ChapterSyncTable.select { ChapterSyncTable.mangaId eq mangaId }.count() > 0
         }
     }
 
@@ -299,6 +311,13 @@ object Manga {
                 it[MangaTable.dirty] = true
             }
         }
+    }
+
+    fun networkToLocalManga(sMangaData: SMangaDataClass): MangaDataClass {
+        val page = MangasPage(mangas = listOf(sMangaData.toSManga()), false)
+        val pageData = page.processEntries(sMangaData.sourceId)
+        MangaQuery.fillSourceInfo(pageData.mangaList)
+        return pageData.mangaList.first()
     }
 
     private val applicationDirs by DI.global.instance<ApplicationDirs>()

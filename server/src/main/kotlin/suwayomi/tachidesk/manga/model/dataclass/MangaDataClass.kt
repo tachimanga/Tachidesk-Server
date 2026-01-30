@@ -30,7 +30,7 @@ data class MangaDataClass(
     val status: String = MangaStatus.UNKNOWN.name,
     val inLibrary: Boolean = false,
     val inLibraryAt: Long = 0,
-    val source: SourceDataClass? = null,
+    var source: SourceDataClass? = null,
 
     /** meta data for clients */
     var meta: Map<String, String> = emptyMap(),
@@ -58,11 +58,19 @@ data class MangaDataClass(
 
     val age: Long? = if (lastFetchedAt == null) 0 else Instant.now().epochSecond.minus(lastFetchedAt),
     val chaptersAge: Long? = if (chaptersLastFetchedAt == null) null else Instant.now().epochSecond.minus(chaptersLastFetchedAt),
+
+    val existChapterSyncData: Boolean = false,
+
+    var latestChapter: ChapterDataClass? = null,
 )
 
 data class PagedMangaListDataClass(
     val mangaList: List<MangaDataClass>,
     val hasNextPage: Boolean,
+)
+
+data class MangaBatchQueryDataClass(
+    val mangaList: List<MangaDataClass>,
 )
 
 internal fun String?.toGenreList() = this?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()

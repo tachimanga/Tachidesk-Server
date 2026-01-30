@@ -22,6 +22,7 @@ import suwayomi.tachidesk.manga.impl.Source
 import suwayomi.tachidesk.manga.impl.Source.SourcePreferenceChange
 import suwayomi.tachidesk.manga.impl.SourceMeta
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
+import suwayomi.tachidesk.manga.model.dataclass.PagedSMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.handler
@@ -185,7 +186,6 @@ object SourceController {
                 summary("Source manga quick search")
                 description("Returns list of manga from source matching posted searchTerm and filter")
             }
-            // body<FilterData>()
         },
         behaviorOf = { ctx, sourceId, pageNum ->
             val body = ctx.body()
@@ -195,6 +195,20 @@ object SourceController {
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
+        },
+    )
+
+    val simpleSearchSingle = handler(
+        pathParam<Long>("sourceId"),
+        queryParam("pageNum", 1),
+        behaviorOf = { ctx, sourceId, pageNum ->
+            val body = ctx.body()
+            logger.info("simpleSearchSingle $body")
+            val filter = json.decodeFromString<FilterData>(body)
+            ctx.future(future { Search.simpleSearch(sourceId, pageNum, filter) })
+        },
+        withResults = {
+            json<PagedSMangaListDataClass>(HttpCode.OK)
         },
     )
 

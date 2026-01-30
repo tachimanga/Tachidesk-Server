@@ -41,6 +41,7 @@ object MangaAPI {
 
             get("{sourceId}/filters", SourceController.getFilters)
             post("{sourceId}/quick-search", SourceController.quickSearchSingle)
+            post("{sourceId}/simple-search", SourceController.simpleSearchSingle)
 
             post("meta/query", SourceController.queryMeta)
             post("meta/update", SourceController.updateMeta)
@@ -73,6 +74,10 @@ object MangaAPI {
             delete("removeLocal", MangaController.removeLocalManga)
 
             post("batchUpdate", MangaController.batchUpdate)
+
+            post("batchQuery", MangaController.batchQuery)
+            // save manga
+            post("networkToLocalManga", MangaController.networkToLocalManga)
         }
 
         path("history") {

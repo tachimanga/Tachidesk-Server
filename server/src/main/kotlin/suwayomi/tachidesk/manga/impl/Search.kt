@@ -17,6 +17,8 @@ import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.MangaList.processEntries
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
+import suwayomi.tachidesk.manga.model.dataclass.PagedSMangaListDataClass
+import suwayomi.tachidesk.manga.model.dataclass.toSMangaDataClass
 
 object Search {
     suspend fun sourceFilter(sourceId: Long, pageNum: Int, filter: FilterData): PagedMangaListDataClass {
@@ -25,6 +27,17 @@ object Search {
         val filterList = if (filter.filter != null) updateFilterList(filterList0, filter.filter) else filterList0
         val searchManga = source.getSearchManga(pageNum, filter.searchTerm ?: "", filterList)
         return searchManga.processEntries(sourceId)
+    }
+
+    suspend fun simpleSearch(sourceId: Long, pageNum: Int, filter: FilterData): PagedSMangaListDataClass {
+        val source = getCatalogueSourceOrStub(sourceId)
+        val filterList0 = source.getFilterList()
+        val filterList = if (filter.filter != null) updateFilterList(filterList0, filter.filter) else filterList0
+        val searchManga = source.getSearchManga(pageNum, filter.searchTerm ?: "", filterList)
+        return PagedSMangaListDataClass(
+            searchManga.mangas.map { it.toSMangaDataClass(sourceId) },
+            searchManga.hasNextPage,
+        )
     }
 
     fun getFilterList(sourceId: Long, reset: Boolean): List<FilterObject> {

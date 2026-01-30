@@ -41,6 +41,10 @@ public final class Bitmap {
         return width;
     }
 
+    public Config getConfig() {
+        return Config.ARGB_8888;
+    }
+
     public enum CompressFormat {
         JPEG          (0),
         PNG           (1),
@@ -145,6 +149,10 @@ public final class Bitmap {
         }
 
         return true;
+    }
+
+    public void recycle() {
+        // do nothing
     }
 
     private void writeByteBufferToOutputStream(byte[] buff, OutputStream stream) {

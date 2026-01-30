@@ -20,6 +20,8 @@ import net.dongliu.apk.parser.ApkParsers
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
+import org.tachiyomi.ChildFirstClassLoader
+import org.tachiyomi.ChildFirstClassLoader2
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import suwayomi.tachidesk.server.ApplicationDirs
@@ -143,8 +145,17 @@ object PackageTools {
      * It may return an instance of HttpSource or SourceFactory depending on the extension.
      */
     fun loadExtensionSources(jarPath: String, className: String): Any {
-        logger.debug { "loading jar with path: $jarPath" }
-        val classLoader = jarLoaderMap[jarPath] ?: URLClassLoader(arrayOf<URL>(URL("file:$jarPath")))
+        val v = System.getProperty("app.tachimanga.childfirst")
+        logger.debug { "loading jar with path: $jarPath, childfirst=$v" }
+        val classLoader = jarLoaderMap[jarPath] ?: (
+            if (v == "1") {
+                ChildFirstClassLoader(arrayOf(URL("file:$jarPath")))
+            } else if (v == "2") {
+                ChildFirstClassLoader2(arrayOf(URL("file:$jarPath")))
+            } else {
+                URLClassLoader(arrayOf(URL("file:$jarPath")))
+            }
+        )
         val classToLoad = Class.forName(className, false, classLoader)
 
         jarLoaderMap[jarPath] = classLoader
