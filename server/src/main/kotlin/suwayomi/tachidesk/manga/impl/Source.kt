@@ -274,7 +274,8 @@ object Source {
     @Suppress("IMPLICIT_CAST_TO_ANY", "UNCHECKED_CAST")
     fun setSourcePreference(sourceId: Long, change: SourcePreferenceChange) {
         val screen = preferenceScreenMap[sourceId]!!
-        val pref = screen.preferences[change.position]
+        val preferences = screen.preferences.filter { it.isVisible }.toList()
+        val pref = preferences[change.position]
 
         val newValue = when (pref.defaultValueType) {
             "String" -> change.value

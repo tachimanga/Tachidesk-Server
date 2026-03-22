@@ -238,7 +238,7 @@ object ProtoBackupImport {
                     val chapters = manga.chapters.filter { it.read || it.bookmark || it.lastPageRead > 0 }
                     if (chapters.isNotEmpty()) {
                         val dbChapters = ChapterTable
-                            .slice(ChapterTable.id, ChapterTable.isRead, ChapterTable.isBookmarked, ChapterTable.lastPageRead)
+                            .slice(ChapterTable.id, ChapterTable.isRead, ChapterTable.isBookmarked, ChapterTable.lastPageRead, ChapterTable.url)
                             .select { ChapterTable.manga eq id }
                             .associateBy { it[ChapterTable.url] }
                         chapters.forEach { chapter ->

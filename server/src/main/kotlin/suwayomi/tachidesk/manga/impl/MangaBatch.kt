@@ -9,13 +9,10 @@ package suwayomi.tachidesk.manga.impl
 
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.model.table.CategoryMangaTable
@@ -83,8 +80,13 @@ object MangaBatch {
 
         val now = System.currentTimeMillis()
         transaction {
-            ChapterTable.update({ (ChapterTable.manga inList mangaIds) and (ChapterTable.isRead eq true) }) {
+            ChapterTable.update({
+                (ChapterTable.manga inList mangaIds) and
+                    ((ChapterTable.isRead eq true) or (ChapterTable.lastPageRead greater 0) or (ChapterTable.lastReadAt greater 0))
+            }) {
                 it[ChapterTable.isRead] = false
+                it[ChapterTable.lastReadAt] = 0
+                it[ChapterTable.lastPageRead] = 0
                 it[ChapterTable.updateAt] = now
                 it[ChapterTable.dirty] = true
             }

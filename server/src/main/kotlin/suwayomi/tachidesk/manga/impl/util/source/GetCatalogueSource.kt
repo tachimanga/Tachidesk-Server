@@ -24,7 +24,6 @@ import mu.KotlinLogging
 import okhttp3.Authenticator
 import okhttp3.Headers
 import okhttp3.OkHttpClient
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -38,7 +37,6 @@ import suwayomi.tachidesk.server.ApplicationDirs
 import uy.kohesive.injekt.injectLazy
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.HashMap
 
 object GetCatalogueSource {
     private val logger = KotlinLogging.logger {}
@@ -80,17 +78,22 @@ object GetCatalogueSource {
         val jarName = apkName.substringBefore(".apk") + ".jar"
         val jarPath = "${applicationDirs.extensionsRoot}/$jarName"
 
-        when (val instance = loadExtensionSources(jarPath, className)) {
-            is Source -> listOf(instance)
-            is SourceFactory -> instance.createSources()
-            else -> throw Exception("Unknown source class type! ${instance.javaClass}")
-        }.forEach {
-            if (it is HttpSource) {
-                scope.launch {
-                    clientToSourceMap[it.client] = it.id
+        try {
+            when (val instance = loadExtensionSources(jarPath, className)) {
+                is Source -> listOf(instance)
+                is SourceFactory -> instance.createSources()
+                else -> throw Exception("Unknown source class type! ${instance.javaClass}")
+            }.forEach {
+                if (it is HttpSource) {
+                    scope.launch {
+                        clientToSourceMap[it.client] = it.id
+                    }
                 }
+                sourceCache[it.id] = it as HttpSource
             }
-            sourceCache[it.id] = it as HttpSource
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            throw e
         }
         return sourceCache[sourceId]!!
     }

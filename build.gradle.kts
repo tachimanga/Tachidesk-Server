@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jmailen.gradle.kotlinter.tasks.FormatTask
 import org.jmailen.gradle.kotlinter.tasks.LintTask
@@ -35,11 +36,9 @@ subprojects {
     tasks {
         withType<KotlinJvmCompile> {
             dependsOn("formatKotlin")
-            kotlinOptions {
-                jvmTarget = JavaVersion.VERSION_17.toString()
-                freeCompilerArgs += listOf(
-                        "-Xcontext-receivers"
-                )
+            compilerOptions {
+                jvmTarget = JvmTarget.JVM_17
+                freeCompilerArgs.add("-Xcontext-receivers")
             }
         }
 

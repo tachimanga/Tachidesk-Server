@@ -145,6 +145,14 @@ object PackageTools {
      * It may return an instance of HttpSource or SourceFactory depending on the extension.
      */
     fun loadExtensionSources(jarPath: String, className: String): Any {
+        try {
+            return loadExtensionSources0(jarPath, className)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+    fun loadExtensionSources0(jarPath: String, className: String): Any {
         val v = System.getProperty("app.tachimanga.childfirst")
         logger.debug { "loading jar with path: $jarPath, childfirst=$v" }
         val classLoader = jarLoaderMap[jarPath] ?: (

@@ -206,7 +206,12 @@ object Extension {
             val extensionMainClassInstance = loadExtensionSources(jarFilePath, className)
             val sources: List<CatalogueSource> = when (extensionMainClassInstance) {
                 is Source -> listOf(extensionMainClassInstance)
-                is SourceFactory -> extensionMainClassInstance.createSources()
+                is SourceFactory -> try {
+                    extensionMainClassInstance.createSources()
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    throw e
+                }
                 else -> throw RuntimeException("Unknown source class type! ${extensionMainClassInstance.javaClass}")
             }.map { it as CatalogueSource }
 

@@ -28,4 +28,9 @@ data class ExtensionDataClass(
     val extensionId: Int,
     val repoId: Int?,
     val repoName: String?,
+
+    // the baseurl of the first source
+    val baseUrl: String?,
+
+    val alternateName: String?,
 )

@@ -135,7 +135,7 @@ public class CustomContext extends Context implements DIAware {
 
     @Override
     public String getPackageName() {
-        return null;
+        return "app.tachimanga";
     }
 
     @Override

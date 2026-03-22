@@ -150,6 +150,8 @@ object ExtensionsList {
                     it[ExtensionTable.id].value,
                     repo?.id ?: 0,
                     repo?.name ?: "",
+                    it[ExtensionTable.baseUrl],
+                    it[ExtensionTable.alternateName],
                 )
             }
     }
@@ -164,37 +166,40 @@ object ExtensionsList {
             Profiler.split("ExtensionTable selectAll")
             updateList.forEach { foundExtension ->
                 val extensionRecord = dbExtensionMap[foundExtension.pkgName]
+                val iconUrl = foundExtension.iconUrl.take(2048)
+                val baseUrl = foundExtension.sources.firstOrNull()?.baseUrl?.take(2048)
+                val extensionName = foundExtension.name.take(128)
+                val alternateName = buildAlternateName(foundExtension)
                 if (extensionRecord != null) {
                     if (extensionRecord[ExtensionTable.isInstalled]) {
                         var updateFlag = false
-                        var obsoleteFlag = false
-                        when {
-                            foundExtension.versionCode > extensionRecord[ExtensionTable.versionCode] -> {
-                                // there is an update
-                                updateFlag = true
-                                updateMap.putIfAbsent(extensionRecord[ExtensionTable.id].value, foundExtension)
-                            }
-                            foundExtension.versionCode < extensionRecord[ExtensionTable.versionCode] -> {
-                                // somehow the user installed an invalid version
-                                obsoleteFlag = true
-                            }
+                        // there is an update
+                        if (foundExtension.versionCode > extensionRecord[ExtensionTable.versionCode]) {
+                            updateFlag = true
+                            updateMap.putIfAbsent(extensionRecord[ExtensionTable.id].value, foundExtension)
                         }
-                        val same = extensionRecord[ExtensionTable.hasReadme] == foundExtension.hasReadme &&
+                        val same = extensionRecord[ExtensionTable.name] == extensionName &&
+                            extensionRecord[ExtensionTable.hasReadme] == foundExtension.hasReadme &&
                             extensionRecord[ExtensionTable.hasChangelog] == foundExtension.hasChangelog &&
-                            extensionRecord[ExtensionTable.iconUrl] == foundExtension.iconUrl &&
+                            extensionRecord[ExtensionTable.iconUrl] == iconUrl &&
                             extensionRecord[ExtensionTable.hasUpdate] == updateFlag &&
-                            extensionRecord[ExtensionTable.isObsolete] == obsoleteFlag
+                            !extensionRecord[ExtensionTable.isObsolete] &&
+                            extensionRecord[ExtensionTable.baseUrl] == baseUrl &&
+                            extensionRecord[ExtensionTable.alternateName] == alternateName
                         if (!same) {
                             ExtensionTable.update({ ExtensionTable.id eq extensionRecord[ExtensionTable.id] }) {
+                                it[ExtensionTable.name] = extensionName
                                 it[hasReadme] = foundExtension.hasReadme
                                 it[hasChangelog] = foundExtension.hasChangelog
-                                it[iconUrl] = foundExtension.iconUrl
+                                it[ExtensionTable.iconUrl] = iconUrl
                                 it[hasUpdate] = updateFlag
-                                it[isObsolete] = obsoleteFlag
+                                it[isObsolete] = false
+                                it[ExtensionTable.baseUrl] = baseUrl
+                                it[ExtensionTable.alternateName] = alternateName
                             }
                         }
                     } else {
-                        val same = extensionRecord[ExtensionTable.name] == foundExtension.name &&
+                        val same = extensionRecord[ExtensionTable.name] == extensionName &&
                             extensionRecord[ExtensionTable.versionName] == foundExtension.versionName &&
                             extensionRecord[ExtensionTable.versionCode] == foundExtension.versionCode &&
                             extensionRecord[ExtensionTable.lang] == foundExtension.lang &&
@@ -202,12 +207,13 @@ object ExtensionsList {
                             extensionRecord[ExtensionTable.apkName] == foundExtension.apkName &&
                             extensionRecord[ExtensionTable.hasReadme] == foundExtension.hasReadme &&
                             extensionRecord[ExtensionTable.hasChangelog] == foundExtension.hasChangelog &&
-                            extensionRecord[ExtensionTable.iconUrl] == foundExtension.iconUrl
-                        // println("Profiler: same " + same)
+                            extensionRecord[ExtensionTable.iconUrl] == iconUrl &&
+                            extensionRecord[ExtensionTable.baseUrl] == baseUrl &&
+                            extensionRecord[ExtensionTable.alternateName] == alternateName
                         if (!same) {
                             // extension is not installed, so we can overwrite the data without a care
                             ExtensionTable.update({ ExtensionTable.id eq extensionRecord[ExtensionTable.id] }) {
-                                it[name] = foundExtension.name
+                                it[name] = extensionName
                                 it[versionName] = foundExtension.versionName
                                 it[versionCode] = foundExtension.versionCode
                                 it[lang] = foundExtension.lang
@@ -215,7 +221,9 @@ object ExtensionsList {
                                 it[apkName] = foundExtension.apkName
                                 it[hasReadme] = foundExtension.hasReadme
                                 it[hasChangelog] = foundExtension.hasChangelog
-                                it[iconUrl] = foundExtension.iconUrl
+                                it[ExtensionTable.iconUrl] = iconUrl
+                                it[ExtensionTable.baseUrl] = baseUrl
+                                it[ExtensionTable.alternateName] = alternateName
                             }
                         }
                     }
@@ -229,7 +237,7 @@ object ExtensionsList {
 
                     my.addBatch()
 
-                    my[ExtensionTable.name] = foundExtension.name
+                    my[ExtensionTable.name] = foundExtension.name.take(128)
                     my[ExtensionTable.pkgName] = foundExtension.pkgName
                     my[ExtensionTable.versionName] = foundExtension.versionName
                     my[ExtensionTable.versionCode] = foundExtension.versionCode
@@ -238,8 +246,10 @@ object ExtensionsList {
                     my[ExtensionTable.apkName] = foundExtension.apkName
                     my[ExtensionTable.hasReadme] = foundExtension.hasReadme
                     my[ExtensionTable.hasChangelog] = foundExtension.hasChangelog
-                    my[ExtensionTable.iconUrl] = foundExtension.iconUrl
+                    my[ExtensionTable.iconUrl] = foundExtension.iconUrl.take(2048)
                     my[ExtensionTable.repoId] = repoId
+                    my[ExtensionTable.baseUrl] = foundExtension.sources.firstOrNull()?.baseUrl?.take(2048)
+                    my[ExtensionTable.alternateName] = buildAlternateName(foundExtension)
                 }
 
                 val sql = myBatchInsertStatement.prepareSQL(this)
@@ -275,5 +285,15 @@ object ExtensionsList {
             }
             Profiler.split("ExtensionTable clear")
         }
+    }
+
+    private fun buildAlternateName(foundExtension: OnlineExtension): String? {
+        val alternateName = foundExtension.sources.map { it.name }
+            .filter {
+                it.isNotEmpty() && it != foundExtension.name
+            }
+            .distinct()
+            .joinToString(separator = ",")
+        return if (alternateName.isNotEmpty()) { alternateName.take(256) } else { null }
     }
 }

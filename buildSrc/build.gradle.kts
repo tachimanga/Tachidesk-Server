@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     `kotlin-dsl`
 }
@@ -7,5 +10,14 @@ repositories {
 }
 
 dependencies {
-    implementation("net.lingala.zip4j:zip4j:2.9.0")
+    implementation(libs.zip4j)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType<KotlinCompile> {
+    compilerOptions.jvmTarget = JvmTarget.JVM_17
 }

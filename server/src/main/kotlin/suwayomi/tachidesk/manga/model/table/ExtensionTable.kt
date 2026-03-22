@@ -28,6 +28,11 @@ object ExtensionTable : IntIdTable() {
     val lang = varchar("lang", 32)
     val isNsfw = bool("is_nsfw")
 
+    // the baseurl of the first source
+    val baseUrl = varchar("base_url", 2048).nullable()
+
+    val alternateName = varchar("alternate_name", 256).nullable()
+
     val isInstalled = bool("is_installed").default(false)
     val hasUpdate = bool("has_update").default(false)
     val isObsolete = bool("is_obsolete").default(false)

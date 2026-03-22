@@ -8,6 +8,7 @@ package suwayomi.tachidesk.manga.impl
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
 import eu.kanade.tachiyomi.util.chapter.ChapterSanitizer
@@ -25,6 +26,7 @@ import org.kodein.di.instance
 import org.tachiyomi.Profiler
 import suwayomi.tachidesk.cloud.impl.Sync
 import suwayomi.tachidesk.cloud.model.table.ChapterSyncTable
+import suwayomi.tachidesk.cloud.model.table.toSChapter
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
 import suwayomi.tachidesk.manga.impl.track.Track
 import suwayomi.tachidesk.manga.impl.util.getMangaDownloadPath
@@ -126,14 +128,17 @@ object Chapter {
 
         var needSync = false
 
-        transaction {
-            val chapterSyncMap = ChapterSyncTable
+        val chapterSyncMap = transaction {
+            ChapterSyncTable
                 .select { ChapterSyncTable.mangaId eq mangaId }
                 .orderBy(ChapterSyncTable.id to SortOrder.DESC)
                 .limit(rawChapterList.size)
                 .associateBy { it[ChapterSyncTable.url] }
-            val chapterSyncMapByName = chapterSyncMap.values.associateBy { it[ChapterSyncTable.name] }
+        }
+        val chapterSyncMapByName = chapterSyncMap.values.associateBy { it[ChapterSyncTable.name] }
+        val chapterSyncMapByNumber = buildChapterSyncMapByNumber(chapterSyncMap.values, sManga)
 
+        transaction {
             if (insertList.isNotEmpty()) {
                 val myBatchInsertStatement = MyBatchInsertStatement(ChapterTable)
                 insertList.forEach { pair ->
@@ -177,7 +182,7 @@ object Chapter {
                             needSync = true
                         }
                     }
-                    val chapterSync = chapterSyncMap[fetchedChapter.url] ?: chapterSyncMapByName[fetchedChapter.name]
+                    val chapterSync = chapterSyncMap[fetchedChapter.url] ?: chapterSyncMapByName[fetchedChapter.name] ?: chapterSyncMapByNumber[fetchedChapter.chapter_number]
                     my[ChapterTable.isRead] = (toDeleteChapter?.get(ChapterTable.isRead) ?: false) || (chapterSync?.get(ChapterSyncTable.isRead) ?: false)
                     my[ChapterTable.isBookmarked] = (toDeleteChapter?.get(ChapterTable.isBookmarked) ?: false) || (chapterSync?.get(ChapterSyncTable.isBookmarked) ?: false)
                     my[ChapterTable.lastPageRead] = max(toDeleteChapter?.get(ChapterTable.lastPageRead) ?: 0, chapterSync?.get(ChapterSyncTable.lastPageRead) ?: 0)
@@ -307,6 +312,18 @@ object Chapter {
             it[ChapterTable.isDownloaded] || it[ChapterTable.isBookmarked] || it[ChapterTable.isRead]
         }
         return chapter ?: chapterList[0]
+    }
+
+    private fun buildChapterSyncMapByNumber(list: Collection<ResultRow>, sManga: SManga): Map<Float, ResultRow> {
+        val map = mutableMapOf<Float, ResultRow>()
+        list.forEach {
+            val sChapter = ChapterSyncTable.toSChapter(it)
+            ChapterRecognition.parseChapterNumber(sChapter, sManga)
+            if (sChapter.chapter_number > -1) {
+                map[sChapter.chapter_number] = it
+            }
+        }
+        return map
     }
 
     private fun fixUploadDate(list: List<ChapterDataClass>) {
@@ -505,6 +522,10 @@ object Chapter {
             ChapterTable.update({ condition }) { update ->
                 isRead?.also {
                     update[ChapterTable.isRead] = it
+                }
+                if (isRead == false) {
+                    update[ChapterTable.lastReadAt] = 0
+                    update[ChapterTable.lastPageRead] = 0
                 }
                 isBookmarked?.also {
                     update[ChapterTable.isBookmarked] = it

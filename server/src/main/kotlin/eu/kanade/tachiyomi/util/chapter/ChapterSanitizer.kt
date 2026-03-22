@@ -5,7 +5,7 @@ object ChapterSanitizer {
         val s = chapterTitle.trim()
         if (s.startsWith(mangaTitle)) {
             return s.substring(mangaTitle.length)
-                .trim(*CHAPTER_TRIM_CHARS)
+                .trim(*CHAPTER_TRIM_CHARS).ifEmpty { s }
         }
         return s
     }
