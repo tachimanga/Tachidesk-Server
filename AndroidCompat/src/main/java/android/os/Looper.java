@@ -12,16 +12,24 @@ import android.util.Printer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+
 
 public final class Looper {
+    private static volatile Thread mainThread = null;
+
     public static final ScheduledExecutorService MAIN_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread thread = new Thread(r, "MainDispatcher");
         thread.setDaemon(true);
         thread.setPriority(Thread.MAX_PRIORITY);
+        mainThread = thread;
         return thread;
     });
 
     public static final Looper MAIN_LOOPER = new Looper(MAIN_EXECUTOR);
+
+    private static final ThreadLocal<Looper> threadLocalLooper = new ThreadLocal<>();
+    private static final AtomicInteger dispatcherNumber = new AtomicInteger(0);
 
     public ScheduledExecutorService executor;
 
@@ -46,7 +54,23 @@ public final class Looper {
 
     @Nullable
     public static Looper myLooper() {
-        return MAIN_LOOPER;
+        if (Thread.currentThread() == mainThread) {
+            return MAIN_LOOPER;
+        }
+
+        Looper looper = threadLocalLooper.get();
+        if (looper == null) {
+            int number = dispatcherNumber.getAndIncrement();
+            ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread thread = new Thread(r, "subDispatcher" + number);
+                thread.setDaemon(true);
+                thread.setPriority(Thread.MAX_PRIORITY);
+                return thread;
+            });
+            looper = new Looper(executor);
+            threadLocalLooper.set(looper);
+        }
+        return looper;
     }
 
     @NonNull
@@ -63,11 +87,11 @@ public final class Looper {
     }
 
     public void quit() {
-        throw new RuntimeException("Stub!");
+        executor.shutdownNow();
     }
 
     public void quitSafely() {
-        throw new RuntimeException("Stub!");
+        executor.shutdown();
     }
 
     @NonNull

@@ -3,6 +3,8 @@ package suwayomi.tachidesk.manga.impl
 import kotlinx.serialization.Serializable
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.plus
 import org.jetbrains.exposed.sql.transactions.transaction
 import suwayomi.tachidesk.cloud.impl.Sync
@@ -150,6 +152,10 @@ object History {
                 update[HistoryTable.readDuration] = 0
                 update[HistoryTable.dirty] = true
             }
+
+            if (input.resetChapters == true) {
+                resetChapters(input.mangaIds)
+            }
         }
         Sync.setNeedsSync()
     }
@@ -158,7 +164,7 @@ object History {
         if (input.clearAll == true) {
             clearAll()
         } else if (input.lastReadAt != null) {
-            clearAfter(input.lastReadAt)
+            clearAfter(input.lastReadAt, input.resetChapters)
         }
     }
 
@@ -175,22 +181,57 @@ object History {
         Sync.setNeedsSync()
     }
 
-    private fun clearAfter(lastReadAt: Long) {
+    private fun clearAfter(lastReadAt: Long, resetChapters: Boolean?) {
         val now = System.currentTimeMillis()
+
         transaction {
+            val mangaIds =
+                if (resetChapters == true) {
+                    transaction {
+                        HistoryTable.slice(HistoryTable.mangaId)
+                            .select { (HistoryTable.isDelete eq false) and (HistoryTable.lastReadAt greaterEq lastReadAt) }
+                            .map { it[HistoryTable.mangaId] }
+                            .toList()
+                    }
+                } else {
+                    emptyList()
+                }
+
             HistoryTable.update({ (HistoryTable.isDelete eq false) and (HistoryTable.lastReadAt greaterEq lastReadAt) }) { update ->
                 update[HistoryTable.isDelete] = true
                 update[HistoryTable.updateAt] = now
                 update[HistoryTable.readDuration] = 0
                 update[HistoryTable.dirty] = true
             }
+
+            if (resetChapters == true) {
+                resetChapters(mangaIds)
+            }
         }
         Sync.setNeedsSync()
+    }
+
+    private fun resetChapters(mangaIds: List<Int>?) {
+        if (mangaIds.isNullOrEmpty()) {
+            return
+        }
+        val now = System.currentTimeMillis()
+        ChapterTable.update({
+            (ChapterTable.manga inList mangaIds) and
+                ((ChapterTable.isRead eq true) or (ChapterTable.lastPageRead greater 0) or (ChapterTable.lastReadAt greater 0))
+        }) {
+            it[ChapterTable.isRead] = false
+            it[ChapterTable.lastReadAt] = 0
+            it[ChapterTable.lastPageRead] = 0
+            it[ChapterTable.updateAt] = now
+            it[ChapterTable.dirty] = true
+        }
     }
 
     @Serializable
     data class BatchInput(
         val mangaIds: List<Int>? = null,
+        val resetChapters: Boolean? = null,
     )
 
     @Serializable
@@ -198,5 +239,6 @@ object History {
         // seconds
         val lastReadAt: Long? = null,
         val clearAll: Boolean? = null,
+        val resetChapters: Boolean? = null,
     )
 }

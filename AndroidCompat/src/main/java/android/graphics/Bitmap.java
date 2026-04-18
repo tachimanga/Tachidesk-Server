@@ -33,6 +33,10 @@ public final class Bitmap {
         throw new RuntimeException("Tachimanga does not support this extension.");
     }
 
+    public boolean isMutable() {
+        return nativeCanvasRef != null;
+    }
+
     public int getHeight() {
         return height;
     }
@@ -83,6 +87,33 @@ public final class Bitmap {
         }
     }
 
+    public static Bitmap createBitmap(Bitmap source, int x, int y, int width, int height) {
+        if (source == null) {
+            throw new IllegalArgumentException("Source bitmap is null");
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("width and height must be > 0");
+        }
+        if (x < 0 || y < 0 || x + width > source.width || y + height > source.height) {
+            throw new IllegalArgumentException("Crop region is out of bounds: x=" + x + ", y=" + y
+                    + ", width=" + width + ", height=" + height + ", sourceWidth=" + source.width
+                    + ", sourceHeight=" + source.height);
+        }
+        if (source.nativeImageRef == null && source.nativeCanvasRef == null) {
+            throw new IllegalArgumentException("Source bitmap has no native image data");
+        }
+
+        Bitmap bitmap = new Bitmap();
+        long imageRef = bitmap.createCroppedImage(
+                source.nativeImageRef != null ? source.nativeImageRef.address() : 0,
+                source.nativeCanvasRef != null ? source.nativeCanvasRef.address() : 0,
+                x, y, width, height);
+        bitmap.nativeImageRef = new NativeRef(imageRef);
+        bitmap.width = width;
+        bitmap.height = height;
+        return bitmap;
+    }
+
     public static Bitmap createBitmap(int width, int height, Config config) {
         Bitmap bitmap = new Bitmap();
         //bitmap.start = System.currentTimeMillis();
@@ -114,9 +145,32 @@ public final class Bitmap {
         );
     }
 
+    public void drawPoint(int x, int y, int color) {
+        if (nativeCanvasRef == null) {
+            throw new RuntimeException("nativeCanvasRef is null");
+        }
+        drawPointNative(nativeCanvasRef.address(), x, y, color);
+    }
+
+    public int getPixel(int x, int y) {
+        if (nativeImageRef == null) {
+            throw new RuntimeException("nativeImageRef is null");
+        }
+        if (x < 0 || x >= width || y < 0 || y >= height) {
+            throw new IllegalArgumentException("x=" + x + ", y=" + y + ", width=" + width + ", height=" + height);
+        }
+        return getPixel(nativeImageRef.address(), x, y);
+    }
+
     public void getPixels(int[] pixels, int offset, int stride,
                           int x, int y, int width, int height) {
-        throw new RuntimeException("请在包子漫画的设置中禁用移除包子漫画横幅");
+        if (nativeImageRef == null) {
+            throw new RuntimeException("nativeImageRef is null");
+        }
+        if (x < 0 || y < 0 || x + width > this.width || y + height > this.height) {
+            throw new IllegalArgumentException("x=" + x + ", y=" + y + ", width=" + width + ", height=" + height + ", bitmapWidth=" + this.width + ", bitmapHeight=" + this.height);
+        }
+        getPixels(nativeImageRef.address(), pixels, offset, stride, x, y, width, height);
     }
 
     public boolean compress(CompressFormat format, int quality, OutputStream stream) {
@@ -192,11 +246,21 @@ public final class Bitmap {
 
     private native void drawBitmap(long imageRef, long canvasRef, int[] src, int []dst);
 
+    private native void drawPointNative(long canvasRef, int x, int y, int color);
+
     // format  CompressFormat.nativeInt
     // quality 0 100
     private native byte[] getImage(long canvasRef, int format, int quality);
 
     private native byte[] compressImage(long imageRef, int format, int quality);
+
+    private native int getPixel(long imageRef, int x, int y);
+
+    private native void getPixels(long imageRef, int[] pixels, int offset, int stride,
+                                  int x, int y, int width, int height);
+
+    private native long createCroppedImage(long sourceImageRef, long sourceCanvasRef,
+                                           int x, int y, int width, int height);
 
     private native void releaseNativeImage(long imageRef);
     private native void releaseNativeCanvas(long canvasRef);

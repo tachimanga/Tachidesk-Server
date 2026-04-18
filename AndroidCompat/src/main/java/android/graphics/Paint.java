@@ -11,6 +11,8 @@ import android.os.LocaleList;
 import java.util.Locale;
 
 public class Paint {
+    private int color = 0xFF000000;
+    
     public static final int ANTI_ALIAS_FLAG = 1;
     public static final int CURSOR_AFTER = 0;
     public static final int CURSOR_AT = 4;
@@ -40,7 +42,6 @@ public class Paint {
     public static final int UNDERLINE_TEXT_FLAG = 8;
 
     public Paint() {
-        throw new RuntimeException("Stub!");
     }
 
     public Paint(int flags) {
@@ -164,7 +165,7 @@ public class Paint {
     }
 
     public int getColor() {
-        throw new RuntimeException("Stub!");
+        return color;
     }
 
     public long getColorLong() {
@@ -172,7 +173,7 @@ public class Paint {
     }
 
     public void setColor(int color) {
-        throw new RuntimeException("Stub!");
+        this.color = color;
     }
 
     public void setColor(long color) {
@@ -188,7 +189,7 @@ public class Paint {
     }
 
     public void setARGB(int a, int r, int g, int b) {
-        throw new RuntimeException("Stub!");
+        this.color = (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     public float getStrokeWidth() {
