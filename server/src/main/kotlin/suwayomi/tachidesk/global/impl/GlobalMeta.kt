@@ -1,5 +1,13 @@
 package suwayomi.tachidesk.global.impl
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -7,13 +15,6 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.manga.model.table.SettingTable
-
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 object GlobalMeta {
     fun modifyMeta(key: String, value: String) {

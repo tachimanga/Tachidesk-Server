@@ -1,7 +1,7 @@
 package suwayomi.tachidesk.manga.impl
 
 /*
- * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this

@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl.util.source
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -55,6 +56,8 @@ object GetCatalogueSource {
         "RateLimitInterceptor",
         "SpecificHostRateLimitInterceptor",
         "EnableNativeNetInterceptor",
+        "UncaughtExceptionInterceptor",
+        "BrotliInterceptor",
     )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

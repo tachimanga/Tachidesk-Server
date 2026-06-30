@@ -1,7 +1,9 @@
 package androidx.preference;
 
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -49,14 +51,20 @@ public class ListPreference extends Preference {
         this.entryValues = entryValues;
     }
 
-    @JsonIgnore
-    public void setValueIndex(int index) { throw new RuntimeException("Stub!"); }
+    private String mValue;
 
     @JsonIgnore
-    public String getValue() { throw new RuntimeException("Stub!"); }
+    public void setValueIndex(int index) {
+        if (entryValues != null && index >= 0 && index < entryValues.length) {
+            mValue = entryValues[index].toString();
+        }
+    }
 
     @JsonIgnore
-    public void setValue(String value) { throw new RuntimeException("Stub!"); }
+    public String getValue() { return mValue; }
+
+    @JsonIgnore
+    public void setValue(String value) { mValue = value; }
 
     /** Tachidesk specific API */
     @Override

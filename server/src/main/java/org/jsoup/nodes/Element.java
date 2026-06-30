@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2026 Jonathan Hedley <https://jsoup.org/>.
+ * Copyright (C) 2023 Tachimanga
+ *
+ * The MIT License. */
+
 package org.jsoup.nodes;
 
 import org.tachiyomi.NativeString;

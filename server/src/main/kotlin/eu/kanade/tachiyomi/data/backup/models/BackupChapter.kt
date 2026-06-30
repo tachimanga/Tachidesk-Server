@@ -1,5 +1,14 @@
 package eu.kanade.tachiyomi.data.backup.models
 
+/*
+ * Copyright © 2015 Javier Tomás
+ * Copyright © 2024 Mihon Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
@@ -20,6 +29,7 @@ data class BackupChapter(
     @ProtoNumber(9) var chapterNumber: Float = 0F,
     @ProtoNumber(10) var sourceOrder: Long = 0,
     @ProtoNumber(11) var lastModifiedAt: Long = 0,
+    @ProtoNumber(13) var memo: ByteArray = byteArrayOf(0x7B, 0x7D),
 ) {
     override fun toString(): String {
         return "BackupChapter(name='$name', url='$url')"

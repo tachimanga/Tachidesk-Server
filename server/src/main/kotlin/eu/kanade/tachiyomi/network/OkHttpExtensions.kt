@@ -1,8 +1,19 @@
 package eu.kanade.tachiyomi.network
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.okio.decodeFromBufferedSource
+import kotlinx.serialization.serializer
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -12,14 +23,15 @@ import okhttp3.Response
 import rx.Observable
 import rx.Producer
 import rx.Subscription
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.fullType
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resumeWithException
 
 val jsonMime = "application/json; charset=utf-8".toMediaType()
 
+/**
+ * extensions-lib 1.4
+ */
 fun Call.asObservable(): Observable<Response> {
     return Observable.unsafeCreate { subscriber ->
         // Since Call is a one-shot type, clone it for each new subscriber.
@@ -57,6 +69,9 @@ fun Call.asObservable(): Observable<Response> {
     }
 }
 
+/**
+ * extensions-lib 1.4
+ */
 fun Call.asObservableSuccess(): Observable<Response> {
     return asObservable().doOnNext { response ->
         if (!response.isSuccessful) {
@@ -66,7 +81,10 @@ fun Call.asObservableSuccess(): Observable<Response> {
     }
 }
 
-// Based on https://github.com/gildor/kotlin-coroutines-okhttp
+/**
+ * extensions-lib 1.4
+ * Based on https://github.com/gildor/kotlin-coroutines-okhttp
+ */
 suspend fun Call.await(): Response {
     return suspendCancellableCoroutine { continuation ->
         val callback =
@@ -108,14 +126,16 @@ suspend fun Call.awaitSuccess(): Response {
     return response
 }
 
-@Suppress("UNUSED_PARAMETER")
-fun OkHttpClient.newCallWithProgress(request: Request, listener: ProgressListener): Call {
+/**
+ * not in extensions-lib
+ */
+fun OkHttpClient.newCachelessCallWithProgress(request: Request, listener: ProgressListener): Call {
     val progressClient = newBuilder()
         .cache(null)
         .addNetworkInterceptor { chain ->
             val originalResponse = chain.proceed(chain.request())
             originalResponse.newBuilder()
-                .body(ProgressResponseBody(originalResponse.body!!, listener))
+                .body(ProgressResponseBody(originalResponse.body, listener))
                 .build()
         }
         .build()
@@ -123,13 +143,21 @@ fun OkHttpClient.newCallWithProgress(request: Request, listener: ProgressListene
     return progressClient.newCall(request)
 }
 
+/**
+ * not in extensions-lib
+ */
+context(Json)
 inline fun <reified T> Response.parseAs(): T {
-    // Avoiding Injekt.get<Json>() due to compiler issues
-    val json = Injekt.getInstance<Json>(fullType<Json>().type)
-    this.use {
-        val responseBody = it.body?.string().orEmpty()
-        return json.decodeFromString(responseBody)
-    }
+    return decodeFromJsonResponse(serializer(), this)
 }
 
-class HttpException(val code: Int) : IllegalStateException("HTTP error $code")
+context(Json)
+@OptIn(ExperimentalSerializationApi::class)
+fun <T> decodeFromJsonResponse(
+    deserializer: DeserializationStrategy<T>,
+    response: Response,
+): T {
+    return response.body.source().use {
+        decodeFromBufferedSource(deserializer, it)
+    }
+}

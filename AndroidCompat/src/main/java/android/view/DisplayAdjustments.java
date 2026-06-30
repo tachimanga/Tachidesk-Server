@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,40 +30,43 @@ public class DisplayAdjustments {
     private Configuration mConfiguration = null;
 
     public DisplayAdjustments() {
-        throw new RuntimeException("Stub!");
     }
 
     public DisplayAdjustments(Configuration configuration) {
-        throw new RuntimeException("Stub!");
+        mConfiguration = configuration;
     }
 
     public DisplayAdjustments(DisplayAdjustments daj) {
-        throw new RuntimeException("Stub!");
+        mCompatInfo = daj.mCompatInfo;
+        mConfiguration = daj.mConfiguration;
     }
 
     public void setCompatibilityInfo(CompatibilityInfo compatInfo) {
-        throw new RuntimeException("Stub!");
+        mCompatInfo = compatInfo;
     }
 
     public CompatibilityInfo getCompatibilityInfo() {
-        throw new RuntimeException("Stub!");
+        return mCompatInfo;
     }
 
     public void setConfiguration(Configuration configuration) {
-        throw new RuntimeException("Stub!");
+        mConfiguration = configuration;
     }
 
     public Configuration getConfiguration() {
-        throw new RuntimeException("Stub!");
+        return mConfiguration;
     }
 
     @Override
     public int hashCode() {
-        throw new RuntimeException("Stub!");
+        return (mCompatInfo != null ? mCompatInfo.hashCode() : 0) ^ (mConfiguration != null ? mConfiguration.hashCode() : 0);
     }
 
     @Override
     public boolean equals(Object o) {
-        throw new RuntimeException("Stub!");
+        if (this == o) return true;
+        if (!(o instanceof DisplayAdjustments)) return false;
+        DisplayAdjustments other = (DisplayAdjustments) o;
+        return java.util.Objects.equals(mCompatInfo, other.mCompatInfo) && java.util.Objects.equals(mConfiguration, other.mConfiguration);
     }
 }

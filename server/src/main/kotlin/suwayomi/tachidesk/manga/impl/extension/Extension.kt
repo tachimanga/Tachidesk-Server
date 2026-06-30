@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl.extension
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,6 +17,8 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
 import eu.kanade.tachiyomi.source.sourceSupportDirect
 import mu.KotlinLogging
+import net.dongliu.apk.parser.ApkFile
+import net.dongliu.apk.parser.bean.Icon
 import okhttp3.Request
 import okio.buffer
 import okio.sink
@@ -77,7 +80,7 @@ object Extension {
         if (extensionRecord[ExtensionTable.isInstalled]) {
             return 302 // extension was already installed
         }
-        val repoRecord = transaction { RepoTable.select { RepoTable.id eq extensionRecord[ExtensionTable.repoId] }.first() }
+        val repoRecord = transaction { RepoTable.select { RepoTable.id eq extensionRecord[ExtensionTable.repoId] }.firstOrNull() } ?: throw Exception("Repo not found")
         val repo = RepoTable.toDataClass(repoRecord)
         return installAPK(extensionId, markDirty = markDirty) {
             val apkURL = ExtensionGithubApi.getApkUrl(repo, extApkName)
@@ -197,6 +200,7 @@ object Extension {
 
             dex2jar(apkFilePath, jarFilePath, fileNameWithoutType)
             extractAssetsFromApk(apkFilePath, jarFilePath)
+            extractAndCacheApkIcon(apkFilePath, apkName)
 
             // clean up
             File(apkFilePath).delete()
@@ -284,6 +288,31 @@ object Extension {
             return 201 // we installed successfully
         } else {
             return 302 // extension was already installed
+        }
+    }
+
+    private fun extractAndCacheApkIcon(
+        apkFilePath: String,
+        apkName: String,
+    ) {
+        try {
+            val iconData =
+                ApkFile(File(apkFilePath)).use { apk ->
+                    apk.allIcons
+                        .filterIsInstance<Icon>()
+                        .mapNotNull { it.data?.let { data -> data to it.density } }
+                        .maxByOrNull { (_, density) -> density }
+                        ?.first
+                }
+            if (iconData == null) {
+                logger.warn { "No icon found in APK $apkName" }
+                return
+            }
+            val filePath = "${applicationDirs.extensionsRoot}/icon/$apkName.png"
+            val file = File(filePath)
+            iconData.inputStream().use { input -> file.outputStream().use { output -> input.copyTo(output) } }
+        } catch (e: Throwable) {
+            logger.warn(e) { "Failed to extract icon from APK $apkName" }
         }
     }
 
@@ -463,7 +492,7 @@ object Extension {
     }
 
     fun getExtensionIconUrl(apkName: String, iconUrl: String): String {
-        if (apkName == "localSource") {
+        if (apkName == "localSource" || iconUrl.endsWith("/ic_local_source.webp")) {
             return "/api/v1/extension/icon/$apkName"
         }
         return iconUrl

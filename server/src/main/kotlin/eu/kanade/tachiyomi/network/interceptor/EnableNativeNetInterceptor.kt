@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.network.interceptor
 
 /*
- * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,6 +10,7 @@ package eu.kanade.tachiyomi.network.interceptor
 import mu.KotlinLogging
 import okhttp3.Authenticator
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.internal.connection.RealCall
 import xyz.nulldev.androidcompat.CommonSwitch.ENABLE_NATIVE_COOKIE
@@ -41,9 +42,8 @@ class EnableNativeNetInterceptor : Interceptor {
             val interceptors = chain.getPrivateProperty("interceptors") as MutableList<Interceptor>
             // println("Profiler: interceptors1 $interceptors")
             if (!ENABLE_NATIVE_COOKIE) {
-                interceptors.removeIf {
-                    OKHTTP_LIST.contains(it.javaClass.simpleName)
-                }
+                val client = (chain.call() as? RealCall)?.client
+                removeOkHttpInterceptors(client, interceptors)
                 addFollowUpInterceptorIfNeeded(chain, interceptors)
                 interceptors.add(CallNativeNetInterceptor())
             } else {
@@ -56,9 +56,7 @@ class EnableNativeNetInterceptor : Interceptor {
                     interceptors.add(index, FollowUpInterceptor2(client))
                 }
                 interceptors.add(CallNativeNetInterceptor())
-                interceptors.removeIf {
-                    OKHTTP_LIST.contains(it.javaClass.simpleName)
-                }
+                removeOkHttpInterceptors(client, interceptors)
             }
             // println("Profiler: interceptors2 $interceptors")
         }
@@ -86,6 +84,12 @@ class EnableNativeNetInterceptor : Interceptor {
             return false
         }
         return true
+    }
+
+    private fun removeOkHttpInterceptors(client: OkHttpClient?, interceptors: MutableList<Interceptor>) {
+        interceptors.removeIf {
+            OKHTTP_LIST.contains(it.javaClass.simpleName)
+        }
     }
 
     companion object {

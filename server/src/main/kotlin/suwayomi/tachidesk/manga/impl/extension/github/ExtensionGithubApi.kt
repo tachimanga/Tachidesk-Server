@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl.extension.github
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,6 +10,7 @@ package suwayomi.tachidesk.manga.impl.extension.github
 
 import eu.kanade.tachiyomi.network.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MAX
 import suwayomi.tachidesk.manga.impl.util.PackageTools.LIB_VERSION_MIN
@@ -20,6 +22,7 @@ object ExtensionGithubApi {
     private val requiresFallbackSourceMap = ConcurrentHashMap<Int, Boolean>()
     private val logger = KotlinLogging.logger {}
     private val GITHUB_REGEX = Regex("https://raw\\.githubusercontent\\.com/(.*?)/(.*?)/(.*)")
+    private val json: Json by injectLazy()
 
     @Serializable
     private data class ExtensionJsonObject(
@@ -59,9 +62,11 @@ object ExtensionGithubApi {
         val response = githubResponse ?: run {
             client.newCall(GET(toJsDeliverUrl(repo.metaUrl))).awaitSuccess()
         }
-        return response
-            .parseAs<List<ExtensionJsonObject>>()
-            .toExtensions(repo)
+        return with(json) {
+            response
+                .parseAs<List<ExtensionJsonObject>>()
+                .toExtensions(repo)
+        }
     }
 
     fun getApkUrl(repo: RepoDataClass, apkName: String): String {

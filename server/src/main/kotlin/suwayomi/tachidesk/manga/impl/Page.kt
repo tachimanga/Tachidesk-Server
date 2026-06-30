@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,7 +22,6 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import suwayomi.tachidesk.manga.impl.download.FolderProvider2
-import suwayomi.tachidesk.manga.impl.util.lang.awaitSingle
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
 import suwayomi.tachidesk.manga.impl.util.storage.ImageResponse.buildImageResponse
 import suwayomi.tachidesk.manga.model.table.ChapterTable
@@ -36,7 +36,7 @@ object Page {
      */
     suspend fun getTrueImageUrl(page: Page, source: HttpSource): String {
         if (page.imageUrl == null) {
-            page.imageUrl = source.fetchImageUrl(page).awaitSingle()
+            page.imageUrl = source.getImageUrl(page)
         }
         return page.imageUrl!!
     }

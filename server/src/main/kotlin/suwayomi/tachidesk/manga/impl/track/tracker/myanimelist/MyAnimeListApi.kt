@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.impl.track.tracker.myanimelist
 
+/*
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.net.Uri
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.network.GET
@@ -138,12 +145,13 @@ class MyAnimeListApi(private val client: OkHttpClient, interceptor: MyAnimeListI
                 .add("is_rereading", (track.status == MyAnimeList.REREADING).toString())
                 .add("score", track.score.toString())
                 .add("num_chapters_read", track.last_chapter_read.toInt().toString())
-            convertToIsoDate(track.started_reading_date)?.let {
-                formBodyBuilder.add("start_date", it)
-            }
-            convertToIsoDate(track.finished_reading_date)?.let {
-                formBodyBuilder.add("finish_date", it)
-            }
+            val startDateStr = track.started_reading_date_str?.takeIf { it.isNotEmpty() }
+                ?: convertToIsoDate(track.started_reading_date)
+            startDateStr?.let { formBodyBuilder.add("start_date", it) }
+
+            val finishDateStr = track.finished_reading_date_str?.takeIf { it.isNotEmpty() }
+                ?: convertToIsoDate(track.finished_reading_date)
+            finishDateStr?.let { formBodyBuilder.add("finish_date", it) }
 
             val request = Request.Builder()
                 .url(mangaUrl(track.media_id).toString())

@@ -1,5 +1,14 @@
 package eu.kanade.tachiyomi.data.backup.models
 
+/*
+ * Copyright © 2015 Javier Tomás
+ * Copyright © 2024 Mihon Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -37,4 +46,5 @@ data class BackupManga(
     @ProtoNumber(105) var updateStrategy: UpdateStrategy = UpdateStrategy.ALWAYS_UPDATE,
     @ProtoNumber(106) var lastModifiedAt: Long = 0,
     @ProtoNumber(107) var favoriteModifiedAt: Long? = null,
+    @ProtoNumber(112) var memo: ByteArray = byteArrayOf(0x7B, 0x7D),
 )

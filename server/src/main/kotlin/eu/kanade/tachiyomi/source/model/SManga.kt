@@ -1,5 +1,14 @@
 package eu.kanade.tachiyomi.source.model
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2024 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+import kotlinx.serialization.json.JsonObject
 import java.io.Serializable
 
 interface SManga : Serializable {
@@ -8,21 +17,34 @@ interface SManga : Serializable {
 
     var title: String
 
+    var thumbnail_url: String?
+
     var artist: String?
 
     var author: String?
+
+    var status: Int
 
     var description: String?
 
     var genre: String?
 
-    var status: Int
-
-    var thumbnail_url: String?
-
     var update_strategy: UpdateStrategy
 
     var initialized: Boolean
+
+    /**
+     * Extra metadata associated with the manga.
+     *
+     * The JSON object is not visible to users and intended for internal or source-specific
+     * purposes. Apps may define their own namespaced keys (e.g., `"mihon.*"`) for sources to populate.
+     *
+     * This allows apps to attach and ask for custom information without affecting the visible
+     * manga data.
+     *
+     * @since tachiyomix 1.6
+     */
+    var memo: JsonObject
 
     fun copyFrom(other: SManga) {
         if (other.author != null) {
@@ -50,6 +72,8 @@ interface SManga : Serializable {
         if (!initialized) {
             initialized = other.initialized
         }
+
+        memo = other.memo
     }
 
     fun cloneFrom(other: SManga) {
@@ -63,6 +87,7 @@ interface SManga : Serializable {
         thumbnail_url = other.thumbnail_url
         update_strategy = other.update_strategy
         initialized = other.initialized
+        memo = other.memo
     }
 
     companion object {

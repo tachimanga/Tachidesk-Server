@@ -5,11 +5,18 @@
 
 package android.os;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.Printer;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,11 +86,10 @@ public final class Looper {
     }
 
     public boolean isCurrentThread() {
-        throw new RuntimeException("Stub!");
+        return Thread.currentThread() == mainThread || threadLocalLooper.get() != null;
     }
 
     public void setMessageLogging(@Nullable Printer printer) {
-        throw new RuntimeException("Stub!");
     }
 
     public void quit() {
@@ -96,7 +102,7 @@ public final class Looper {
 
     @NonNull
     public Thread getThread() {
-        throw new RuntimeException("Stub!");
+        return Thread.currentThread();
     }
 
     @NonNull
@@ -105,6 +111,5 @@ public final class Looper {
     }
 
     public void dump(@NonNull Printer pw, @NonNull String prefix) {
-        throw new RuntimeException("Stub!");
     }
 }

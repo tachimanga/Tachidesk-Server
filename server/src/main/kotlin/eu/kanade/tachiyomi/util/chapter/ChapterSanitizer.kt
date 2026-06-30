@@ -1,13 +1,19 @@
 package eu.kanade.tachiyomi.util.chapter
 
+/*
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 object ChapterSanitizer {
     fun sanitize(chapterTitle: String, mangaTitle: String): String {
         val s = chapterTitle.trim()
-        if (s.startsWith(mangaTitle)) {
-            return s.substring(mangaTitle.length)
-                .trim(*CHAPTER_TRIM_CHARS).ifEmpty { s }
-        }
         return s
+            .removePrefix(mangaTitle)
+            .trim(*CHAPTER_TRIM_CHARS)
+            .ifEmpty { s }
     }
 
     private val CHAPTER_TRIM_CHARS = arrayOf(

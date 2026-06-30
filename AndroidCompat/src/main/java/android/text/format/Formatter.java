@@ -1,5 +1,14 @@
 package android.text.format;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.content.Context;
 
 import java.text.DecimalFormat;
@@ -9,7 +18,6 @@ import java.text.DecimalFormat;
  */
 public class Formatter {
     private Formatter() {
-        throw new RuntimeException("Stub!");
     }
 
     public static String formatFileSize(Context context, long size) {
@@ -26,6 +34,6 @@ public class Formatter {
     /** @deprecated */
     @Deprecated
     public static String formatIpAddress(int ipv4Address) {
-        throw new RuntimeException("Stub!");
+        return (ipv4Address & 0xFF) + "." + ((ipv4Address >> 8) & 0xFF) + "." + ((ipv4Address >> 16) & 0xFF) + "." + ((ipv4Address >> 24) & 0xFF);
     }
 }

@@ -5,6 +5,14 @@
 
 package android.os;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.Printer;
@@ -13,17 +21,19 @@ import java.util.concurrent.TimeUnit;
 
 public class Handler {
     private Looper looper;
+    private Callback mCallback;
 
     /** @deprecated */
     @Deprecated
     public Handler() {
-        throw new RuntimeException("Stub!");
+        this.looper = Looper.myLooper();
     }
 
     /** @deprecated */
     @Deprecated
     public Handler(@Nullable Callback callback) {
-        throw new RuntimeException("Stub!");
+        this.looper = Looper.myLooper();
+        this.mCallback = callback;
     }
 
     public Handler(@NonNull Looper looper) {
@@ -32,54 +42,66 @@ public class Handler {
 
     public Handler(@NonNull Looper looper, @Nullable Callback callback) {
         this.looper = looper;
+        this.mCallback = callback;
     }
 
     public void handleMessage(@NonNull Message msg) {
-        throw new RuntimeException("Stub!");
     }
 
     public void dispatchMessage(@NonNull Message msg) {
-        throw new RuntimeException("Stub!");
+        if (msg.callback != null) {
+            msg.callback.run();
+        } else {
+            if (mCallback != null) {
+                if (mCallback.handleMessage(msg)) {
+                    return;
+                }
+            }
+            handleMessage(msg);
+        }
     }
 
     @NonNull
     public static Handler createAsync(@NonNull Looper looper) {
-        throw new RuntimeException("Stub!");
+        return new Handler(looper);
     }
 
     @NonNull
     public static Handler createAsync(@NonNull Looper looper, @NonNull Callback callback) {
-        throw new RuntimeException("Stub!");
+        return new Handler(looper, callback);
     }
 
     @NonNull
     public String getMessageName(@NonNull Message message) {
-        throw new RuntimeException("Stub!");
+        if (message.callback != null) {
+            return message.callback.getClass().getName();
+        }
+        return "0x" + Integer.toHexString(message.what);
     }
 
     @NonNull
     public final Message obtainMessage() {
-        throw new RuntimeException("Stub!");
+        return Message.obtain(this);
     }
 
     @NonNull
     public final Message obtainMessage(int what) {
-        throw new RuntimeException("Stub!");
+        return Message.obtain(this, what);
     }
 
     @NonNull
     public final Message obtainMessage(int what, @Nullable Object obj) {
-        throw new RuntimeException("Stub!");
+        return Message.obtain(this, what, obj);
     }
 
     @NonNull
     public final Message obtainMessage(int what, int arg1, int arg2) {
-        throw new RuntimeException("Stub!");
+        return Message.obtain(this, what, arg1, arg2);
     }
 
     @NonNull
     public final Message obtainMessage(int what, int arg1, int arg2, @Nullable Object obj) {
-        throw new RuntimeException("Stub!");
+        return Message.obtain(this, what, arg1, arg2, obj);
     }
 
     public final boolean post(@NonNull Runnable r) {
@@ -95,11 +117,11 @@ public class Handler {
     }
 
     public final boolean postAtTime(@NonNull Runnable r, long uptimeMillis) {
-        throw new RuntimeException("Stub!");
+        return postDelayed(r, uptimeMillis - System.currentTimeMillis());
     }
 
     public final boolean postAtTime(@NonNull Runnable r, @Nullable Object token, long uptimeMillis) {
-        throw new RuntimeException("Stub!");
+        return postDelayed(r, token, uptimeMillis - System.currentTimeMillis());
     }
 
     public final boolean postDelayed(@NonNull Runnable r, long delayMillis) {
@@ -114,85 +136,96 @@ public class Handler {
                 System.out.println("looper postDelayed run err:" + e);
                 e.printStackTrace();
             }
-        }, delayMillis, TimeUnit.MICROSECONDS);
+        }, delayMillis, TimeUnit.MILLISECONDS);
         return true;
     }
 
     public final boolean postAtFrontOfQueue(@NonNull Runnable r) {
-        throw new RuntimeException("Stub!");
+        return post(r);
     }
 
     public final void removeCallbacks(@NonNull Runnable r) {
-        throw new RuntimeException("Stub!");
     }
 
     public final void removeCallbacks(@NonNull Runnable r, @Nullable Object token) {
-        throw new RuntimeException("Stub!");
     }
 
     public final boolean sendMessage(@NonNull Message msg) {
-        throw new RuntimeException("Stub!");
+        return sendMessageDelayed(msg, 0);
     }
 
     public final boolean sendEmptyMessage(int what) {
-        throw new RuntimeException("Stub!");
+        return sendEmptyMessageDelayed(what, 0);
     }
 
     public final boolean sendEmptyMessageDelayed(int what, long delayMillis) {
-        throw new RuntimeException("Stub!");
+        Message msg = Message.obtain();
+        msg.what = what;
+        return sendMessageDelayed(msg, delayMillis);
     }
 
     public final boolean sendEmptyMessageAtTime(int what, long uptimeMillis) {
-        throw new RuntimeException("Stub!");
+        Message msg = Message.obtain();
+        msg.what = what;
+        return sendMessageAtTime(msg, uptimeMillis);
     }
 
     public final boolean sendMessageDelayed(@NonNull Message msg, long delayMillis) {
-        throw new RuntimeException("Stub!");
+        if (delayMillis < 0) {
+            delayMillis = 0;
+        }
+        msg.target = this;
+        this.looper.executor.schedule(() -> {
+            try {
+                dispatchMessage(msg);
+            } catch (Exception e) {
+                System.out.println("looper sendMessage run err:" + e);
+                e.printStackTrace();
+            }
+        }, delayMillis, TimeUnit.MILLISECONDS);
+        return true;
     }
 
     public boolean sendMessageAtTime(@NonNull Message msg, long uptimeMillis) {
-        throw new RuntimeException("Stub!");
+        return sendMessageDelayed(msg, uptimeMillis - SystemClock.uptimeMillis());
     }
 
     public final boolean sendMessageAtFrontOfQueue(@NonNull Message msg) {
-        throw new RuntimeException("Stub!");
+        return sendMessage(msg);
     }
 
     public final void removeMessages(int what) {
-        throw new RuntimeException("Stub!");
     }
 
     public final void removeMessages(int what, @Nullable Object object) {
-        throw new RuntimeException("Stub!");
     }
 
     public final void removeCallbacksAndMessages(@Nullable Object token) {
-        throw new RuntimeException("Stub!");
     }
 
     public final boolean hasMessages(int what) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     public final boolean hasMessages(int what, @Nullable Object object) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     public final boolean hasCallbacks(@NonNull Runnable r) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     @NonNull
     public final Looper getLooper() {
-        throw new RuntimeException("Stub!");
+        return looper;
     }
 
     public final void dump(@NonNull Printer pw, @NonNull String prefix) {
-        throw new RuntimeException("Stub!");
+        pw.println(prefix + "Handler{looper=" + looper + "}");
     }
 
     public String toString() {
-        throw new RuntimeException("Stub!");
+        return "Handler{looper=" + looper + "}";
     }
 
     public interface Callback {

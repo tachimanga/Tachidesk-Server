@@ -5,6 +5,14 @@
 
 package android.graphics;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.LocaleList;
@@ -12,6 +20,38 @@ import java.util.Locale;
 
 public class Paint {
     private int color = 0xFF000000;
+    private int flags = 0;
+    private int hinting = HINTING_OFF;
+    private int alpha = 255;
+    private float strokeWidth = 0f;
+    private float strokeMiter = 4f;
+    private float textSize = 12f;
+    private float textScaleX = 1f;
+    private float textSkewX = -0.25f;
+    private float letterSpacing = 0f;
+    private float wordSpacing = 0f;
+    private Style style = Style.FILL;
+    private Cap strokeCap = Cap.BUTT;
+    private Join strokeJoin = Join.MITER;
+    private Align textAlign = Align.LEFT;
+    private Typeface typeface;
+    private Shader shader;
+    private ColorFilter colorFilter;
+    private Xfermode xfermode;
+    private BlendMode blendMode;
+    private PathEffect pathEffect;
+    private MaskFilter maskFilter;
+    private float shadowRadius = 0f;
+    private float shadowDx = 0f;
+    private float shadowDy = 0f;
+    private int shadowColor = 0;
+    private Locale textLocale = Locale.getDefault();
+    private LocaleList textLocales = LocaleList.getDefault();
+    private boolean elegantTextHeight = false;
+    private String fontFeatureSettings;
+    private String fontVariationSettings;
+    private int startHyphenEdit = START_HYPHEN_EDIT_NO_EDIT;
+    private int endHyphenEdit = END_HYPHEN_EDIT_NO_EDIT;
     
     public static final int ANTI_ALIAS_FLAG = 1;
     public static final int CURSOR_AFTER = 0;
@@ -45,123 +85,251 @@ public class Paint {
     }
 
     public Paint(int flags) {
-        throw new RuntimeException("Stub!");
+        this.flags = flags;
     }
 
     public Paint(Paint paint) {
-        throw new RuntimeException("Stub!");
+        this.color = paint.color;
+        this.flags = paint.flags;
+        this.hinting = paint.hinting;
+        this.alpha = paint.alpha;
+        this.strokeWidth = paint.strokeWidth;
+        this.strokeMiter = paint.strokeMiter;
+        this.textSize = paint.textSize;
+        this.textScaleX = paint.textScaleX;
+        this.textSkewX = paint.textSkewX;
+        this.letterSpacing = paint.letterSpacing;
+        this.wordSpacing = paint.wordSpacing;
+        this.style = paint.style;
+        this.strokeCap = paint.strokeCap;
+        this.strokeJoin = paint.strokeJoin;
+        this.textAlign = paint.textAlign;
+        this.typeface = paint.typeface;
+        this.shader = paint.shader;
+        this.colorFilter = paint.colorFilter;
+        this.xfermode = paint.xfermode;
+        this.blendMode = paint.blendMode;
+        this.pathEffect = paint.pathEffect;
+        this.maskFilter = paint.maskFilter;
+        this.shadowRadius = paint.shadowRadius;
+        this.shadowDx = paint.shadowDx;
+        this.shadowDy = paint.shadowDy;
+        this.shadowColor = paint.shadowColor;
+        this.textLocale = paint.textLocale;
+        this.textLocales = paint.textLocales;
+        this.elegantTextHeight = paint.elegantTextHeight;
+        this.fontFeatureSettings = paint.fontFeatureSettings;
+        this.fontVariationSettings = paint.fontVariationSettings;
+        this.startHyphenEdit = paint.startHyphenEdit;
+        this.endHyphenEdit = paint.endHyphenEdit;
     }
 
     public void reset() {
-        throw new RuntimeException("Stub!");
+        color = 0xFF000000;
+        flags = 0;
+        hinting = HINTING_OFF;
+        alpha = 255;
+        strokeWidth = 0f;
+        strokeMiter = 4f;
+        textSize = 12f;
+        textScaleX = 1f;
+        textSkewX = -0.25f;
+        letterSpacing = 0f;
+        wordSpacing = 0f;
+        style = Style.FILL;
+        strokeCap = Cap.BUTT;
+        strokeJoin = Join.MITER;
+        textAlign = Align.LEFT;
+        typeface = null;
+        shader = null;
+        colorFilter = null;
+        xfermode = null;
+        blendMode = null;
+        pathEffect = null;
+        maskFilter = null;
+        shadowRadius = 0f;
+        shadowDx = 0f;
+        shadowDy = 0f;
+        shadowColor = 0;
+        textLocale = Locale.getDefault();
+        textLocales = LocaleList.getDefault();
+        elegantTextHeight = false;
+        fontFeatureSettings = null;
+        fontVariationSettings = null;
+        startHyphenEdit = START_HYPHEN_EDIT_NO_EDIT;
+        endHyphenEdit = END_HYPHEN_EDIT_NO_EDIT;
     }
 
     public void set(Paint src) {
-        throw new RuntimeException("Stub!");
+        this.color = src.color;
+        this.flags = src.flags;
+        this.hinting = src.hinting;
+        this.alpha = src.alpha;
+        this.strokeWidth = src.strokeWidth;
+        this.strokeMiter = src.strokeMiter;
+        this.textSize = src.textSize;
+        this.textScaleX = src.textScaleX;
+        this.textSkewX = src.textSkewX;
+        this.letterSpacing = src.letterSpacing;
+        this.wordSpacing = src.wordSpacing;
+        this.style = src.style;
+        this.strokeCap = src.strokeCap;
+        this.strokeJoin = src.strokeJoin;
+        this.textAlign = src.textAlign;
+        this.typeface = src.typeface;
+        this.shader = src.shader;
+        this.colorFilter = src.colorFilter;
+        this.xfermode = src.xfermode;
+        this.blendMode = src.blendMode;
+        this.pathEffect = src.pathEffect;
+        this.maskFilter = src.maskFilter;
+        this.shadowRadius = src.shadowRadius;
+        this.shadowDx = src.shadowDx;
+        this.shadowDy = src.shadowDy;
+        this.shadowColor = src.shadowColor;
+        this.textLocale = src.textLocale;
+        this.textLocales = src.textLocales;
+        this.elegantTextHeight = src.elegantTextHeight;
+        this.fontFeatureSettings = src.fontFeatureSettings;
+        this.fontVariationSettings = src.fontVariationSettings;
+        this.startHyphenEdit = src.startHyphenEdit;
+        this.endHyphenEdit = src.endHyphenEdit;
     }
 
     public int getFlags() {
-        throw new RuntimeException("Stub!");
+        return flags;
     }
 
     public void setFlags(int flags) {
-        throw new RuntimeException("Stub!");
+        this.flags = flags;
     }
 
     public int getHinting() {
-        throw new RuntimeException("Stub!");
+        return hinting;
     }
 
     public void setHinting(int mode) {
-        throw new RuntimeException("Stub!");
+        this.hinting = mode;
     }
 
     public final boolean isAntiAlias() {
-        throw new RuntimeException("Stub!");
+        return (flags & ANTI_ALIAS_FLAG) != 0;
     }
 
     public void setAntiAlias(boolean aa) {
-        throw new RuntimeException("Stub!");
+        if (aa) {
+            flags |= ANTI_ALIAS_FLAG;
+        } else {
+            flags &= ~ANTI_ALIAS_FLAG;
+        }
     }
 
     public final boolean isDither() {
-        throw new RuntimeException("Stub!");
+        return (flags & DITHER_FLAG) != 0;
     }
 
     public void setDither(boolean dither) {
-        throw new RuntimeException("Stub!");
+        if (dither) {
+            flags |= DITHER_FLAG;
+        } else {
+            flags &= ~DITHER_FLAG;
+        }
     }
 
     public final boolean isLinearText() {
-        throw new RuntimeException("Stub!");
+        return (flags & LINEAR_TEXT_FLAG) != 0;
     }
 
     public void setLinearText(boolean linearText) {
-        throw new RuntimeException("Stub!");
+        if (linearText) {
+            flags |= LINEAR_TEXT_FLAG;
+        } else {
+            flags &= ~LINEAR_TEXT_FLAG;
+        }
     }
 
     public final boolean isSubpixelText() {
-        throw new RuntimeException("Stub!");
+        return (flags & SUBPIXEL_TEXT_FLAG) != 0;
     }
 
     public void setSubpixelText(boolean subpixelText) {
-        throw new RuntimeException("Stub!");
+        if (subpixelText) {
+            flags |= SUBPIXEL_TEXT_FLAG;
+        } else {
+            flags &= ~SUBPIXEL_TEXT_FLAG;
+        }
     }
 
     public final boolean isUnderlineText() {
-        throw new RuntimeException("Stub!");
+        return (flags & UNDERLINE_TEXT_FLAG) != 0;
     }
 
     public float getUnderlinePosition() {
-        throw new RuntimeException("Stub!");
+        return 0f;
     }
 
     public float getUnderlineThickness() {
-        throw new RuntimeException("Stub!");
+        return 1f;
     }
 
     public void setUnderlineText(boolean underlineText) {
-        throw new RuntimeException("Stub!");
+        if (underlineText) {
+            flags |= UNDERLINE_TEXT_FLAG;
+        } else {
+            flags &= ~UNDERLINE_TEXT_FLAG;
+        }
     }
 
     public final boolean isStrikeThruText() {
-        throw new RuntimeException("Stub!");
+        return (flags & STRIKE_THRU_TEXT_FLAG) != 0;
     }
 
     public float getStrikeThruPosition() {
-        throw new RuntimeException("Stub!");
+        return 0f;
     }
 
     public float getStrikeThruThickness() {
-        throw new RuntimeException("Stub!");
+        return 1f;
     }
 
     public void setStrikeThruText(boolean strikeThruText) {
-        throw new RuntimeException("Stub!");
+        if (strikeThruText) {
+            flags |= STRIKE_THRU_TEXT_FLAG;
+        } else {
+            flags &= ~STRIKE_THRU_TEXT_FLAG;
+        }
     }
 
     public final boolean isFakeBoldText() {
-        throw new RuntimeException("Stub!");
+        return (flags & FAKE_BOLD_TEXT_FLAG) != 0;
     }
 
     public void setFakeBoldText(boolean fakeBoldText) {
-        throw new RuntimeException("Stub!");
+        if (fakeBoldText) {
+            flags |= FAKE_BOLD_TEXT_FLAG;
+        } else {
+            flags &= ~FAKE_BOLD_TEXT_FLAG;
+        }
     }
 
     public final boolean isFilterBitmap() {
-        throw new RuntimeException("Stub!");
+        return (flags & FILTER_BITMAP_FLAG) != 0;
     }
 
     public void setFilterBitmap(boolean filter) {
-        throw new RuntimeException("Stub!");
+        if (filter) {
+            flags |= FILTER_BITMAP_FLAG;
+        } else {
+            flags &= ~FILTER_BITMAP_FLAG;
+        }
     }
 
     public Style getStyle() {
-        throw new RuntimeException("Stub!");
+        return style;
     }
 
     public void setStyle(Style style) {
-        throw new RuntimeException("Stub!");
+        this.style = style;
     }
 
     public int getColor() {
@@ -169,7 +337,7 @@ public class Paint {
     }
 
     public long getColorLong() {
-        throw new RuntimeException("Stub!");
+        return color & 0xFFFFFFFFL;
     }
 
     public void setColor(int color) {
@@ -177,15 +345,15 @@ public class Paint {
     }
 
     public void setColor(long color) {
-        throw new RuntimeException("Stub!");
+        this.color = (int) (color & 0xFFFFFFFFL);
     }
 
     public int getAlpha() {
-        throw new RuntimeException("Stub!");
+        return (color >> 24) & 0xFF;
     }
 
     public void setAlpha(int a) {
-        throw new RuntimeException("Stub!");
+        this.color = (this.color & 0x00FFFFFF) | ((a & 0xFF) << 24);
     }
 
     public void setARGB(int a, int r, int g, int b) {
@@ -193,362 +361,419 @@ public class Paint {
     }
 
     public float getStrokeWidth() {
-        throw new RuntimeException("Stub!");
+        return strokeWidth;
     }
 
     public void setStrokeWidth(float width) {
-        throw new RuntimeException("Stub!");
+        this.strokeWidth = width;
     }
 
     public float getStrokeMiter() {
-        throw new RuntimeException("Stub!");
+        return strokeMiter;
     }
 
     public void setStrokeMiter(float miter) {
-        throw new RuntimeException("Stub!");
+        this.strokeMiter = miter;
     }
 
     public Cap getStrokeCap() {
-        throw new RuntimeException("Stub!");
+        return strokeCap;
     }
 
     public void setStrokeCap(Cap cap) {
-        throw new RuntimeException("Stub!");
+        this.strokeCap = cap;
     }
 
     public Join getStrokeJoin() {
-        throw new RuntimeException("Stub!");
+        return strokeJoin;
     }
 
     public void setStrokeJoin(Join join) {
-        throw new RuntimeException("Stub!");
+        this.strokeJoin = join;
     }
 
     public boolean getFillPath(Path src, Path dst) {
-        throw new RuntimeException("Stub!");
+        return false;
     }
 
     public Shader getShader() {
-        throw new RuntimeException("Stub!");
+        return shader;
     }
 
     public Shader setShader(Shader shader) {
-        throw new RuntimeException("Stub!");
+        Shader old = this.shader;
+        this.shader = shader;
+        return old;
     }
 
     public ColorFilter getColorFilter() {
-        throw new RuntimeException("Stub!");
+        return colorFilter;
     }
 
     public ColorFilter setColorFilter(ColorFilter filter) {
-        throw new RuntimeException("Stub!");
+        ColorFilter old = this.colorFilter;
+        this.colorFilter = filter;
+        return old;
     }
 
     public Xfermode getXfermode() {
-        throw new RuntimeException("Stub!");
+        return xfermode;
     }
 
     @Nullable
     public BlendMode getBlendMode() {
-        throw new RuntimeException("Stub!");
+        return blendMode;
     }
 
     public Xfermode setXfermode(Xfermode xfermode) {
-        throw new RuntimeException("Stub!");
+        Xfermode old = this.xfermode;
+        this.xfermode = xfermode;
+        return old;
     }
 
     public void setBlendMode(@Nullable BlendMode blendmode) {
-        throw new RuntimeException("Stub!");
+        this.blendMode = blendmode;
     }
 
     public PathEffect getPathEffect() {
-        throw new RuntimeException("Stub!");
+        return pathEffect;
     }
 
     public PathEffect setPathEffect(PathEffect effect) {
-        throw new RuntimeException("Stub!");
+        PathEffect old = this.pathEffect;
+        this.pathEffect = effect;
+        return old;
     }
 
     public MaskFilter getMaskFilter() {
-        throw new RuntimeException("Stub!");
+        return maskFilter;
     }
 
     public MaskFilter setMaskFilter(MaskFilter maskfilter) {
-        throw new RuntimeException("Stub!");
+        MaskFilter old = this.maskFilter;
+        this.maskFilter = maskfilter;
+        return old;
     }
 
     public Typeface getTypeface() {
-        throw new RuntimeException("Stub!");
+        return typeface;
     }
 
     public Typeface setTypeface(Typeface typeface) {
-        throw new RuntimeException("Stub!");
+        Typeface old = this.typeface;
+        this.typeface = typeface;
+        return old;
     }
 
     public void setShadowLayer(float radius, float dx, float dy, int shadowColor) {
-        throw new RuntimeException("Stub!");
+        this.shadowRadius = radius;
+        this.shadowDx = dx;
+        this.shadowDy = dy;
+        this.shadowColor = shadowColor;
     }
 
     public void setShadowLayer(float radius, float dx, float dy, long shadowColor) {
-        throw new RuntimeException("Stub!");
+        setShadowLayer(radius, dx, dy, (int) (shadowColor & 0xFFFFFFFFL));
     }
 
     public void clearShadowLayer() {
-        throw new RuntimeException("Stub!");
+        this.shadowRadius = 0f;
+        this.shadowDx = 0f;
+        this.shadowDy = 0f;
+        this.shadowColor = 0;
     }
 
     public float getShadowLayerRadius() {
-        throw new RuntimeException("Stub!");
+        return shadowRadius;
     }
 
     public float getShadowLayerDx() {
-        throw new RuntimeException("Stub!");
+        return shadowDx;
     }
 
     public float getShadowLayerDy() {
-        throw new RuntimeException("Stub!");
+        return shadowDy;
     }
 
     public int getShadowLayerColor() {
-        throw new RuntimeException("Stub!");
+        return shadowColor;
     }
 
     public long getShadowLayerColorLong() {
-        throw new RuntimeException("Stub!");
+        return shadowColor & 0xFFFFFFFFL;
     }
 
     public Align getTextAlign() {
-        throw new RuntimeException("Stub!");
+        return textAlign;
     }
 
     public void setTextAlign(Align align) {
-        throw new RuntimeException("Stub!");
+        this.textAlign = align;
     }
 
     @NonNull
     public Locale getTextLocale() {
-        throw new RuntimeException("Stub!");
+        return textLocale;
     }
 
     @NonNull
     public LocaleList getTextLocales() {
-        throw new RuntimeException("Stub!");
+        return textLocales;
     }
 
     public void setTextLocale(@NonNull Locale locale) {
-        throw new RuntimeException("Stub!");
+        this.textLocale = locale;
     }
 
     public void setTextLocales(@NonNull LocaleList locales) {
-        throw new RuntimeException("Stub!");
+        this.textLocales = locales;
     }
 
     public boolean isElegantTextHeight() {
-        throw new RuntimeException("Stub!");
+        return elegantTextHeight;
     }
 
     public void setElegantTextHeight(boolean elegant) {
-        throw new RuntimeException("Stub!");
+        this.elegantTextHeight = elegant;
     }
 
     public float getTextSize() {
-        throw new RuntimeException("Stub!");
+        return textSize;
     }
 
     public void setTextSize(float textSize) {
-        throw new RuntimeException("Stub!");
+        this.textSize = textSize;
     }
 
     public float getTextScaleX() {
-        throw new RuntimeException("Stub!");
+        return textScaleX;
     }
 
     public void setTextScaleX(float scaleX) {
-        throw new RuntimeException("Stub!");
+        this.textScaleX = scaleX;
     }
 
     public float getTextSkewX() {
-        throw new RuntimeException("Stub!");
+        return textSkewX;
     }
 
     public void setTextSkewX(float skewX) {
-        throw new RuntimeException("Stub!");
+        this.textSkewX = skewX;
     }
 
     public float getLetterSpacing() {
-        throw new RuntimeException("Stub!");
+        return letterSpacing;
     }
 
     public void setLetterSpacing(float letterSpacing) {
-        throw new RuntimeException("Stub!");
+        this.letterSpacing = letterSpacing;
     }
 
     public float getWordSpacing() {
-        throw new RuntimeException("Stub!");
+        return wordSpacing;
     }
 
     public void setWordSpacing(float wordSpacing) {
-        throw new RuntimeException("Stub!");
+        this.wordSpacing = wordSpacing;
     }
 
     public String getFontFeatureSettings() {
-        throw new RuntimeException("Stub!");
+        return fontFeatureSettings;
     }
 
     public void setFontFeatureSettings(String settings) {
-        throw new RuntimeException("Stub!");
+        this.fontFeatureSettings = settings;
     }
 
     public String getFontVariationSettings() {
-        throw new RuntimeException("Stub!");
+        return fontVariationSettings;
     }
 
     public boolean setFontVariationSettings(String fontVariationSettings) {
-        throw new RuntimeException("Stub!");
+        this.fontVariationSettings = fontVariationSettings;
+        return true;
     }
 
     public int getStartHyphenEdit() {
-        throw new RuntimeException("Stub!");
+        return startHyphenEdit;
     }
 
     public int getEndHyphenEdit() {
-        throw new RuntimeException("Stub!");
+        return endHyphenEdit;
     }
 
     public void setStartHyphenEdit(int startHyphen) {
-        throw new RuntimeException("Stub!");
+        this.startHyphenEdit = startHyphen;
     }
 
     public void setEndHyphenEdit(int endHyphen) {
-        throw new RuntimeException("Stub!");
+        this.endHyphenEdit = endHyphen;
     }
 
     public float ascent() {
-        throw new RuntimeException("Stub!");
+        return -textSize * 0.8f;
     }
 
     public float descent() {
-        throw new RuntimeException("Stub!");
+        return textSize * 0.2f;
     }
 
     public float getFontMetrics(FontMetrics metrics) {
-        throw new RuntimeException("Stub!");
+        if (metrics != null) {
+            metrics.top = -textSize * 1.2f;
+            metrics.ascent = -textSize * 0.8f;
+            metrics.descent = textSize * 0.2f;
+            metrics.bottom = textSize * 0.4f;
+            metrics.leading = 0f;
+        }
+        return 0f;
     }
 
     public FontMetrics getFontMetrics() {
-        throw new RuntimeException("Stub!");
+        FontMetrics fm = new FontMetrics();
+        fm.top = -textSize * 1.2f;
+        fm.ascent = -textSize * 0.8f;
+        fm.descent = textSize * 0.2f;
+        fm.bottom = textSize * 0.4f;
+        fm.leading = 0f;
+        return fm;
     }
 
     public int getFontMetricsInt(FontMetricsInt fmi) {
-        throw new RuntimeException("Stub!");
+        if (fmi != null) {
+            fmi.top = (int) (-textSize * 1.2f);
+            fmi.ascent = (int) (-textSize * 0.8f);
+            fmi.descent = (int) (textSize * 0.2f);
+            fmi.bottom = (int) (textSize * 0.4f);
+            fmi.leading = 0;
+        }
+        return 0;
     }
 
     public FontMetricsInt getFontMetricsInt() {
-        throw new RuntimeException("Stub!");
+        FontMetricsInt fmi = new FontMetricsInt();
+        fmi.top = (int) (-textSize * 1.2f);
+        fmi.ascent = (int) (-textSize * 0.8f);
+        fmi.descent = (int) (textSize * 0.2f);
+        fmi.bottom = (int) (textSize * 0.4f);
+        fmi.leading = 0;
+        return fmi;
     }
 
     public float getFontSpacing() {
-        throw new RuntimeException("Stub!");
+        return textSize * 1.2f;
     }
 
     public float measureText(char[] text, int index, int count) {
-        throw new RuntimeException("Stub!");
+        return textSize * count * 0.5f;
     }
 
     public float measureText(String text, int start, int end) {
-        throw new RuntimeException("Stub!");
+        return textSize * (end - start) * 0.5f;
     }
 
     public float measureText(String text) {
-        throw new RuntimeException("Stub!");
+        return textSize * text.length() * 0.5f;
     }
 
     public float measureText(CharSequence text, int start, int end) {
-        throw new RuntimeException("Stub!");
+        return textSize * (end - start) * 0.5f;
     }
 
     public int breakText(char[] text, int index, int count, float maxWidth, float[] measuredWidth) {
-        throw new RuntimeException("Stub!");
+        int chars = (int) (maxWidth / (textSize * 0.5f));
+        chars = Math.min(chars, count);
+        if (measuredWidth != null && measuredWidth.length > 0) {
+            measuredWidth[0] = chars * textSize * 0.5f;
+        }
+        return chars;
     }
 
     public int breakText(CharSequence text, int start, int end, boolean measureForwards, float maxWidth, float[] measuredWidth) {
-        throw new RuntimeException("Stub!");
+        int count = end - start;
+        return breakText(text.toString().toCharArray(), 0, count, maxWidth, measuredWidth);
     }
 
     public int breakText(String text, boolean measureForwards, float maxWidth, float[] measuredWidth) {
-        throw new RuntimeException("Stub!");
+        return breakText(text.toCharArray(), 0, text.length(), maxWidth, measuredWidth);
     }
 
     public int getTextWidths(char[] text, int index, int count, float[] widths) {
-        throw new RuntimeException("Stub!");
+        float w = textSize * 0.5f;
+        for (int i = 0; i < count && i < widths.length; i++) {
+            widths[i] = w;
+        }
+        return Math.min(count, widths.length);
     }
 
     public int getTextWidths(CharSequence text, int start, int end, float[] widths) {
-        throw new RuntimeException("Stub!");
+        return getTextWidths(text.toString().toCharArray(), 0, end - start, widths);
     }
 
     public int getTextWidths(String text, int start, int end, float[] widths) {
-        throw new RuntimeException("Stub!");
+        return getTextWidths(text.toCharArray(), 0, end - start, widths);
     }
 
     public int getTextWidths(String text, float[] widths) {
-        throw new RuntimeException("Stub!");
+        return getTextWidths(text.toCharArray(), 0, text.length(), widths);
     }
 
     public float getTextRunAdvances(@NonNull char[] chars, int index, int count, int contextIndex, int contextCount, boolean isRtl, @Nullable float[] advances, int advancesIndex) {
-        throw new RuntimeException("Stub!");
+        return textSize * 0.5f * count;
     }
 
     public int getTextRunCursor(@NonNull char[] text, int contextStart, int contextLength, boolean isRtl, int offset, int cursorOpt) {
-        throw new RuntimeException("Stub!");
+        return offset;
     }
 
     public int getTextRunCursor(@NonNull CharSequence text, int contextStart, int contextEnd, boolean isRtl, int offset, int cursorOpt) {
-        throw new RuntimeException("Stub!");
+        return offset;
     }
 
     public void getTextPath(char[] text, int index, int count, float x, float y, Path path) {
-        throw new RuntimeException("Stub!");
     }
 
     public void getTextPath(String text, int start, int end, float x, float y, Path path) {
-        throw new RuntimeException("Stub!");
     }
 
     public void getTextBounds(String text, int start, int end, Rect bounds) {
-        throw new RuntimeException("Stub!");
+        if (bounds != null) {
+            bounds.set(0, (int) ascent(), (int) (textSize * (end - start) * 0.5f), (int) descent());
+        }
     }
 
     public void getTextBounds(@NonNull CharSequence text, int start, int end, @NonNull Rect bounds) {
-        throw new RuntimeException("Stub!");
+        getTextBounds(text.toString(), start, end, bounds);
     }
 
     public void getTextBounds(char[] text, int index, int count, Rect bounds) {
-        throw new RuntimeException("Stub!");
+        getTextBounds(new String(text, index, count), 0, count, bounds);
     }
 
     public boolean hasGlyph(String string) {
-        throw new RuntimeException("Stub!");
+        return true;
     }
 
     public float getRunAdvance(char[] text, int start, int end, int contextStart, int contextEnd, boolean isRtl, int offset) {
-        throw new RuntimeException("Stub!");
+        return textSize * 0.5f * (offset - start);
     }
 
     public float getRunAdvance(CharSequence text, int start, int end, int contextStart, int contextEnd, boolean isRtl, int offset) {
-        throw new RuntimeException("Stub!");
+        return textSize * 0.5f * (offset - start);
     }
 
     public int getOffsetForAdvance(char[] text, int start, int end, int contextStart, int contextEnd, boolean isRtl, float advance) {
-        throw new RuntimeException("Stub!");
+        return start + (int) (advance / (textSize * 0.5f));
     }
 
     public int getOffsetForAdvance(CharSequence text, int start, int end, int contextStart, int contextEnd, boolean isRtl, float advance) {
-        throw new RuntimeException("Stub!");
+        return start + (int) (advance / (textSize * 0.5f));
     }
 
     public boolean equalsForTextMeasurement(@NonNull Paint other) {
-        throw new RuntimeException("Stub!");
+        return this.textSize == other.textSize &&
+               this.typeface == other.typeface &&
+               this.flags == other.flags;
     }
 
     public static enum Style {
@@ -577,11 +802,10 @@ public class Paint {
         public int top;
 
         public FontMetricsInt() {
-            throw new RuntimeException("Stub!");
         }
 
         public String toString() {
-            throw new RuntimeException("Stub!");
+            return "FontMetricsInt: top=" + top + " ascent=" + ascent + " descent=" + descent + " bottom=" + bottom + " leading=" + leading;
         }
     }
 
@@ -593,7 +817,6 @@ public class Paint {
         public float top;
 
         public FontMetrics() {
-            throw new RuntimeException("Stub!");
         }
     }
 

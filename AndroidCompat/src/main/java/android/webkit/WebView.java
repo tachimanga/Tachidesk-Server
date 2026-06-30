@@ -5,6 +5,14 @@
 
 package android.webkit;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -31,6 +39,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStructure;
+import android.view.ViewTreeObserver;
 import android.view.ViewDebug.ExportedProperty;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.autofill.AutofillValue;
@@ -50,7 +59,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class WebView  {
+public class WebView extends android.widget.AbsoluteLayout {
     public static final Map<Long, WebView> OBJ_MAP = new ConcurrentHashMap<>();
 
     public static final Map<String, Object> CALLBACK_MAP = new ConcurrentHashMap<>();
@@ -132,7 +141,7 @@ public class WebView  {
             System.out.println("[NativeWeb] didReceiveScriptMessage jsInterface is null");
             return;
         }
-        jsinterfaceMap.remove(name);
+        //jsinterfaceMap.remove(name);
         JSONObject body = param.getJSONObject("body");
         String method = body.getString("method");
         Method javaMethod = null;
@@ -212,23 +221,29 @@ public class WebView  {
     private boolean needIntercept = false;
 
     public WebView(@NonNull Context context) {
+        super(context);
         this.createNative();
     }
 
     public WebView(@NonNull Context context, @Nullable AttributeSet attrs) {
+        super(context);
         this.createNative();
     }
 
     public WebView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+        super(context);
         this.createNative();
     }
 
     public WebView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+        super(context);
         this.createNative();
     }
+
     /** @deprecated */
     @Deprecated
     public WebView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, boolean privateBrowsing) {
+        super(context);
         this.createNative();
     }
 
@@ -237,58 +252,77 @@ public class WebView  {
         OBJ_MAP.put(this.nativeRef.address(), this);
     }
 
+    private String mCurrentUrl;
+    private String mCurrentTitle;
+    private int mProgress = 0;
+    private int mContentHeight = 0;
+    private int mInitialScale = 100;
+    private float mScale = 1.0f;
+    private WebBackForwardList mBackForwardList;
+    private DownloadListener mDownloadListener;
+    private WebViewRenderProcessClient mWebViewRenderProcessClient;
+    private Executor mRenderProcessClientExecutor;
+    private TextClassifier mTextClassifier;
+    private FindListener mFindListener;
+    private PictureListener mPictureListener;
+    private Handler mHandler;
+
     /** @deprecated */
     @Deprecated
     public void setHorizontalScrollbarOverlay(boolean overlay) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setHorizontalScrollbarOverlay");
     }
 
     /** @deprecated */
     @Deprecated
     public void setVerticalScrollbarOverlay(boolean overlay) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setVerticalScrollbarOverlay");
     }
 
     /** @deprecated */
     @Deprecated
     public boolean overlayHorizontalScrollbar() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.overlayHorizontalScrollbar");
+        return false;
     }
 
     /** @deprecated */
     @Deprecated
     public boolean overlayVerticalScrollbar() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.overlayVerticalScrollbar");
+        return false;
     }
 
     @Nullable
     public SslCertificate getCertificate() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getCertificate");
+        return null;
     }
 
     /** @deprecated */
     @Deprecated
     public void setCertificate(SslCertificate certificate) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setCertificate");
     }
 
     /** @deprecated */
     @Deprecated
     public void savePassword(String host, String username, String password) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.savePassword");
     }
 
     /** @deprecated */
     @Deprecated
     public void setHttpAuthUsernamePassword(String host, String realm, String username, String password) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setHttpAuthUsernamePassword");
     }
 
     /** @deprecated */
     @Deprecated
     @Nullable
     public String[] getHttpAuthUsernamePassword(String host, String realm) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getHttpAuthUsernamePassword");
+        return null;
     }
 
     public void destroy() {
@@ -310,17 +344,19 @@ public class WebView  {
     }
 
     public void setNetworkAvailable(boolean networkUp) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setNetworkAvailable");
     }
 
     @Nullable
     public WebBackForwardList saveState(@NonNull Bundle outState) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.saveState");
+        return mBackForwardList;
     }
 
     @Nullable
     public WebBackForwardList restoreState(@NonNull Bundle inState) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.restoreState");
+        return mBackForwardList;
     }
 
     public void loadUrl(@NonNull String url, @NonNull Map<String, String> additionalHttpHeaders) {
@@ -343,11 +379,11 @@ public class WebView  {
     }
 
     public void postUrl(@NonNull String url, @NonNull byte[] postData) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.postUrl");
     }
 
     public void loadData(@NonNull String data, @Nullable String mimeType, @Nullable String encoding) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.loadData");
     }
 
     public void loadDataWithBaseURL(@Nullable String baseUrl, @NonNull String data, @Nullable String mimeType, @Nullable String encoding, @Nullable String historyUrl) {
@@ -365,8 +401,9 @@ public class WebView  {
 
     public void evaluateJavascript(@NonNull String script, @Nullable ValueCallback<String> resultCallback) {
         long id = CALLBACK_ID.incrementAndGet();
-        CALLBACK_MAP.put(id + "", resultCallback);
-
+        if (resultCallback != null) {
+            CALLBACK_MAP.put(id + "", resultCallback);
+        }
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("script", script);
         jsonObject.put("callbackId", id);
@@ -374,11 +411,11 @@ public class WebView  {
     }
 
     public void saveWebArchive(@NonNull String filename) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.saveWebArchive");
     }
 
     public void saveWebArchive(@NonNull String basename, boolean autoname, @Nullable ValueCallback<String> callback) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.saveWebArchive");
     }
 
     public void stopLoading() {
@@ -386,70 +423,79 @@ public class WebView  {
     }
 
     public void reload() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.reload");
     }
 
     public boolean canGoBack() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.canGoBack");
+        return false;
     }
 
     public void goBack() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.goBack");
     }
 
     public boolean canGoForward() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.canGoForward");
+        return false;
     }
 
     public void goForward() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.goForward");
     }
 
     public boolean canGoBackOrForward(int steps) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.canGoBackOrForward");
+        return false;
     }
 
     public void goBackOrForward(int steps) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.goBackOrForward");
     }
 
     public boolean isPrivateBrowsingEnabled() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.isPrivateBrowsingEnabled");
+        return false;
     }
 
     public boolean pageUp(boolean top) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.pageUp");
+        return false;
     }
 
     public boolean pageDown(boolean bottom) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.pageDown");
+        return false;
     }
 
     public void postVisualStateCallback(long requestId, @NonNull VisualStateCallback callback) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.postVisualStateCallback");
     }
 
     /** @deprecated */
     @Deprecated
     public void clearView() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearView");
     }
 
     /** @deprecated */
     @Deprecated
     public Picture capturePicture() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.capturePicture");
+        return null;
     }
 
     /** @deprecated */
     @Deprecated
     public PrintDocumentAdapter createPrintDocumentAdapter() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.createPrintDocumentAdapter");
+        return null;
     }
 
     @NonNull
     public PrintDocumentAdapter createPrintDocumentAdapter(@NonNull String documentName) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.createPrintDocumentAdapter");
+        return null;
     }
 
     /** @deprecated */
@@ -458,28 +504,29 @@ public class WebView  {
             category = "webview"
     )
     public float getScale() {
-        throw new RuntimeException("Stub!");
+        return mScale;
     }
 
     public void setInitialScale(int scaleInPercent) {
-        throw new RuntimeException("Stub!");
+        mInitialScale = scaleInPercent;
     }
 
     public void invokeZoomPicker() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.invokeZoomPicker");
     }
 
     @NonNull
     public HitTestResult getHitTestResult() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getHitTestResult");
+        return new HitTestResult();
     }
 
     public void requestFocusNodeHref(@Nullable Message hrefMsg) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.requestFocusNodeHref");
     }
 
     public void requestImageRef(@NonNull Message msg) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.requestImageRef");
     }
 
     @ExportedProperty(
@@ -487,7 +534,7 @@ public class WebView  {
     )
     @Nullable
     public String getUrl() {
-        throw new RuntimeException("Stub!");
+        return mCurrentUrl;
     }
 
     @ExportedProperty(
@@ -495,7 +542,7 @@ public class WebView  {
     )
     @Nullable
     public String getOriginalUrl() {
-        throw new RuntimeException("Stub!");
+        return mCurrentUrl;
     }
 
     @ExportedProperty(
@@ -503,126 +550,132 @@ public class WebView  {
     )
     @Nullable
     public String getTitle() {
-        throw new RuntimeException("Stub!");
+        return mCurrentTitle;
     }
 
     @Nullable
     public Bitmap getFavicon() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getFavicon");
+        return null;
     }
 
     public int getProgress() {
-        throw new RuntimeException("Stub!");
+        return mProgress;
     }
 
     @ExportedProperty(
             category = "webview"
     )
     public int getContentHeight() {
-        throw new RuntimeException("Stub!");
+        return mContentHeight;
     }
 
     public void pauseTimers() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.pauseTimers");
     }
 
     public void resumeTimers() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.resumeTimers");
     }
 
     public void onPause() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onPause");
     }
 
     public void onResume() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onResume");
     }
 
     /** @deprecated */
     @Deprecated
     public void freeMemory() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.freeMemory");
     }
 
     public void clearCache(boolean includeDiskFiles) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearCache");
     }
 
     public void clearFormData() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearFormData");
     }
 
     public void clearHistory() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearHistory");
     }
 
     public void clearSslPreferences() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearSslPreferences");
     }
 
     public static void clearClientCertPreferences(@Nullable Runnable onCleared) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearClientCertPreferences");
     }
 
     public static void startSafeBrowsing(@NonNull Context context, @Nullable ValueCallback<Boolean> callback) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.startSafeBrowsing");
     }
 
     public static void setSafeBrowsingWhitelist(@NonNull List<String> hosts, @Nullable ValueCallback<Boolean> callback) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setSafeBrowsingWhitelist");
     }
 
     @NonNull
     public static Uri getSafeBrowsingPrivacyPolicyUrl() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getSafeBrowsingPrivacyPolicyUrl");
+        return null;
     }
 
     @NonNull
     public WebBackForwardList copyBackForwardList() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.copyBackForwardList");
+        return null;
     }
 
     public void setFindListener(@Nullable FindListener listener) {
-        throw new RuntimeException("Stub!");
+        mFindListener = listener;
     }
 
     public void findNext(boolean forward) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.findNext");
     }
 
     /** @deprecated */
     @Deprecated
     public int findAll(String find) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.findAll");
+        return 0;
     }
 
     public void findAllAsync(@NonNull String find) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.findAllAsync");
     }
 
     /** @deprecated */
     @Deprecated
     public boolean showFindDialog(@Nullable String text, boolean showIme) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.showFindDialog");
+        return false;
     }
 
     /** @deprecated */
     @Deprecated
     @Nullable
     public static String findAddress(String addr) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.findAddress");
+        return null;
     }
 
     public static void enableSlowWholeDocumentDraw() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.enableSlowWholeDocumentDraw");
     }
 
     public void clearMatches() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.clearMatches");
     }
 
     public void documentHasImages(@NonNull Message response) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.documentHasImages");
     }
 
     public void setWebViewClient(@NonNull WebViewClient client) {
@@ -684,24 +737,26 @@ public class WebView  {
 
     @Nullable
     public WebViewRenderProcess getWebViewRenderProcess() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getWebViewRenderProcess");
+        return null;
     }
 
     public void setWebViewRenderProcessClient(@NonNull Executor executor, @NonNull WebViewRenderProcessClient webViewRenderProcessClient) {
-        throw new RuntimeException("Stub!");
+        mRenderProcessClientExecutor = executor;
+        mWebViewRenderProcessClient = webViewRenderProcessClient;
     }
 
     public void setWebViewRenderProcessClient(@Nullable WebViewRenderProcessClient webViewRenderProcessClient) {
-        throw new RuntimeException("Stub!");
+        mWebViewRenderProcessClient = webViewRenderProcessClient;
     }
 
     @Nullable
     public WebViewRenderProcessClient getWebViewRenderProcessClient() {
-        throw new RuntimeException("Stub!");
+        return mWebViewRenderProcessClient;
     }
 
     public void setDownloadListener(@Nullable DownloadListener listener) {
-        throw new RuntimeException("Stub!");
+        mDownloadListener = listener;
     }
 
     public void setWebChromeClient(@Nullable WebChromeClient client) {
@@ -716,7 +771,7 @@ public class WebView  {
     /** @deprecated */
     @Deprecated
     public void setPictureListener(PictureListener listener) {
-        throw new RuntimeException("Stub!");
+        mPictureListener = listener;
     }
 
     public void addJavascriptInterface(@NonNull Object object, @NonNull String name) {
@@ -732,11 +787,12 @@ public class WebView  {
 
     @NonNull
     public WebMessagePort[] createWebMessageChannel() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.createWebMessageChannel");
+        return new WebMessagePort[0];
     }
 
     public void postWebMessage(@NonNull WebMessage message, @NonNull Uri targetOrigin) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.postWebMessage");
     }
 
     @NonNull
@@ -745,320 +801,361 @@ public class WebView  {
     }
 
     public static void setWebContentsDebuggingEnabled(boolean enabled) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setWebContentsDebuggingEnabled");
     }
 
     public static void setDataDirectorySuffix(@NonNull String suffix) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setDataDirectorySuffix");
     }
 
     public static void disableWebView() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.disableWebView");
     }
 
     /** @deprecated */
     @Deprecated
     public void onChildViewAdded(View parent, View child) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onChildViewAdded");
     }
 
     /** @deprecated */
     @Deprecated
     public void onChildViewRemoved(View p, View child) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onChildViewRemoved");
     }
 
     /** @deprecated */
     @Deprecated
     public void onGlobalFocusChanged(View oldFocus, View newFocus) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onGlobalFocusChanged");
     }
 
     /** @deprecated */
     @Deprecated
     public void setMapTrackballToArrowKeys(boolean setMap) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setMapTrackballToArrowKeys");
     }
 
     public void flingScroll(int vx, int vy) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.flingScroll");
     }
 
     /** @deprecated */
     @Deprecated
     public boolean canZoomIn() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.canZoomIn");
+        return false;
     }
 
     /** @deprecated */
     @Deprecated
     public boolean canZoomOut() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.canZoomOut");
+        return false;
     }
 
     public void zoomBy(float zoomFactor) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.zoomBy");
     }
 
     public boolean zoomIn() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.zoomIn");
+        return false;
     }
 
     public boolean zoomOut() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.zoomOut");
+        return false;
     }
 
     public void setRendererPriorityPolicy(int rendererRequestedPriority, boolean waivedWhenNotVisible) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setRendererPriorityPolicy");
     }
 
     public int getRendererRequestedPriority() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getRendererRequestedPriority");
+        return RENDERER_PRIORITY_IMPORTANT;
     }
 
     public boolean getRendererPriorityWaivedWhenNotVisible() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getRendererPriorityWaivedWhenNotVisible");
+        return false;
     }
 
     public void setTextClassifier(@Nullable TextClassifier textClassifier) {
-        throw new RuntimeException("Stub!");
+        mTextClassifier = textClassifier;
     }
 
     @NonNull
     public TextClassifier getTextClassifier() {
-        throw new RuntimeException("Stub!");
+        if (mTextClassifier != null) {
+            return mTextClassifier;
+        }
+        System.out.println("[STUB] WebView.getTextClassifier");
+        return null;
     }
 
     @NonNull
     public static ClassLoader getWebViewClassLoader() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getWebViewClassLoader");
+        return WebView.class.getClassLoader();
     }
 
     @NonNull
     public Looper getWebViewLooper() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getWebViewLooper");
+        return Looper.getMainLooper();
     }
 
     protected void onAttachedToWindow() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onAttachedToWindow");
     }
 
     public void setLayoutParams(ViewGroup.LayoutParams params) {
-        throw new RuntimeException("Stub!");
+        super.setLayoutParams(params);
     }
 
     public void setOverScrollMode(int mode) {
-        throw new RuntimeException("Stub!");
+        super.setOverScrollMode(mode);
     }
 
     public void setScrollBarStyle(int style) {
-        throw new RuntimeException("Stub!");
+        super.setScrollBarStyle(style);
     }
 
     protected int computeHorizontalScrollRange() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeHorizontalScrollRange");
+        return 0;
     }
 
     protected int computeHorizontalScrollOffset() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeHorizontalScrollOffset");
+        return 0;
     }
 
     protected int computeVerticalScrollRange() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeVerticalScrollRange");
+        return 0;
     }
 
     protected int computeVerticalScrollOffset() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeVerticalScrollOffset");
+        return 0;
     }
 
     protected int computeVerticalScrollExtent() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeVerticalScrollExtent");
+        return 0;
     }
 
     public void computeScroll() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.computeScroll");
     }
 
     public boolean onHoverEvent(MotionEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onHoverEvent");
+        return false;
     }
 
     public boolean onTouchEvent(MotionEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onTouchEvent");
+        return false;
     }
 
     public boolean onGenericMotionEvent(MotionEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onGenericMotionEvent");
+        return false;
     }
 
     public boolean onTrackballEvent(MotionEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onTrackballEvent");
+        return false;
     }
 
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onKeyDown");
+        return false;
     }
 
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onKeyUp");
+        return false;
     }
 
     public boolean onKeyMultiple(int keyCode, int repeatCount, KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onKeyMultiple");
+        return false;
     }
 
     public AccessibilityNodeProvider getAccessibilityNodeProvider() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getAccessibilityNodeProvider");
+        return null;
     }
 
     /** @deprecated */
     @Deprecated
     public boolean shouldDelayChildPressedState() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.shouldDelayChildPressedState");
+        return true;
     }
 
     public CharSequence getAccessibilityClassName() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getAccessibilityClassName");
+        return "WebView";
     }
 
     public void onProvideVirtualStructure(ViewStructure structure) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onProvideVirtualStructure");
     }
 
     public void onProvideAutofillVirtualStructure(ViewStructure structure, int flags) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onProvideAutofillVirtualStructure");
     }
 
     public void onProvideContentCaptureStructure(@NonNull ViewStructure structure, int flags) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onProvideContentCaptureStructure");
     }
 
     public void autofill(SparseArray<AutofillValue> values) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.autofill");
     }
 
     public boolean isVisibleToUserForAutofill(int virtualId) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.isVisibleToUserForAutofill");
+        return false;
     }
 
     protected void onOverScrolled(int scrollX, int scrollY, boolean clampedX, boolean clampedY) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onOverScrolled");
     }
 
     protected void onWindowVisibilityChanged(int visibility) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onWindowVisibilityChanged");
     }
 
     protected void onDraw(Canvas canvas) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onDraw");
     }
 
     public boolean performLongClick() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.performLongClick");
+        return false;
     }
 
     protected void onConfigurationChanged(Configuration newConfig) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onConfigurationChanged");
     }
 
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onCreateInputConnection");
+        return null;
     }
 
     public boolean onDragEvent(DragEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onDragEvent");
+        return false;
     }
 
     protected void onVisibilityChanged(View changedView, int visibility) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onVisibilityChanged");
     }
 
     public void onWindowFocusChanged(boolean hasWindowFocus) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onWindowFocusChanged");
     }
 
     protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onFocusChanged");
     }
 
     protected void onSizeChanged(int w, int h, int ow, int oh) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onSizeChanged");
     }
 
     protected void onScrollChanged(int l, int t, int oldl, int oldt) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onScrollChanged");
     }
 
     public boolean dispatchKeyEvent(KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.dispatchKeyEvent");
+        return false;
     }
 
     public boolean requestFocus(int direction, Rect previouslyFocusedRect) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.requestFocus");
+        return false;
     }
 
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onMeasure");
     }
 
     public boolean requestChildRectangleOnScreen(View child, Rect rect, boolean immediate) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.requestChildRectangleOnScreen");
+        return false;
     }
 
     public void setBackgroundColor(int color) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.setBackgroundColor");
+        super.setBackgroundColor(color);
     }
 
     public void setLayerType(int layerType, Paint paint) {
     }
 
     protected void dispatchDraw(Canvas canvas) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.dispatchDraw");
     }
 
     public void onStartTemporaryDetach() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onStartTemporaryDetach");
     }
 
     public void onFinishTemporaryDetach() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onFinishTemporaryDetach");
     }
 
     public Handler getHandler() {
-        throw new RuntimeException("Stub!");
+        if (mHandler == null) {
+            mHandler = new Handler();
+        }
+        return mHandler;
     }
 
     public View findFocus() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.findFocus");
+        return super.findFocus();
     }
 
     @Nullable
     public static PackageInfo getCurrentWebViewPackage() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.getCurrentWebViewPackage");
+        return null;
     }
 
     public boolean onCheckIsTextEditor() {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebView.onCheckIsTextEditor");
+        return false;
     }
 
     public class WebViewTransport {
+        private WebView mWebView;
+
         public WebViewTransport() {
-            throw new RuntimeException("Stub!");
         }
 
         public synchronized void setWebView(@Nullable WebView webview) {
-            throw new RuntimeException("Stub!");
+            mWebView = webview;
         }
 
         @Nullable
         public synchronized WebView getWebView() {
-            throw new RuntimeException("Stub!");
+            return mWebView;
         }
     }
 
     public abstract static class VisualStateCallback {
         public VisualStateCallback() {
-            throw new RuntimeException("Stub!");
         }
 
         public abstract void onComplete(long var1);
@@ -1088,17 +1185,24 @@ public class WebView  {
         public static final int SRC_IMAGE_ANCHOR_TYPE = 8;
         public static final int UNKNOWN_TYPE = 0;
 
+        private int mType = UNKNOWN_TYPE;
+        private String mExtra;
+
         HitTestResult() {
-            throw new RuntimeException("Stub!");
+        }
+
+        HitTestResult(int type, String extra) {
+            mType = type;
+            mExtra = extra;
         }
 
         public int getType() {
-            throw new RuntimeException("Stub!");
+            return mType;
         }
 
         @Nullable
         public String getExtra() {
-            throw new RuntimeException("Stub!");
+            return mExtra;
         }
     }
 

@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.controller
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +22,7 @@ import suwayomi.tachidesk.manga.impl.Search.FilterData
 import suwayomi.tachidesk.manga.impl.Source
 import suwayomi.tachidesk.manga.impl.Source.SourcePreferenceChange
 import suwayomi.tachidesk.manga.impl.SourceMeta
+import suwayomi.tachidesk.manga.model.dataclass.FilterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.PagedSMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.SourceDataClass
@@ -171,7 +173,7 @@ object SourceController {
             ctx.json(Search.getFilterList(sourceId, reset))
         },
         withResults = {
-            json<Array<Search.FilterObject>>(HttpCode.OK)
+            json<Array<FilterDataClass>>(HttpCode.OK)
         },
     )
 

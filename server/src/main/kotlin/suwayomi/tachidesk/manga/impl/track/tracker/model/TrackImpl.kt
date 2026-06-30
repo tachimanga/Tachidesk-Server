@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.impl.track.tracker.model
 
+/*
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 class TrackImpl : Track {
 
     override var id: Long? = null
@@ -25,6 +32,10 @@ class TrackImpl : Track {
     override var started_reading_date: Long = 0
 
     override var finished_reading_date: Long = 0
+
+    override var started_reading_date_str: String? = null
+
+    override var finished_reading_date_str: String? = null
 
     override var tracking_url: String = ""
 }

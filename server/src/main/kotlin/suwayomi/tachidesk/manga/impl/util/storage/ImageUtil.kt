@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl.util.storage
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -66,6 +67,9 @@ object ImageUtil {
                 return HEIF
             }
             if (bytes.compareWith(charByteArrayOf(0xFF, 0x0A))) {
+                return JXL
+            }
+            if (bytes.compareWith(charByteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x4A, 0x58, 0x4C, 0x20, 0x0D, 0x0A, 0x87, 0x0A))) {
                 return JXL
             }
         } catch (_: Exception) {

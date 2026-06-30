@@ -1,5 +1,14 @@
 package android.os;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import xyz.nulldev.androidcompat.config.SystemConfigModule;
 import xyz.nulldev.ts.config.ConfigManager;
 import xyz.nulldev.ts.config.GlobalConfigManager;
@@ -51,7 +60,7 @@ public class Build {
     }
 
     public static String getRadioVersion() {
-        throw new RuntimeException("Stub!");
+        return "";
     }
 
     public static class VERSION_CODES {
@@ -96,7 +105,6 @@ public class Build {
         public static final String SECURITY_PATCH = null;
 
         public VERSION() {
-            throw new RuntimeException("Stub!");
         }
     }
 }

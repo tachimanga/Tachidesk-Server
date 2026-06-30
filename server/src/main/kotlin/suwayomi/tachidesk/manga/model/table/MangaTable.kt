@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.model.table
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,6 +17,7 @@ import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ResultRow
 import suwayomi.tachidesk.manga.impl.MangaList.proxyThumbnailUrl
+import suwayomi.tachidesk.manga.impl.util.parseMemo
 import suwayomi.tachidesk.manga.model.dataclass.MangaDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toGenreList
 import suwayomi.tachidesk.manga.model.table.MangaStatus.Companion
@@ -49,6 +51,8 @@ object MangaTable : IntIdTable() {
     val lastDownloadAt = long("last_download_at").default(0)
 
     val updateStrategy = varchar("update_strategy", 256).default(UpdateStrategy.ALWAYS_UPDATE.name)
+
+    val memo = text("memo").default("{}")
 
     val createAt = long("create_at").default(0)
     val updateAt = long("update_at").default(0)
@@ -111,6 +115,12 @@ fun MangaTable.toSyncData(entry: ResultRow): SyncCommitDTO {
     manga.description = entry[MangaTable.description]
     manga.genre = entry[MangaTable.genre]
 
+    // metaMap
+    val memoStr = entry[MangaTable.memo]
+    if (memoStr.isNotEmpty() && memoStr != "{}") {
+        manga.metaMap = mutableMapOf("memo" to memoStr)
+    }
+
     sync.manga = manga
     return sync
 }
@@ -128,6 +138,7 @@ fun MangaTable.toSManga(mangaEntry: ResultRow) =
         status = mangaEntry[MangaTable.status]
         thumbnail_url = mangaEntry[MangaTable.thumbnail_url]
         initialized = mangaEntry[MangaTable.initialized]
+        memo = mangaEntry[MangaTable.memo].parseMemo()
     }
 
 fun MangaTable.toBackupManga(mangaEntry: ResultRow) =
@@ -147,6 +158,7 @@ fun MangaTable.toBackupManga(mangaEntry: ResultRow) =
         chapterFlags = 0,
         updateStrategy = UpdateStrategy.valueOf(mangaEntry[updateStrategy]),
         lastModifiedAt = 0,
+        memo = mangaEntry[MangaTable.memo].encodeToByteArray(),
     )
 
 enum class MangaStatus(val value: Int) {

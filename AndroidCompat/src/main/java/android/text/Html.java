@@ -1,5 +1,13 @@
 package android.text;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import android.graphics.drawable.Drawable;
 import org.jetbrains.annotations.NotNull;
@@ -22,7 +30,7 @@ public class Html {
     }
 
     public static Spanned fromHtml(String source, Html.ImageGetter imageGetter, Html.TagHandler tagHandler) {
-        throw new RuntimeException("Stub!");
+        return new FakeSpanned(Jsoup.clean(source, Safelist.none()));
     }
 
     public static String toHtml(Spanned text) {

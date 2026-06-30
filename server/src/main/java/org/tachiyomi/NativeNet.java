@@ -1,5 +1,12 @@
 package org.tachiyomi;
 
+/*
+ * Copyright (C) 2024 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import io.javalin.plugin.json.JsonMapper;
 import okio.Buffer;
 
@@ -8,13 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
- 
 public class NativeNet {
     public static Resp call(Req req, Buffer buffer, JsonMapper jsonMapper) {
         String json = jsonMapper.toJsonString(req);

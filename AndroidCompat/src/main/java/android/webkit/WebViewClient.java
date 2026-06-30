@@ -5,6 +5,14 @@
 
 package android.webkit;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.Nullable;
 import android.graphics.Bitmap;
 import android.net.http.SslError;
@@ -74,64 +82,66 @@ public class WebViewClient {
     /** @deprecated */
     @Deprecated
     public void onTooManyRedirects(WebView view, Message cancelMsg, Message continueMsg) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onTooManyRedirects");
     }
 
     /** @deprecated */
     @Deprecated
     public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedError");
     }
 
     public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedError");
     }
 
     public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedHttpError");
     }
 
     public void onFormResubmission(WebView view, Message dontResend, Message resend) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onFormResubmission");
     }
 
     public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.doUpdateVisitedHistory");
     }
 
     public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedSslError");
     }
 
     public void onReceivedClientCertRequest(WebView view, ClientCertRequest request) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedClientCertRequest");
     }
 
     public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler handler, String host, String realm) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedHttpAuthRequest");
     }
 
     public boolean shouldOverrideKeyEvent(WebView view, KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.shouldOverrideKeyEvent");
+        return false;
     }
 
     public void onUnhandledKeyEvent(WebView view, KeyEvent event) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onUnhandledKeyEvent");
     }
 
     public void onScaleChanged(WebView view, float oldScale, float newScale) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onScaleChanged");
     }
 
     public void onReceivedLoginRequest(WebView view, String realm, @Nullable String account, String args) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onReceivedLoginRequest");
     }
 
     public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onRenderProcessGone");
+        return false;
     }
 
     public void onSafeBrowsingHit(WebView view, WebResourceRequest request, int threatType, SafeBrowsingResponse callback) {
-        throw new RuntimeException("Stub!");
+        System.out.println("[STUB] WebViewClient.onSafeBrowsingHit");
     }
 }

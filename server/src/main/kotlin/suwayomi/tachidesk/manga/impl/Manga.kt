@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -77,7 +78,7 @@ object Manga {
             }
             // Tachiyomi: val networkManga = state.source.getMangaDetails(state.manga.toSManga())
             val sManga = MangaTable.toSManga(mangaEntry)
-            val networkManga = source.getMangaDetails(sManga)
+            val networkManga = source.getMangaUpdate(sManga, chapters = emptyList(), fetchDetails = true, fetchChapters = false).manga
             sManga.copyFrom(networkManga)
 
             val realUrl = runCatching {
@@ -88,7 +89,7 @@ object Manga {
 
             // Tachiyomi: awaitUpdateFromSource
             val remoteTitle = try {
-                networkManga.title
+                networkManga.title.trim()
             } catch (_: UninitializedPropertyAccessException) {
                 ""
             }
@@ -120,6 +121,8 @@ object Manga {
                     it[MangaTable.lastFetchedAt] = Instant.now().epochSecond
 
                     it[MangaTable.updateStrategy] = sManga.update_strategy.name
+
+                    it[MangaTable.memo] = sManga.memo.toString()
                 }
             }
 

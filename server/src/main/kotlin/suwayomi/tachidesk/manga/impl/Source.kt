@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -61,21 +62,33 @@ object Source {
             SourceTable.selectAll().toList()
         }
         return sourceList.mapNotNull {
-            val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
-            val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
-            SourceDataClass(
-                it[SourceTable.id].value.toString(),
-                it[SourceTable.name],
-                it[SourceTable.lang],
-                if (sourceExtension != null) getExtensionIconUrl(sourceExtension[ExtensionTable.apkName], sourceExtension[ExtensionTable.iconUrl]) else "",
-                if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
-                if (sourceExtension != null) sourceExtension[ExtensionTable.pkgName] else "",
-                catalogueSource.supportsLatest,
-                catalogueSource is ConfigurableSource,
-                it[SourceTable.isNsfw],
-                // HttpSource.toString = "$name (${lang.uppercase()})"
-                catalogueSource.toString(),
-            )
+            try {
+                val catalogueSource = getCatalogueSourceOrNull(it[SourceTable.id].value) ?: return@mapNotNull null
+                val sourceExtension = dbExtensionMap[it[SourceTable.extension]]
+                SourceDataClass(
+                    it[SourceTable.id].value.toString(),
+                    it[SourceTable.name],
+                    it[SourceTable.lang],
+                    if (sourceExtension != null) {
+                        getExtensionIconUrl(
+                            sourceExtension[ExtensionTable.apkName],
+                            sourceExtension[ExtensionTable.iconUrl],
+                        )
+                    } else {
+                        ""
+                    },
+                    if (catalogueSource is HttpSource) catalogueSource.getHomeUrl() else null,
+                    if (sourceExtension != null) sourceExtension[ExtensionTable.pkgName] else "",
+                    catalogueSource.supportsLatest,
+                    catalogueSource is ConfigurableSource,
+                    it[SourceTable.isNsfw],
+                    // HttpSource.toString = "$name (${lang.uppercase()})"
+                    catalogueSource.toString(),
+                )
+            } catch (e: Throwable) {
+                logger.error(e) { "Error while getting source, $it" }
+                null
+            }
         }
     }
 
@@ -108,7 +121,7 @@ object Source {
                 source[SourceTable.name],
                 source[SourceTable.lang],
                 getExtensionIconUrl(extension[ExtensionTable.apkName], extension[ExtensionTable.iconUrl]),
-                if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+                if (catalogueSource is HttpSource) catalogueSource.getHomeUrl() else null,
                 extension[ExtensionTable.pkgName],
                 catalogueSource.supportsLatest,
                 catalogueSource is ConfigurableSource,
@@ -154,7 +167,7 @@ object Source {
             source[SourceTable.name],
             source[SourceTable.lang],
             getExtensionIconUrl(extension[ExtensionTable.apkName], extension[ExtensionTable.iconUrl]),
-            if (catalogueSource is HttpSource) catalogueSource.baseUrl else null,
+            if (catalogueSource is HttpSource) catalogueSource.getHomeUrl() else null,
             extension[ExtensionTable.pkgName],
             catalogueSource.supportsLatest,
             catalogueSource is ConfigurableSource,
@@ -284,8 +297,10 @@ object Source {
             else -> throw RuntimeException("Unsupported type conversion")
         }
 
-        pref.saveNewValue(newValue)
-        pref.callChangeListener(newValue)
+        val ret = pref.callChangeListener(newValue)
+        if (ret) {
+            pref.saveNewValue(newValue)
+        }
 
         // must reload the source because a preference was changed
         unregisterCatalogueSource(sourceId)

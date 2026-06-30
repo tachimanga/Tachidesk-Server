@@ -1,5 +1,13 @@
 package xyz.nulldev.androidcompat
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import org.kodein.di.DI
 import org.kodein.di.conf.global
 import xyz.nulldev.androidcompat.config.ApplicationInfoConfigModule

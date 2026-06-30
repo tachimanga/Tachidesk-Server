@@ -1,5 +1,13 @@
 package suwayomi.tachidesk.manga.controller
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import io.javalin.http.HttpCode
 import io.javalin.websocket.WsConfig
 import kotlinx.serialization.Serializable
@@ -18,13 +26,6 @@ import suwayomi.tachidesk.server.util.handler
 import suwayomi.tachidesk.server.util.pathParam
 import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
-
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 object UpdateController {
     private val logger = KotlinLogging.logger { }

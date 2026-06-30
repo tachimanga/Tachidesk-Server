@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -85,7 +86,12 @@ object Chapter {
         Profiler.split("getManga")
         // tachiyomi: state.source.getMangaDetails(state.manga.toSManga())
         val sManga = MangaTable.toSManga(mangaEntry)
-        val rawChapterList = source.getChapterList(sManga)
+        val dbChapterList = transaction {
+            ChapterTable.select { ChapterTable.manga eq mangaId }.toList()
+        }
+        Profiler.split("after getDbChapterList")
+        val sChapters = dbChapterList.sortedByDescending { it[ChapterTable.sourceOrder] }.map { ChapterTable.toSChapter(it) }
+        val rawChapterList = source.getMangaUpdate(sManga, chapters = sChapters, fetchDetails = false, fetchChapters = true).chapters
         val chapterList = rawChapterList
             .distinctBy { it.url }
         Profiler.split("after fetchChapterList")
@@ -93,6 +99,7 @@ object Chapter {
         chapterList.forEach {
             it.name = ChapterSanitizer.sanitize(it.name, sManga.title)
         }
+        Profiler.split("after ChapterSanitizer")
         // Recognize number for new chapters.
         chapterList.forEach {
             (source as? HttpSource)?.prepareNewChapter(it, sManga)
@@ -102,12 +109,8 @@ object Chapter {
 
         val chapterCount = chapterList.count()
         var now = Instant.now().epochSecond
-        val dbChapterListUrlMap = transaction {
-            ChapterTable.select { ChapterTable.manga eq mangaId }
-                .associateBy { it[ChapterTable.url] }
-        }
-        Profiler.split("after getDbChapterList")
-
+        val dbChapterListUrlMap = dbChapterList
+            .associateBy { it[ChapterTable.url] }
         val sourceChapterListUrlMap = chapterList.associateBy { it.url }
         val toDeleteChapterList = dbChapterListUrlMap.values
             .filter { sourceChapterListUrlMap[it[ChapterTable.url]] == null }
@@ -154,7 +157,9 @@ object Chapter {
                     my[ChapterTable.date_upload] = fetchedChapter.date_upload
                     my[ChapterTable.chapter_number] = fetchedChapter.chapter_number
                     my[scanlator] = fetchedChapter.scanlator?.take(128)
-
+                    if (fetchedChapter.memo.isNotEmpty()) {
+                        my[ChapterTable.memo] = fetchedChapter.memo.toString()
+                    }
                     my[ChapterTable.sourceOrder] = index + 1
                     my[ChapterTable.fetchedAt] = now++
                     my[ChapterTable.manga] = mangaId
@@ -224,7 +229,7 @@ object Chapter {
                         it[date_upload] = fetchedChapter.date_upload
                         it[chapter_number] = fetchedChapter.chapter_number
                         it[scanlator] = fetchedChapter.scanlator?.take(128)
-
+                        it[ChapterTable.memo] = fetchedChapter.memo.toString()
                         it[sourceOrder] = index + 1
                         it[ChapterTable.manga] = mangaId
                     }
@@ -377,7 +382,8 @@ object Chapter {
             dbChapter[ChapterTable.date_upload] == fetchedChapter.date_upload &&
             dbChapter[ChapterTable.chapter_number] == fetchedChapter.chapter_number &&
             dbChapter[ChapterTable.scanlator] == fetchedChapter.scanlator &&
-            dbChapter[ChapterTable.sourceOrder] == index + 1
+            dbChapter[ChapterTable.sourceOrder] == index + 1 &&
+            (fetchedChapter.memo.toString() == dbChapter[ChapterTable.memo])
         ) {
             return false
         }

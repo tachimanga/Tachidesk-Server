@@ -1,5 +1,14 @@
 package android.graphics;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -162,6 +171,18 @@ public final class Bitmap {
         return getPixel(nativeImageRef.address(), x, y);
     }
 
+    public void setPixels(int[] pixels, int offset, int stride,
+                          int x, int y, int width, int height) {
+        if (nativeCanvasRef == null) {
+            throw new RuntimeException("nativeCanvasRef is null");
+        }
+        if (x < 0 || y < 0 || x + width > this.width || y + height > this.height) {
+            throw new IllegalArgumentException("x=" + x + ", y=" + y + ", width=" + width + ", height=" + height + ", bitmapWidth=" + this.width + ", bitmapHeight=" + this.height);
+        }
+
+        setPixelsNative(nativeCanvasRef.address(), pixels, offset, stride, x, y, width, height);
+    }
+
     public void getPixels(int[] pixels, int offset, int stride,
                           int x, int y, int width, int height) {
         if (nativeImageRef == null) {
@@ -247,6 +268,9 @@ public final class Bitmap {
     private native void drawBitmap(long imageRef, long canvasRef, int[] src, int []dst);
 
     private native void drawPointNative(long canvasRef, int x, int y, int color);
+
+    private native void setPixelsNative(long canvasRef, int[] pixels, int offset, int stride,
+                                        int x, int y, int width, int height);
 
     // format  CompressFormat.nativeInt
     // quality 0 100

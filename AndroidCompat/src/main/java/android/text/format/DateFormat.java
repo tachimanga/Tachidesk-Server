@@ -5,6 +5,14 @@
 
 package android.text.format;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.content.Context;
 
 import java.text.SimpleDateFormat;
@@ -22,27 +30,27 @@ public class DateFormat {
     }
 
     public static String getBestDateTimePattern(Locale locale, String skeleton) {
-        throw new RuntimeException("Stub!");
+        return skeleton;
     }
 
     public static java.text.DateFormat getTimeFormat(Context context) {
-        throw new RuntimeException("Stub!");
+        return new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
     }
 
     public static java.text.DateFormat getDateFormat(Context context) {
-        throw new RuntimeException("Stub!");
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
     }
 
     public static java.text.DateFormat getLongDateFormat(Context context) {
-        throw new RuntimeException("Stub!");
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
     }
 
     public static java.text.DateFormat getMediumDateFormat(Context context) {
-        throw new RuntimeException("Stub!");
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
     }
 
     public static char[] getDateFormatOrder(Context context) {
-        throw new RuntimeException("Stub!");
+        return new char[]{'y', 'M', 'd'};
     }
 
     public static CharSequence format(CharSequence inFormat, long inTimeInMillis) {

@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.data.backup
 
 /*
- * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -136,6 +136,7 @@ object ProtoBackupExport {
                 ChapterTable.date_upload,
                 ChapterTable.chapter_number,
                 ChapterTable.sourceOrder,
+                ChapterTable.memo,
             ).select {
                 (ChapterTable.manga inList mangaIds) and
                     ((ChapterTable.isRead eq true) or (ChapterTable.isBookmarked eq true) or (ChapterTable.lastPageRead greater 0) or (ChapterTable.lastReadAt greater 0))

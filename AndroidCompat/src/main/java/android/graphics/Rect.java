@@ -1,19 +1,28 @@
 package android.graphics;
 
-import android.os.Parcel;
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.os.Parcelable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import android.os.Parcel;
 
 public final class Rect {
-    int left;
-    int top;
-    int right;
-    int bottom;
+    public int left;
+    public int top;
+    public int right;
+    public int bottom;
 
     private static final class UnflattenHelper {
         private static final Pattern FLATTENED_PATTERN = Pattern.compile(
-            "(-?\\d+) (-?\\d+) (-?\\d+) (-?\\d+)");
+                "(-?\\d+) (-?\\d+) (-?\\d+) (-?\\d+)");
 
         static Matcher getMatcher(String str) {
             return FLATTENED_PATTERN.matcher(str);
@@ -37,11 +46,25 @@ public final class Rect {
             this.right = 0;
             this.bottom = 0;
         } else {
-            this.left = left;
-            this.top = top;
-            this.right = right;
-            this.bottom = bottom;
+            this.left = r.left;
+            this.top = r.top;
+            this.right = r.right;
+            this.bottom = r.bottom;
         }
+    }
+
+    public void set(int left, int top, int right, int bottom) {
+        this.left = left;
+        this.top = top;
+        this.right = right;
+        this.bottom = bottom;
+    }
+
+    public void set(Rect r) {
+        this.left = r.left;
+        this.top = r.top;
+        this.right = r.right;
+        this.bottom = r.bottom;
     }
 
     public final int getWidth() {
@@ -63,15 +86,15 @@ public final class Rect {
         }
 
         return new Rect(Integer.parseInt(matcher.group(1)),
-                        Integer.parseInt(matcher.group(2)),
-                        Integer.parseInt(matcher.group(3)),
-                        Integer.parseInt(matcher.group(4)));
+                Integer.parseInt(matcher.group(2)),
+                Integer.parseInt(matcher.group(3)),
+                Integer.parseInt(matcher.group(4)));
     }
 
     public String toShortString() {
         return toShortString(new StringBuilder(32));
     }
-    
+
     public String toShortString(StringBuilder sb) {
         sb.setLength(0);
         sb.append('['); sb.append(left); sb.append(',');

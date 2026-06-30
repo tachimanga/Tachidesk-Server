@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,8 +17,17 @@ import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.manga.impl.MangaList.processEntries
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource.getCatalogueSourceOrStub
+import suwayomi.tachidesk.manga.model.dataclass.CheckBoxFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.FilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.GroupFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.HeaderFilterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
 import suwayomi.tachidesk.manga.model.dataclass.PagedSMangaListDataClass
+import suwayomi.tachidesk.manga.model.dataclass.SelectFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.SeparatorFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.SortFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.TextFilterDataClass
+import suwayomi.tachidesk.manga.model.dataclass.TriStateFilterDataClass
 import suwayomi.tachidesk.manga.model.dataclass.toSMangaDataClass
 
 object Search {
@@ -40,49 +50,52 @@ object Search {
         )
     }
 
-    fun getFilterList(sourceId: Long, reset: Boolean): List<FilterObject> {
+    fun getFilterList(sourceId: Long, reset: Boolean): List<FilterDataClass> {
         val source = getCatalogueSourceOrStub(sourceId)
-        return source.getFilterList().list.map {
-            FilterObject(
-                when (it) {
-                    is Filter.Header -> "Header"
-                    is Filter.Separator -> "Separator"
-                    is Filter.Select<*> -> "Select"
-                    is Filter.Text -> "Text"
-                    is Filter.CheckBox -> "CheckBox"
-                    is Filter.TriState -> "TriState"
-                    is Filter.Group<*> -> "Group"
-                    is Filter.Sort -> "Sort"
-                    else -> throw RuntimeException("sealed class Cannot have more Subtypes!")
-                },
-                when (it) {
-                    is Filter.Group<*> -> {
-                        SerializableGroup(
-                            it.name,
-                            it.state.map { item ->
-                                when (item) {
-                                    is Filter.CheckBox -> FilterObject("CheckBox", item)
-                                    is Filter.TriState -> FilterObject("TriState", item)
-                                    is Filter.Text -> FilterObject("Text", item)
-                                    is Filter.Select<*> -> FilterObject("Select", item)
-                                    else -> throw RuntimeException("Illegal Group item type!")
-                                }
-                            },
-                        )
-                    }
-                    else -> it
-                },
-            )
-        }
+        return source.getFilterList().list.map { filterOf(it) }
     }
 
-    private fun Filter.Select<*>.getValuesType(): String = values::class.java.componentType!!.simpleName
-    class SerializableGroup(name: String, state: List<FilterObject>) : Filter<List<FilterObject>>(name, state)
-
-    data class FilterObject(
-        val type: String,
-        val filter: Filter<*>,
-    )
+    private fun filterOf(filter: Filter<*>): FilterDataClass =
+        when (filter) {
+            is Filter.Header -> FilterDataClass(type = "Header", filter = HeaderFilterDataClass(name = filter.name))
+            is Filter.Separator -> FilterDataClass(type = "Separator", filter = SeparatorFilterDataClass(name = filter.name))
+            is Filter.Select<*> -> FilterDataClass(
+                type = "Select",
+                filter = SelectFilterDataClass(
+                    name = filter.name,
+                    state = filter.state,
+                    displayValues = filter.displayValues,
+                ),
+            )
+            is Filter.Text -> FilterDataClass(
+                type = "Text",
+                filter = TextFilterDataClass(name = filter.name, state = filter.state),
+            )
+            is Filter.CheckBox -> FilterDataClass(
+                type = "CheckBox",
+                filter = CheckBoxFilterDataClass(name = filter.name, state = filter.state),
+            )
+            is Filter.TriState -> FilterDataClass(
+                type = "TriState",
+                filter = TriStateFilterDataClass(name = filter.name, state = filter.state),
+            )
+            is Filter.Group<*> -> FilterDataClass(
+                type = "Group",
+                filter = GroupFilterDataClass(
+                    name = filter.name,
+                    state = filter.state.map { filterOf(it as Filter<*>) },
+                ),
+            )
+            is Filter.Sort -> FilterDataClass(
+                type = "Sort",
+                filter = SortFilterDataClass(
+                    name = filter.name,
+                    state = filter.state?.let { SortFilterDataClass.SortSelection(it.index, it.ascending) },
+                    values = filter.values.asList(),
+                ),
+            )
+            else -> throw RuntimeException("Unknown filter type")
+        }
 
     private fun updateFilterList(filterList: FilterList, changes: List<FilterChange>): FilterList {
         changes.forEach { change ->

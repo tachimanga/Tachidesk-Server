@@ -1,18 +1,18 @@
 package suwayomi.tachidesk.kotlin
 
+/*
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.os.Looper
 import kotlinx.coroutines.*
 import java.lang.Runnable
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
-
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 @OptIn(InternalCoroutinesApi::class)
 open class JvmMainDispatcher private constructor() : MainCoroutineDispatcher(), Delay {

@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl.extension
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -173,8 +174,11 @@ object ExtensionsList {
                 if (extensionRecord != null) {
                     if (extensionRecord[ExtensionTable.isInstalled]) {
                         var updateFlag = false
-                        // there is an update
-                        if (foundExtension.versionCode > extensionRecord[ExtensionTable.versionCode]) {
+                        val hasUpdatedVer = foundExtension.versionCode > extensionRecord[ExtensionTable.versionCode]
+                        val currentLibVersion = extensionRecord[ExtensionTable.versionName].substringBeforeLast('.').toDoubleOrNull()
+                        val newLibVersion = foundExtension.versionName.substringBeforeLast('.').toDoubleOrNull()
+                        val hasUpdatedLib = currentLibVersion != null && newLibVersion != null && newLibVersion > currentLibVersion
+                        if (hasUpdatedVer || hasUpdatedLib) {
                             updateFlag = true
                             updateMap.putIfAbsent(extensionRecord[ExtensionTable.id].value, foundExtension)
                         }

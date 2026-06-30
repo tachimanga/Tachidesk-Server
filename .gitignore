@@ -21,3 +21,4 @@ scripts/zulu*
 scripts/electron-*
 scripts/rcedit-*
 .DS_Store
+.project

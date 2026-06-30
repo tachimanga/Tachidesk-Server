@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.impl.track
 
+/*
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -211,6 +218,12 @@ object Track {
         }
 
         val track = recordDb.toTrack()
+        if (!input.startDateStr.isNullOrEmpty()) {
+            track.started_reading_date_str = input.startDateStr
+        }
+        if (!input.finishDateStr.isNullOrEmpty()) {
+            track.finished_reading_date_str = input.finishDateStr
+        }
         tracker.update(track)
 
         upsertTrackRecord(track)
@@ -316,6 +329,8 @@ object Track {
         val scoreString: String? = null,
         val startDate: Long? = null,
         val finishDate: Long? = null,
+        val startDateStr: String? = null,
+        val finishDateStr: String? = null,
         val unbind: Boolean? = null,
     )
 }

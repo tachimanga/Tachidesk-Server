@@ -1,7 +1,9 @@
 package androidx.preference;
 
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,14 +23,17 @@ public class TwoStatePreference extends Preference {
         setDefaultValue(false);
     }
 
-    @JsonIgnore
-    public boolean isChecked() { throw new RuntimeException("Stub!"); }
+    private boolean mChecked = false;
+    private boolean mDisableDependentsState = false;
 
     @JsonIgnore
-    public void setChecked(boolean checked) { throw new RuntimeException("Stub!"); }
+    public boolean isChecked() { return mChecked; }
 
     @JsonIgnore
-    public CharSequence getSummaryOn() { throw new RuntimeException("Stub!"); }
+    public void setChecked(boolean checked) { mChecked = checked; }
+
+    @JsonIgnore
+    public CharSequence getSummaryOn() { return summaryOn; }
 
     @JsonIgnore
     public void setSummaryOn(CharSequence summary) {
@@ -37,7 +42,7 @@ public class TwoStatePreference extends Preference {
     }
 
     @JsonIgnore
-    public CharSequence getSummaryOff() { throw new RuntimeException("Stub!"); }
+    public CharSequence getSummaryOff() { return summaryOff; }
 
     @JsonIgnore
     public void setSummaryOff(CharSequence summary) {
@@ -56,10 +61,10 @@ public class TwoStatePreference extends Preference {
     }
 
     @JsonIgnore
-    public boolean getDisableDependentsState() { throw new RuntimeException("Stub!"); }
+    public boolean getDisableDependentsState() { return mDisableDependentsState; }
 
     @JsonIgnore
-    public void setDisableDependentsState(boolean disableDependentsState) { throw new RuntimeException("Stub!"); }
+    public void setDisableDependentsState(boolean disableDependentsState) { mDisableDependentsState = disableDependentsState; }
 
     /** Tachidesk specific API */
     @Override

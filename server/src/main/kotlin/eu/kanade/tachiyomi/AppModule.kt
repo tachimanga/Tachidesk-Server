@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2024 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -18,7 +19,9 @@ package eu.kanade.tachiyomi
 import android.app.Application
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import rx.Observable
 import rx.schedulers.Schedulers
 import uy.kohesive.injekt.api.InjektModule
@@ -29,6 +32,7 @@ import uy.kohesive.injekt.api.get
 
 class AppModule(val app: Application) : InjektModule {
 
+    @OptIn(ExperimentalSerializationApi::class)
     override fun InjektRegistrar.registerInjectables() {
         addSingleton(app)
 
@@ -59,6 +63,10 @@ class AppModule(val app: Application) : InjektModule {
                 ignoreUnknownKeys = true
                 explicitNulls = false
             }
+        }
+
+        addSingletonFactory<ProtoBuf> {
+            ProtoBuf
         }
 
         // Asynchronously init expensive components for a faster cold start

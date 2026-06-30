@@ -1,40 +1,59 @@
 package android.widget;
 
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-public class EditText {
-    public EditText(android.content.Context context) { throw new RuntimeException("Stub!"); }
+public class EditText extends TextView {
+    private android.text.Editable mEditable;
+    private int mSelectionStart = 0;
+    private int mSelectionEnd = 0;
 
-    public EditText(android.content.Context context, android.util.AttributeSet attrs) { throw new RuntimeException("Stub!"); }
+    public EditText(android.content.Context context) {
+        super(context);
+    }
 
-    public EditText(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr) { throw new RuntimeException("Stub!"); }
+    public EditText(android.content.Context context, android.util.AttributeSet attrs) {
+        super(context, attrs);
+    }
 
-    public EditText(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr, int defStyleRes) { throw new RuntimeException("Stub!"); }
+    public EditText(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
 
-    public boolean getFreezesText() { throw new RuntimeException("Stub!"); }
+    public EditText(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+        super(context, attrs, defStyleAttr, defStyleRes);
+    }
 
-    protected boolean getDefaultEditable() { throw new RuntimeException("Stub!"); }
+    public boolean getFreezesText() { return true; }
 
-    protected android.text.method.MovementMethod getDefaultMovementMethod() { throw new RuntimeException("Stub!"); }
+    protected boolean getDefaultEditable() { return true; }
 
-    public android.text.Editable getText() { throw new RuntimeException("Stub!"); }
+    protected android.text.method.MovementMethod getDefaultMovementMethod() { return null; }
 
-    public void setText(java.lang.CharSequence text, android.widget.TextView.BufferType type) { throw new RuntimeException("Stub!"); }
+    public android.text.Editable getText() { return mEditable; }
 
-    public void setSelection(int start, int stop) { throw new RuntimeException("Stub!"); }
+    public void setText(java.lang.CharSequence text, android.widget.TextView.BufferType type) {
+        super.setText(text, type);
+        if (text instanceof android.text.Editable) {
+            mEditable = (android.text.Editable) text;
+        }
+    }
 
-    public void setSelection(int index) { throw new RuntimeException("Stub!"); }
+    public void setSelection(int start, int stop) { mSelectionStart = start; mSelectionEnd = stop; }
 
-    public void selectAll() { throw new RuntimeException("Stub!"); }
+    public void setSelection(int index) { mSelectionStart = index; mSelectionEnd = index; }
 
-    public void extendSelection(int index) { throw new RuntimeException("Stub!"); }
+    public void selectAll() { mSelectionStart = 0; mSelectionEnd = getText() != null ? getText().length() : 0; }
 
-    public void setEllipsize(android.text.TextUtils.TruncateAt ellipsis) { throw new RuntimeException("Stub!"); }
+    public void extendSelection(int index) { mSelectionEnd = index; }
 
-    public java.lang.CharSequence getAccessibilityClassName() { throw new RuntimeException("Stub!"); }
+    public void setEllipsize(android.text.TextUtils.TruncateAt ellipsis) { super.setEllipsize(ellipsis); }
+
+    public java.lang.CharSequence getAccessibilityClassName() { return "EditText"; }
 }

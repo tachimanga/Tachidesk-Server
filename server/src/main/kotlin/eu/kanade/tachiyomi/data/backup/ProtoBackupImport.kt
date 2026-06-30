@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.data.backup
 
 /*
- * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -238,20 +238,27 @@ object ProtoBackupImport {
                     val chapters = manga.chapters.filter { it.read || it.bookmark || it.lastPageRead > 0 }
                     if (chapters.isNotEmpty()) {
                         val dbChapters = ChapterTable
-                            .slice(ChapterTable.id, ChapterTable.isRead, ChapterTable.isBookmarked, ChapterTable.lastPageRead, ChapterTable.url)
+                            .slice(ChapterTable.id, ChapterTable.isRead, ChapterTable.isBookmarked, ChapterTable.lastPageRead, ChapterTable.memo, ChapterTable.url)
                             .select { ChapterTable.manga eq id }
                             .associateBy { it[ChapterTable.url] }
                         chapters.forEach { chapter ->
                             val dbChapter = dbChapters[chapter.url]
                             if (dbChapter != null) {
+                                val backupMemoStr = chapter.memo.decodeToString()
+                                val memoChanged = backupMemoStr != dbChapter[ChapterTable.memo]
+
                                 if (dbChapter[ChapterTable.isRead] != chapter.read ||
                                     dbChapter[ChapterTable.isBookmarked] != chapter.bookmark ||
-                                    dbChapter[ChapterTable.lastPageRead] != chapter.lastPageRead.toInt()
+                                    dbChapter[ChapterTable.lastPageRead] != chapter.lastPageRead.toInt() ||
+                                    memoChanged
                                 ) {
                                     ChapterTable.update({ (ChapterTable.id eq dbChapter[ChapterTable.id]) }) {
                                         it[isRead] = chapter.read || dbChapter[isRead]
                                         it[isBookmarked] = chapter.bookmark || dbChapter[isBookmarked]
                                         it[ChapterTable.lastPageRead] = max(chapter.lastPageRead.toInt(), dbChapter[ChapterTable.lastPageRead])
+                                        if (memoChanged) {
+                                            it[ChapterTable.memo] = backupMemoStr
+                                        }
                                         it[ChapterTable.updateAt] = now
                                         it[ChapterTable.dirty] = true
                                     }
@@ -282,6 +289,12 @@ object ProtoBackupImport {
                         it[inLibrary] = manga.favorite
 
                         it[inLibraryAt] = TimeUnit.MILLISECONDS.toSeconds(manga.dateAdded)
+
+                        // memo
+                        val memoStr = manga.memo.decodeToString()
+                        if (memoStr.isNotEmpty() && memoStr != "{}") {
+                            it[MangaTable.memo] = memoStr
+                        }
 
                         val sManga = SManga.create().apply {
                             title = manga.title
@@ -320,6 +333,12 @@ object ProtoBackupImport {
                             my[ChapterTable.isBookmarked] = chapter.bookmark
 
                             my[ChapterTable.fetchedAt] = TimeUnit.MILLISECONDS.toSeconds(chapter.dateFetch)
+
+                            // memo
+                            val memoStr = chapter.memo.decodeToString()
+                            if (memoStr.isNotEmpty() && memoStr != "{}") {
+                                my[ChapterTable.memo] = memoStr
+                            }
 
                             val history = historyMap[chapter.url]
                             if (history != null) {

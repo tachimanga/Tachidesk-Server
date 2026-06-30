@@ -1,13 +1,13 @@
 package eu.kanade.tachiyomi.source
 
-import java.util.Collections
-
 /*
- * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+import java.util.Collections
 
 fun sourceSupportDirect(meta: SourceMeta?): Boolean {
     if (SourceSetting.ENABLE_FLUTTER_DIRECT == false) {

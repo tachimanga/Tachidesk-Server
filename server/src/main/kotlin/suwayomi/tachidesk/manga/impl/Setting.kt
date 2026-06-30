@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.impl
 
+/*
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import eu.kanade.tachiyomi.network.interceptor.EnableNativeNetInterceptor
 import eu.kanade.tachiyomi.source.SourceSetting
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -11,13 +18,6 @@ import suwayomi.tachidesk.manga.impl.update.UpdateManager
 import suwayomi.tachidesk.manga.impl.util.source.GetCatalogueSource
 import suwayomi.tachidesk.manga.impl.util.source.SourceConfig
 import xyz.nulldev.androidcompat.CommonSwitch
-
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 object Setting {
     private val logger = KotlinLogging.logger {}

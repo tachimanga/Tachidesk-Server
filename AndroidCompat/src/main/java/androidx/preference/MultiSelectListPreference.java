@@ -1,7 +1,9 @@
 package androidx.preference;
 
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2026 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,18 +41,23 @@ public class MultiSelectListPreference extends DialogPreference {
         return entryValues;
     }
 
-    @JsonIgnore
-    public void setValues(Set<String> values) {
-        throw new RuntimeException("Stub!");
-    }
+    private Set<String> mValues;
 
     @JsonIgnore
-    public Set<String> getValues() {
-        throw new RuntimeException("Stub!");
-    }
+    public void setValues(Set<String> values) { mValues = values; }
+
+    @JsonIgnore
+    public Set<String> getValues() { return mValues; }
 
     public int findIndexOfValue(String value) {
-        throw new RuntimeException("Stub!");
+        if (value != null && entryValues != null) {
+            for (int i = 0; i < entryValues.length; i++) {
+                if (value.equals(entryValues[i].toString())) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     /** Tachidesk specific API */

@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.impl
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -98,6 +99,10 @@ object MangaList {
 
                         // tachiyomi: networkToLocalManga.await(it.toDomainManga(sourceId))
                         it[initialized] = manga.initialized
+
+                        if (manga.memo.isNotEmpty()) {
+                            it[MangaTable.memo] = manga.memo.toString()
+                        }
                     }.value
                     if (sourceId == LocalSource.ID) {
                         setupDemoMangaExt(manga, mangaId)
@@ -131,12 +136,19 @@ object MangaList {
                 } else {
                     val mangaId = mangaEntry[MangaTable.id].value
 
-                    if (manga.thumbnail_url?.isNotBlank() == true &&
+                    val thumbnailChanged = manga.thumbnail_url?.isNotBlank() == true &&
                         manga.thumbnail_url != mangaEntry[MangaTable.thumbnail_url]
-                    ) {
+                    val memoChanged = manga.memo.toString() != mangaEntry[MangaTable.memo]
+
+                    if (thumbnailChanged || memoChanged) {
                         MangaTable.update({ MangaTable.id eq mangaId }) {
-                            it[MangaTable.thumbnail_url] = manga.thumbnail_url
-                            it[MangaTable.thumbnailUrlLastFetched] = Instant.now().epochSecond
+                            if (thumbnailChanged) {
+                                it[MangaTable.thumbnail_url] = manga.thumbnail_url
+                                it[MangaTable.thumbnailUrlLastFetched] = Instant.now().epochSecond
+                            }
+                            if (memoChanged) {
+                                it[MangaTable.memo] = manga.memo.toString()
+                            }
                         }
                     }
 

@@ -1,7 +1,9 @@
 package android.widget;
 
 /*
+ * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -26,8 +28,14 @@ public class Toast {
         this.duration = duration;
     }
 
+    private android.view.View mView;
+    private int mGravity = 0;
+    private int mXOffset = 0;
+    private int mYOffset = 0;
+    private float mHorizontalMargin = 0f;
+    private float mVerticalMargin = 0f;
+
     public Toast(android.content.Context context) {
-        throw new RuntimeException("Stub!");
     }
 
     public void show() {
@@ -39,51 +47,53 @@ public class Toast {
     }
 
     public void cancel() {
-        throw new RuntimeException("Stub!");
     }
 
     public void setView(android.view.View view) {
-        throw new RuntimeException("Stub!");
+        mView = view;
     }
 
     public android.view.View getView() {
-        throw new RuntimeException("Stub!");
+        return mView;
     }
 
     public void setDuration(int duration) {
-        throw new RuntimeException("Stub!");
+        this.duration = duration;
     }
 
     public int getDuration() {
-        throw new RuntimeException("Stub!");
+        return duration;
     }
 
     public void setMargin(float horizontalMargin, float verticalMargin) {
-        throw new RuntimeException("Stub!");
+        mHorizontalMargin = horizontalMargin;
+        mVerticalMargin = verticalMargin;
     }
 
     public float getHorizontalMargin() {
-        throw new RuntimeException("Stub!");
+        return mHorizontalMargin;
     }
 
     public float getVerticalMargin() {
-        throw new RuntimeException("Stub!");
+        return mVerticalMargin;
     }
 
     public void setGravity(int gravity, int xOffset, int yOffset) {
-        throw new RuntimeException("Stub!");
+        mGravity = gravity;
+        mXOffset = xOffset;
+        mYOffset = yOffset;
     }
 
     public int getGravity() {
-        throw new RuntimeException("Stub!");
+        return mGravity;
     }
 
     public int getXOffset() {
-        throw new RuntimeException("Stub!");
+        return mXOffset;
     }
 
     public int getYOffset() {
-        throw new RuntimeException("Stub!");
+        return mYOffset;
     }
 
     public static Toast makeText(android.content.Context context, java.lang.CharSequence text, int duration) {
@@ -91,14 +101,14 @@ public class Toast {
     }
 
     public static android.widget.Toast makeText(android.content.Context context, int resId, int duration) throws android.content.res.Resources.NotFoundException {
-        throw new RuntimeException("Stub!");
+        return new Toast("Toast_" + resId, duration);
     }
 
     public void setText(int resId) {
-        throw new RuntimeException("Stub!");
+        this.text = "Toast_" + resId;
     }
 
     public void setText(java.lang.CharSequence s) {
-        throw new RuntimeException("Stub!");
+        this.text = s;
     }
 }

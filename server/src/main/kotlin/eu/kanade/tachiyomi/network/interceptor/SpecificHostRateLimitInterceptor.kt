@@ -1,5 +1,13 @@
 package eu.kanade.tachiyomi.network.interceptor
 
+/*
+ * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.os.SystemClock
 import okhttp3.HttpUrl
 import okhttp3.Interceptor

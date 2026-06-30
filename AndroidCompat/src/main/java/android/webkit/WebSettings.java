@@ -5,6 +5,14 @@
 
 package android.webkit;
 
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.annotation.Nullable;
 import android.content.Context;
 
@@ -89,13 +97,12 @@ public abstract class WebSettings {
     /** @deprecated */
     @Deprecated
     public synchronized void setTextSize(TextSize t) {
-        throw new RuntimeException("Stub!");
     }
 
     /** @deprecated */
     @Deprecated
     public synchronized TextSize getTextSize() {
-        throw new RuntimeException("Stub!");
+        return TextSize.NORMAL;
     }
 
     /** @deprecated */
@@ -275,11 +282,10 @@ public abstract class WebSettings {
     public abstract boolean getSafeBrowsingEnabled();
 
     public void setForceDark(int forceDark) {
-        throw new RuntimeException("Stub!");
     }
 
     public int getForceDark() {
-        throw new RuntimeException("Stub!");
+        return FORCE_DARK_AUTO;
     }
 
     public abstract void setDisabledActionModeMenuItems(int var1);

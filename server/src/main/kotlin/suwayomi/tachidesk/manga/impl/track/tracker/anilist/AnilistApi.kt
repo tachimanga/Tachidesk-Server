@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.impl.track.tracker.anilist
 
+/*
+ * Copyright (C) 2023 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import android.net.Uri
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.network.*
@@ -100,8 +107,8 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("progress", track.last_chapter_read.toInt())
                     put("status", track.toAnilistStatus())
                     put("score", track.score.toInt())
-                    put("startedAt", createDate(track.started_reading_date))
-                    put("completedAt", createDate(track.finished_reading_date))
+                    put("startedAt", createDateFromStr(track.started_reading_date_str) ?: createDate(track.started_reading_date))
+                    put("completedAt", createDateFromStr(track.finished_reading_date_str) ?: createDate(track.finished_reading_date))
                 }
             }
             authClient.newCall(POST(apiUrl, body = payload.toString().toRequestBody(jsonMime)))
@@ -338,6 +345,21 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
         }
     }
 
+    private fun createDateFromStr(dateStr: String?): JsonObject? {
+        if (dateStr.isNullOrEmpty()) return null
+        return try {
+            val parts = dateStr.split("-")
+            if (parts.size != 3) return null
+            buildJsonObject {
+                put("year", parts[0].toInt())
+                put("month", parts[1].toInt())
+                put("day", parts[2].toInt())
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun createDate(dateValue: Long): JsonObject {
         if (dateValue == 0L) {
             return buildJsonObject {
@@ -379,9 +401,11 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
         }
 
         val message = try {
-            val result = response.parseAs<JsonObject>()
-            // {"data":null,"errors":[{"message":"Invalid token","status":400}]}
-            result["errors"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonPrimitive?.content
+            with(json) {
+                val result = response.parseAs<JsonObject>()
+                // {"data":null,"errors":[{"message":"Invalid token","status":400}]}
+                result["errors"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonPrimitive?.content
+            }
         } catch (_: Throwable) {
             null
         }

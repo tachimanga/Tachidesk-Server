@@ -2,6 +2,7 @@ package suwayomi.tachidesk.manga.model.table
 
 /*
  * Copyright (C) Contributors to the Suwayomi project
+ * Copyright (C) 2023 Tachimanga
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,7 +15,9 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.source.model.SChapter
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ResultRow
+import suwayomi.tachidesk.manga.impl.util.parseMemo
 import suwayomi.tachidesk.manga.model.dataclass.ChapterDataClass
+import suwayomi.tachidesk.manga.model.table.MangaTable.default
 
 object ChapterTable : IntIdTable() {
     val url = varchar("url", 2048)
@@ -44,6 +47,8 @@ object ChapterTable : IntIdTable() {
     val manga = reference("manga", MangaTable)
 
     val originalChapterId = integer("original_chapter_id").nullable()
+
+    val memo = text("memo").default("{}")
 
     val createAt = long("create_at").default(0)
     val updateAt = long("update_at").default(0)
@@ -79,6 +84,7 @@ fun ChapterTable.toSChapter(chapterEntry: ResultRow) = SChapter.create().apply {
     date_upload = chapterEntry[ChapterTable.date_upload]
     chapter_number = chapterEntry[ChapterTable.chapter_number]
     scanlator = chapterEntry[ChapterTable.scanlator]
+    memo = chapterEntry[ChapterTable.memo].parseMemo()
 }
 
 fun ChapterTable.toSyncData(entry: ResultRow): SyncCommitDTO {
@@ -118,4 +124,5 @@ fun ChapterTable.toBackupChapter(entry: ResultRow, totalChapter: Int) =
         dateUpload = entry[ChapterTable.date_upload],
         chapterNumber = entry[ChapterTable.chapter_number],
         sourceOrder = totalChapter - entry[ChapterTable.sourceOrder].toLong(),
+        memo = entry[ChapterTable.memo].encodeToByteArray(),
     )

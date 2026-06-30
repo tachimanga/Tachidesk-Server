@@ -1,5 +1,12 @@
 package suwayomi.tachidesk.manga.controller
 
+/*
+ * Copyright (C) 2025 Tachimanga
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import eu.kanade.tachiyomi.data.backup.BackupFlags
 import eu.kanade.tachiyomi.data.backup.ImporterSocket
 import eu.kanade.tachiyomi.data.backup.ProtoBackupExport
@@ -9,13 +16,6 @@ import io.javalin.websocket.WsConfig
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.formParam
 import suwayomi.tachidesk.server.util.handler
-
-/*
- * Copyright (C) Contributors to the Suwayomi project
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 object ProtoBackupController {
 
